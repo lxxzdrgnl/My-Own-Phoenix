@@ -31,7 +31,7 @@ function useChatSuggestions(project: string) {
       const res = await apiFetch("/api/settings");
       const data = await res.json();
       setSuggestions(parseChatSuggestions(data[`chatSuggestions:${project}`]));
-    } catch {}
+    } catch (e) { console.error(e); }
   }, [project]);
 
   useEffect(() => { load(); }, [load]);

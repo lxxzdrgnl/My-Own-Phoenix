@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   fetchTraces,
-  fetchPrompts,
-  fetchPromptVersions,
+  fetchPromptsWithVersions,
   fetchProjects,
   deleteTrace,
   Trace,
@@ -99,7 +98,7 @@ export function Playground() {
         setContentFilter(content ?? "ALL");
         return;
       }
-    } catch {}
+    } catch (e) { console.error(e); }
     setSpanKinds(new Set(["LLM"]));
     setContentFilter("ALL");
   }
@@ -189,13 +188,13 @@ export function Playground() {
 
   const loadPrompts = useCallback(async () => {
     try {
-      const ps = await fetchPrompts();
+      const results = await fetchPromptsWithVersions();
       const opts: VersionOption[] = [];
-      for (const p of ps)
-        for (const v of await fetchPromptVersions(p.name))
+      for (const { prompt, versions } of results)
+        for (const v of versions)
           opts.push({
-            promptName: p.name,
-            label: `${p.name} / ${v.description || v.id}`,
+            promptName: prompt.name,
+            label: `${prompt.name} / ${v.description || v.id}`,
             version: v,
           });
       setVersionOptions(opts);

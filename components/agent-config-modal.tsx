@@ -70,7 +70,7 @@ export function AgentConfigModal({ open, onClose, project, onSaved }: AgentConfi
         setAlias("");
         setSelectedAgentId("");
       }
-    } catch {}
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, [project]);
 
@@ -128,7 +128,7 @@ export function AgentConfigModal({ open, onClose, project, onSaved }: AgentConfi
       await apiFetch(`/api/agent-templates?id=${a.id}`, { method: "DELETE" });
       if (selectedAgentId === a.id) setSelectedAgentId("");
       await load();
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   function parseEvalPrompts(raw: string): Record<string, string> {
@@ -333,7 +333,7 @@ function AgentFormModal({ mode, initial, onClose, onSave }: AgentFormModalProps)
         setEvalHallucination(p.hallucination ?? "");
         setEvalCitation(p.citation ?? "");
         setEvalToolCalling(p.tool_calling ?? "");
-      } catch {}
+      } catch (e) { console.error(e); }
     }
   }, [initial]);
 

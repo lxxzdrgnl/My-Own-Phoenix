@@ -157,7 +157,7 @@ export function ManageView({ projectId, className }: ManageViewProps) {
       setNewRisk({ name: "", system: "", riskLevel: "MEDIUM", mitigation: "", assignee: "" });
       setShowAddForm(false);
       loadData();
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   async function handleUpdateStatus(riskId: string, status: string) {
@@ -168,7 +168,7 @@ export function ManageView({ projectId, className }: ManageViewProps) {
         body: JSON.stringify({ id: riskId, status, resolvedAt: status === "MITIGATED" ? new Date().toISOString() : null }),
       });
       loadData();
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   // ── Computed stats ──

@@ -1,5 +1,31 @@
 import type { OpenAPIV3_1 } from "openapi-types";
 
+// ── Must be defined before MY_PHENIX_PATHS which references them ──
+
+export const ERROR_SCHEMAS = {
+  ApiError: {
+    type: "object" as const,
+    properties: {
+      timestamp: { type: "string" as const, format: "date-time", description: "Error timestamp (ISO 8601)" },
+      path: { type: "string" as const, description: "Request path" },
+      status: { type: "integer" as const, description: "HTTP status code" },
+      code: { type: "string" as const, description: "Internal error code (uppercase+underscore)", example: "VALIDATION_FAILED" },
+      message: { type: "string" as const, description: "Human-readable error message" },
+      details: { type: "object" as const, description: "Field-level errors or additional context", additionalProperties: true },
+    },
+    required: ["timestamp", "path", "status", "code", "message"],
+  },
+};
+
+const STANDARD_ERROR_RESPONSES = {
+  "400": { description: "Bad request / Validation failed", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+  "401": { description: "Unauthorized — missing or invalid auth token", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+  "403": { description: "Forbidden — insufficient permissions", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+  "404": { description: "Resource not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+  "409": { description: "Conflict — duplicate resource", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+  "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } },
+};
+
 export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
   // ── Auth ──
   "/api/auth/sync": {
@@ -22,7 +48,12 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "User synced" } },
+      responses: {
+        "200": { description: "User synced" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 
@@ -35,7 +66,11 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
         { name: "userId", in: "query", required: true, schema: { type: "string" } },
         { name: "project", in: "query", schema: { type: "string" } },
       ],
-      responses: { "200": { description: "Thread list" } },
+      responses: {
+        "200": { description: "Thread list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     post: {
       tags: ["Chat"],
@@ -57,7 +92,13 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "Thread created" } },
+      responses: {
+        "200": { description: "Thread created" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "409": STANDARD_ERROR_RESPONSES["409"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/user-threads/{id}": {
@@ -65,7 +106,12 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
       tags: ["Chat"],
       summary: "Delete chat thread",
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "Thread deleted" } },
+      responses: {
+        "200": { description: "Thread deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/user-threads/{id}/messages": {
@@ -73,7 +119,12 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
       tags: ["Chat"],
       summary: "List messages in thread",
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "Message list" } },
+      responses: {
+        "200": { description: "Message list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     post: {
       tags: ["Chat"],
@@ -94,7 +145,13 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "Message added" } },
+      responses: {
+        "200": { description: "Message added" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/llm": {
@@ -127,7 +184,12 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "LLM response (OpenAI-compatible format)" } },
+      responses: {
+        "200": { description: "LLM response (OpenAI-compatible format)" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/feedback": {
@@ -138,7 +200,11 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
         { name: "messageId", in: "query", required: true, schema: { type: "string" } },
         { name: "userId", in: "query", required: true, schema: { type: "string" } },
       ],
-      responses: { "200": { description: "Feedback value" } },
+      responses: {
+        "200": { description: "Feedback value" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     post: {
       tags: ["Chat"],
@@ -159,12 +225,22 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "Feedback saved" } },
+      responses: {
+        "200": { description: "Feedback saved" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "409": STANDARD_ERROR_RESPONSES["409"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     delete: {
       tags: ["Chat"],
       summary: "Delete message feedback",
-      responses: { "200": { description: "Feedback deleted" } },
+      responses: {
+        "200": { description: "Feedback deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 
@@ -181,7 +257,11 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           description: "Return decrypted keys (internal use)",
         },
       ],
-      responses: { "200": { description: "Provider list with masked API keys" } },
+      responses: {
+        "200": { description: "Provider list with masked API keys" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     post: {
       tags: ["Providers"],
@@ -201,7 +281,13 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "Provider registered" } },
+      responses: {
+        "200": { description: "Provider registered" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "409": STANDARD_ERROR_RESPONSES["409"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/providers/{id}": {
@@ -209,13 +295,23 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
       tags: ["Providers"],
       summary: "Update provider API key",
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "Provider updated" } },
+      responses: {
+        "200": { description: "Provider updated" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     delete: {
       tags: ["Providers"],
       summary: "Delete provider",
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "Provider deleted" } },
+      responses: {
+        "200": { description: "Provider deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/providers/test": {
@@ -237,7 +333,12 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "Connection test result" } },
+      responses: {
+        "200": { description: "Connection test result" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 
@@ -264,7 +365,12 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "Annotation saved" } },
+      responses: {
+        "200": { description: "Annotation saved" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 
@@ -273,17 +379,32 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
     get: {
       tags: ["Evaluations"],
       summary: "List eval prompts",
-      responses: { "200": { description: "Eval prompt list" } },
+      responses: {
+        "200": { description: "Eval prompt list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Evaluations"],
       summary: "Create or update eval prompt",
-      responses: { "200": { description: "Eval prompt saved" } },
+      responses: {
+        "200": { description: "Eval prompt saved" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     delete: {
       tags: ["Evaluations"],
       summary: "Delete eval prompt",
-      responses: { "200": { description: "Eval prompt deleted" } },
+      responses: {
+        "200": { description: "Eval prompt deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/eval-backfill": {
@@ -307,7 +428,12 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
           },
         },
       },
-      responses: { "200": { description: "Backfill results" } },
+      responses: {
+        "200": { description: "Backfill results" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/eval-config": {
@@ -315,12 +441,22 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
       tags: ["Evaluations"],
       summary: "Get project eval config",
       parameters: [{ name: "projectId", in: "query", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "Eval config list" } },
+      responses: {
+        "200": { description: "Eval config list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Evaluations"],
       summary: "Update project eval config",
-      responses: { "200": { description: "Config updated" } },
+      responses: {
+        "200": { description: "Config updated" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 
@@ -329,56 +465,108 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
     get: {
       tags: ["Datasets"],
       summary: "List datasets",
-      responses: { "200": { description: "Dataset list" } },
+      responses: {
+        "200": { description: "Dataset list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     post: {
       tags: ["Datasets"],
       summary: "Create dataset",
-      responses: { "200": { description: "Dataset created" } },
+      responses: {
+        "200": { description: "Dataset created" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "409": STANDARD_ERROR_RESPONSES["409"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Datasets"],
       summary: "Update dataset",
-      responses: { "200": { description: "Dataset updated" } },
+      responses: {
+        "200": { description: "Dataset updated" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     delete: {
       tags: ["Datasets"],
       summary: "Delete dataset",
-      responses: { "200": { description: "Dataset deleted" } },
+      responses: {
+        "200": { description: "Dataset deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/datasets/rows": {
     get: {
       tags: ["Datasets"],
       summary: "Get dataset rows (paginated)",
-      responses: { "200": { description: "Row list" } },
+      responses: {
+        "200": { description: "Row list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     post: {
       tags: ["Datasets"],
       summary: "Add rows to dataset",
-      responses: { "200": { description: "Rows added" } },
+      responses: {
+        "200": { description: "Rows added" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "409": STANDARD_ERROR_RESPONSES["409"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Datasets"],
       summary: "Update row",
-      responses: { "200": { description: "Row updated" } },
+      responses: {
+        "200": { description: "Row updated" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     delete: {
       tags: ["Datasets"],
       summary: "Delete rows",
-      responses: { "200": { description: "Rows deleted" } },
+      responses: {
+        "200": { description: "Rows deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/datasets/runs": {
     get: {
       tags: ["Datasets"],
       summary: "List dataset runs",
-      responses: { "200": { description: "Run list" } },
+      responses: {
+        "200": { description: "Run list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     post: {
       tags: ["Datasets"],
       summary: "Create dataset run",
-      responses: { "200": { description: "Run created" } },
+      responses: {
+        "200": { description: "Run created" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "409": STANDARD_ERROR_RESPONSES["409"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/datasets/runs/{runId}": {
@@ -386,19 +574,35 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
       tags: ["Datasets"],
       summary: "Get run with results",
       parameters: [{ name: "runId", in: "path", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "Run details" } },
+      responses: {
+        "200": { description: "Run details" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Datasets"],
       summary: "Update run",
       parameters: [{ name: "runId", in: "path", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "Run updated" } },
+      responses: {
+        "200": { description: "Run updated" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     delete: {
       tags: ["Datasets"],
       summary: "Delete run",
       parameters: [{ name: "runId", in: "path", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "Run deleted" } },
+      responses: {
+        "200": { description: "Run deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/datasets/runs/{runId}/export": {
@@ -406,7 +610,12 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
       tags: ["Datasets"],
       summary: "Export run results as CSV",
       parameters: [{ name: "runId", in: "path", required: true, schema: { type: "string" } }],
-      responses: { "200": { description: "CSV file" } },
+      responses: {
+        "200": { description: "CSV file" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 
@@ -415,39 +624,74 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
     get: {
       tags: ["Agents"],
       summary: "List project-agent configs",
-      responses: { "200": { description: "Config list" } },
+      responses: {
+        "200": { description: "Config list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Agents"],
       summary: "Upsert project-agent config",
-      responses: { "200": { description: "Config saved" } },
+      responses: {
+        "200": { description: "Config saved" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     delete: {
       tags: ["Agents"],
       summary: "Delete project-agent config",
-      responses: { "200": { description: "Config deleted" } },
+      responses: {
+        "200": { description: "Config deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
   "/api/agent-templates": {
     get: {
       tags: ["Agents"],
       summary: "List agent templates",
-      responses: { "200": { description: "Template list" } },
+      responses: {
+        "200": { description: "Template list" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     post: {
       tags: ["Agents"],
       summary: "Create agent template",
-      responses: { "200": { description: "Template created" } },
+      responses: {
+        "200": { description: "Template created" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "409": STANDARD_ERROR_RESPONSES["409"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Agents"],
       summary: "Update agent template",
-      responses: { "200": { description: "Template updated" } },
+      responses: {
+        "200": { description: "Template updated" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     delete: {
       tags: ["Agents"],
       summary: "Delete agent template",
-      responses: { "200": { description: "Template deleted" } },
+      responses: {
+        "200": { description: "Template deleted" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "404": STANDARD_ERROR_RESPONSES["404"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 
@@ -456,12 +700,21 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
     get: {
       tags: ["Settings"],
       summary: "Get app settings",
-      responses: { "200": { description: "Settings key-value pairs" } },
+      responses: {
+        "200": { description: "Settings key-value pairs" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Settings"],
       summary: "Update app settings",
-      responses: { "200": { description: "Settings saved" } },
+      responses: {
+        "200": { description: "Settings saved" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 
@@ -470,12 +723,21 @@ export const MY_PHENIX_PATHS: OpenAPIV3_1.PathsObject = {
     get: {
       tags: ["Dashboard"],
       summary: "Get dashboard layout",
-      responses: { "200": { description: "Layout data" } },
+      responses: {
+        "200": { description: "Layout data" },
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
     put: {
       tags: ["Dashboard"],
       summary: "Save dashboard layout",
-      responses: { "200": { description: "Layout saved" } },
+      responses: {
+        "200": { description: "Layout saved" },
+        "400": STANDARD_ERROR_RESPONSES["400"],
+        "401": STANDARD_ERROR_RESPONSES["401"],
+        "500": STANDARD_ERROR_RESPONSES["500"],
+      },
     },
   },
 };
@@ -493,3 +755,4 @@ export const SECURITY_SCHEMES: OpenAPIV3_1.ComponentsObject["securitySchemes"] =
     bearerFormat: "Firebase ID Token",
   },
 };
+

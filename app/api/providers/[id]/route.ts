@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt, maskApiKey } from "@/lib/crypto";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const PUT = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const body = (await req.json()) as { apiKey?: string; isActive?: boolean };
 
   const existing = await prisma.llmProvider.findUnique({ where: { id } });
   if (!existing) {
-    return NextResponse.json({ error: "Provider not found" }, { status: 404 });
+    return apiError(req, ErrorCode.PROVIDER_NOT_FOUND, "Provider not found");
   }
 
   const data: Record<string, unknown> = {};
@@ -26,17 +24,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     apiKey: maskApiKey(decrypt(updated.apiKey)),
     isActive: updated.isActive,
   });
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const DELETE = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
   try {
     await prisma.llmProvider.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: "Provider not found" }, { status: 404 });
+    return apiError(req, ErrorCode.PROVIDER_NOT_FOUND, "Provider not found");
   }
-}
+});

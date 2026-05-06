@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { callLlm } from "@/lib/llm-providers";
-import { requireAuth } from "@/lib/auth-server";
 import { PASS_LABELS } from "@/lib/constants";
+import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -55,58 +55,7 @@ async function llmEval(messages: { role: string; content: string }[], model: str
   }
 }
 
-function extractText(raw: string): string {
-  if (!raw) return "";
-  try {
-    const data = JSON.parse(raw);
-    if (data.generations) return data.generations[0]?.[0]?.text ?? "";
-    if (data.messages) {
-      const msgs = Array.isArray(data.messages[0]) ? data.messages[0] : data.messages;
-      for (const m of msgs) {
-        const c = m?.kwargs?.content || m?.content;
-        if (c) return String(c).slice(0, 3000);
-      }
-    }
-    if (data.content) return String(data.content).slice(0, 3000);
-    if (data.output) return String(data.output).slice(0, 3000);
-  } catch { /* not JSON */ }
-  return raw.slice(0, 3000);
-}
-
-function extractQuery(raw: string): string {
-  try {
-    const data = JSON.parse(raw);
-    const msgs = data.messages;
-    if (Array.isArray(msgs)) {
-      const flat = Array.isArray(msgs[0]) ? msgs[0] : msgs;
-      for (const m of flat) {
-        const role = m?.role || m?.type || "";
-        const id = String(m?.id ?? "");
-        if (role === "user" || role === "human" || id.includes("HumanMessage")) {
-          return (m?.kwargs?.content || m?.content || "").slice(0, 2000);
-        }
-      }
-    }
-    if (data.input) return String(data.input).slice(0, 2000);
-  } catch { /* not JSON */ }
-  return raw.slice(0, 2000);
-}
-
-function extractContext(raw: string): string {
-  try {
-    const data = JSON.parse(raw);
-    const msgs = data.messages;
-    if (Array.isArray(msgs)) {
-      const flat = Array.isArray(msgs[0]) ? msgs[0] : msgs;
-      for (const m of flat) {
-        const content = m?.kwargs?.content || m?.content || "";
-        const ctxMatch = content.match(/<context>([\s\S]*?)<\/context>/);
-        if (ctxMatch) return ctxMatch[1].trim();
-      }
-    }
-  } catch { /* not JSON */ }
-  return "";
-}
+import { extractText, extractQuery, extractContext } from "@/lib/span-extraction";
 
 function splitPromptForSystem(template: string): { system: string | null; user: string } {
   const lines = template.split("\n");
@@ -117,9 +66,7 @@ function splitPromptForSystem(template: string): { system: string | null; user: 
 
 // ── POST /api/eval-backfill ──
 
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const POST = authedHandler(async (req: NextRequest) => {
   const { projectId, evalName, startDate, endDate } = (await req.json()) as {
     projectId: string;
     evalName: string;
@@ -127,15 +74,20 @@ export async function POST(req: NextRequest) {
     endDate: string;
   };
 
-  if (!projectId || !evalName || !startDate || !endDate) {
-    return NextResponse.json({ error: "projectId, evalName, startDate, endDate required" }, { status: 400 });
-  }
+  const err = validateFields([
+    { field: "projectId", value: projectId, required: true },
+    { field: "evalName", value: evalName, required: true },
+    { field: "startDate", value: startDate, required: true },
+    { field: "endDate", value: endDate, required: true },
+  ]);
+  if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
+
   // Load eval definition
   const evalPrompt = await prisma.evalPrompt.findFirst({
     where: { name: evalName, OR: [{ projectId: null }, { projectId: "" }, { projectId }] },
   });
   if (!evalPrompt || !evalPrompt.template) {
-    return NextResponse.json({ error: `Eval "${evalName}" not found or has no template` }, { status: 404 });
+    return apiError(req, ErrorCode.EVAL_NOT_FOUND, `Eval "${evalName}" not found or has no template`);
   }
 
   const startTime = new Date(startDate).toISOString();
@@ -172,11 +124,6 @@ export async function POST(req: NextRequest) {
 
   for (const [tid, root] of Object.entries(rootSpans)) {
     const spanId = (root.context as Record<string, string>).span_id;
-    const existingAnns = existing[spanId];
-    if (existingAnns?.has(evalName)) {
-      skipped++;
-      continue;
-    }
 
     const attrs = (root.attributes ?? {}) as Record<string, unknown>;
     const rawInput = String(attrs["input.value"] ?? "");
@@ -207,9 +154,9 @@ export async function POST(req: NextRequest) {
     // Run eval
     try {
       const filled = evalPrompt.template
-        .replace(/\{context\}/g, context?.slice(0, 2000) || "(no context)")
-        .replace(/\{response\}/g, response?.slice(0, 2000) || "(no response)")
-        .replace(/\{query\}/g, query?.slice(0, 1000) || "(no query)");
+        .replace(/\{context\}/g, context || "(no context)")
+        .replace(/\{response\}/g, response || "(no response)")
+        .replace(/\{query\}/g, query || "(no query)");
 
       const { system, user } = splitPromptForSystem(filled);
       const messages: { role: string; content: string }[] = [];
@@ -237,4 +184,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ evaluated, skipped, total: Object.keys(rootSpans).length });
-}
+});

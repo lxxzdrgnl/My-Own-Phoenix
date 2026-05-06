@@ -79,7 +79,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         const data = await res.json();
         setThreads(data.threads ?? []);
       }
-    } catch {}
+    } catch (e) { console.error(e); }
   }, [user, project]);
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, content }),
       });
-    } catch {}
+    } catch (e) { console.error(e); }
   }, []);
 
   const runtime = useLangGraphRuntime({
@@ -171,7 +171,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
               setActiveThreadDbId(saved.id);
               setThreads((prev) => [saved, ...prev]);
             }
-          } catch {}
+          } catch (e) { console.error(e); }
         }
       }
 
@@ -292,7 +292,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
           setActiveThreadDbId(null);
           setHistory([]);
         }
-      } catch {}
+      } catch (e) { console.error(e); }
     },
     [activeThreadDbId],
   );

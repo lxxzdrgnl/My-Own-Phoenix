@@ -175,7 +175,7 @@ export default function DashboardPage() {
           ),
         );
         setAnnotations(annResults);
-      } catch {}
+      } catch (e) { console.error(e); }
     }
     load();
   }, [project, dateRange]);

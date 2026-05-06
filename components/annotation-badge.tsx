@@ -14,6 +14,7 @@ const SHORT_NAME: Record<string, string> = {
   rag_relevance: "RAG",
   citation: "CIT",
   tool_calling: "TOOL",
+  guardrail: "GRD",
   user_feedback: "FB",
 };
 
@@ -130,7 +131,7 @@ export function AnnotationBadge({ annotation, outputMode, failThreshold = 0, onD
 }
 
 /** Annotations to hide from badge display */
-const HIDDEN_ANNOTATIONS = new Set(["guardrail"]);
+const HIDDEN_ANNOTATIONS = new Set<string>();
 /** Labels that mean "no feedback" — hide the badge entirely */
 const CANCELLED_LABELS = new Set(["cancelled"]);
 

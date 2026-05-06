@@ -1,12 +1,13 @@
 services:
   phoenix:
     image: arizephoenix/phoenix:latest
+    user: "1000:1000"
     ports:
       - "6006:6006"   # UI + API
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP
     volumes:
-      - phoenix_data:/data
+      - ~/.phoenix:/data
     environment:
       - PHOENIX_WORKING_DIR=/data
     healthcheck:
@@ -20,8 +21,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+    network_mode: host
     volumes:
       # Mount source for hot-reload in dev mode
       - .:/app
@@ -31,8 +31,9 @@ services:
     env_file:
       - .env
     environment:
-      - PHOENIX_URL=http://phoenix:6006
-      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
+      - PHOENIX_URL=http://localhost:6006
+      - PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+      - LANGGRAPH_API_URL=http://localhost:2024
       - WATCHPACK_POLLING=true
     depends_on:
       phoenix:
@@ -42,16 +43,15 @@ services:
     build:
       context: ./eval-worker
       dockerfile: Dockerfile
+    network_mode: host
     env_file:
       - .env
     environment:
-      - PHOENIX_URL=http://phoenix:6006
-      - DASHBOARD_URL=http://dashboard:3000
+      - PHOENIX_URL=http://localhost:6006
+      - DASHBOARD_URL=http://localhost:3000
       - EVAL_POLL_INTERVAL=15
     depends_on:
       phoenix:
         condition: service_healthy
     restart: unless-stopped
 
-volumes:
-  phoenix_data:

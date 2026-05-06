@@ -21,7 +21,7 @@ import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui
 import { refreshBadgeLabels } from "@/components/annotation-badge";
 import { ModelSelector } from "@/components/model-selector";
 import { PASS_LABELS } from "@/lib/constants";
-import { BUILT_IN_EVALS, BUILT_IN_TYPES, NEW_EVAL_TEMPLATE } from "./eval-constants";
+import { NEW_EVAL_TEMPLATE } from "./eval-constants";
 import type { EvalPrompt, ProjectEvalConfig } from "./eval-list";
 import type { Project } from "@/lib/phoenix";
 
@@ -93,7 +93,7 @@ export function EvalEditor({
     const projectConfig = projectConfigs.find((c) => c.evalName === selectedEval);
     const globalCustom = globalPrompts.find((p) => p.name === selectedEval);
 
-    const evalType = globalCustom?.evalType ?? BUILT_IN_TYPES[selectedEval] ?? "llm_prompt";
+    const evalType = globalCustom?.evalType ?? "llm_prompt";
     setEditEvalType(evalType);
     setEditBadgeLabel(globalCustom?.badgeLabel ?? "");
     setEditModel(globalCustom?.model || defaultEvalModel);
@@ -118,14 +118,14 @@ export function EvalEditor({
   }, [selectedEval]);
 
   // ── Derived ──
-  const isBuiltIn = selectedEval ? BUILT_IN_EVALS.includes(selectedEval) : false;
+  const isBuiltIn = selectedEval ? globalPrompts.some((p) => p.name === selectedEval && !p.isCustom) : false;
 
   // ── Save ──
 
   async function handleSaveGlobal() {
     if (!selectedEval) return;
     setSaving(true);
-    const isCustom = !BUILT_IN_EVALS.includes(selectedEval);
+    const isCustom = !globalPrompts.some((p) => p.name === selectedEval && !p.isCustom);
     try {
       await apiFetch("/api/eval-prompts", {
         method: "PUT",
@@ -145,7 +145,7 @@ export function EvalEditor({
       setDirty(false);
       onProjectConfigReload();
       refreshBadgeLabels();
-    } catch {}
+    } catch (e) { console.error(e); }
     setSaving(false);
   }
 
@@ -165,7 +165,7 @@ export function EvalEditor({
       setDirty(false);
       setIsProjectOverride(true);
       onProjectConfigReload();
-    } catch {}
+    } catch (e) { console.error(e); }
     setSaving(false);
   }
 
@@ -186,7 +186,7 @@ export function EvalEditor({
       const globalCustom = globalPrompts.find((p) => p.name === selectedEval);
       setEditTemplate(globalCustom?.template ?? "");
       setDirty(false);
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   async function handleResetDefault() {
@@ -216,11 +216,11 @@ export function EvalEditor({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ name: selectedEval }),
             });
-          } catch {}
+          } catch (e) { console.error(e); }
         }
       }
       onDeleted();
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   async function handleBackfill() {
@@ -274,7 +274,7 @@ export function EvalEditor({
       setNewType("llm_prompt");
       setNewEvalModel(defaultEvalModel);
       onCreated(name, newType, createdTemplate, createdRuleConfig, newEvalModel);
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   async function handleTest() {

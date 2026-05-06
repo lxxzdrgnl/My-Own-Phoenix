@@ -175,9 +175,10 @@ export function parsePromptToConfig(template: string): EvalFormConfig | null {
   try {
     const config: EvalFormConfig = { ...DEFAULT_FORM_CONFIG };
 
-    // Extract role
+    // Extract role — if not in expected format, treat as raw
     const roleMatch = template.match(/You are an expert (.+?)\./);
-    if (roleMatch) config.role = roleMatch[1];
+    if (!roleMatch) return null;
+    config.role = roleMatch[1];
 
     // Extract input fields
     config.inputFields = [];
@@ -242,8 +243,13 @@ interface PromptBuilderProps {
   onBadgeLabelChange?: (label: string) => void;
 }
 
+function canParseAsForm(template: string): boolean {
+  if (!template.trim()) return true;
+  return /You are an expert .+\./.test(template);
+}
+
 export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, onBadgeLabelChange }: PromptBuilderProps) {
-  const [mode, setMode] = useState<"form" | "raw">("form");
+  const [mode, setMode] = useState<"form" | "raw">(() => canParseAsForm(template) ? "form" : "raw");
   const [config, setConfig] = useState<EvalFormConfig>(() => {
     return parsePromptToConfig(template) ?? DEFAULT_FORM_CONFIG;
   });
@@ -254,7 +260,12 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
     const generated = generatePromptFromConfig(config);
     if (template !== generated) {
       const parsed = parsePromptToConfig(template);
-      if (parsed) setConfig(parsed);
+      if (parsed) {
+        setConfig(parsed);
+        setMode("form");
+      } else {
+        setMode("raw");
+      }
     }
     setLastExternalTemplate(template);
   }

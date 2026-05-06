@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
 
-export async function GET(
-  _req: NextRequest,
+export const GET = authedHandler(async (
+  req: NextRequest,
+  uid: string,
   { params }: { params: Promise<{ id: string }> },
-) {
-  const auth = await requireAuth(_req);
-  if (auth instanceof NextResponse) return auth;
+) => {
   const { id } = await params;
 
   const rawMessages = await prisma.message.findMany({
@@ -26,20 +25,21 @@ export async function GET(
   }));
 
   return NextResponse.json({ messages });
-}
+});
 
-export async function POST(
+export const POST = authedHandler(async (
   req: NextRequest,
+  uid: string,
   { params }: { params: Promise<{ id: string }> },
-) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+) => {
   const { id } = await params;
   const { role, content } = await req.json();
 
-  if (!role || !content) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-  }
+  const err = validateFields([
+    { field: "role", value: role, required: true },
+    { field: "content", value: content, required: true },
+  ]);
+  if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
   const message = await prisma.message.create({
     data: { threadId: id, role, content },
@@ -52,4 +52,4 @@ export async function POST(
   });
 
   return NextResponse.json({ message });
-}
+});

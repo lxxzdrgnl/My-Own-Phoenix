@@ -95,8 +95,9 @@ model EvalPrompt {
   outputMode String   @default("score")      // "score" | "binary"
   template   String   @default("")           // prompt text for llm_prompt, empty for code_rule
   ruleConfig  String   @default("{}")         // JSON rule config for code_rule type
-  badgeLabel  String   @default("")           // short name for annotation badge (e.g. "HAL", "CIT")
-  isCustom    Boolean  @default(false)
+  badgeLabel   String   @default("")           // short name for annotation badge (e.g. "HAL", "CIT")
+  description  String   @default("")           // human-readable description
+  isCustom     Boolean  @default(false)
   model      String   @default("gpt-4o-mini")
   updatedAt  DateTime @updatedAt
 

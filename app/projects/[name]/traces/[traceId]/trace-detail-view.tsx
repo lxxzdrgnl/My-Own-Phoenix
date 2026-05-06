@@ -16,7 +16,7 @@ export function TraceDetailView({ projectName, traceId }: { projectName: string;
     try {
       const result = await fetchTraceTrees(projectName);
       setTraces(result.filter((t) => t.traceId === traceId));
-    } catch {}
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, [projectName, traceId]);
 

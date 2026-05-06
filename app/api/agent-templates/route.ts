@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
-export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (req: NextRequest) => {
   const templates = await prisma.agentTemplate.findMany({
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ templates });
-}
+});
 
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const POST = authedHandler(async (req: NextRequest) => {
   const body = await req.json();
   const { name, description, agentType, endpoint, assistantId, evalPrompts } = body;
 
   if (!name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { name: "name is required" });
   }
 
   const template = await prisma.agentTemplate.create({
@@ -33,16 +29,14 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ template });
-}
+});
 
-export async function PUT(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const PUT = authedHandler(async (req: NextRequest) => {
   const body = await req.json();
   const { id, name, description, agentType, endpoint, assistantId, evalPrompts } = body;
 
   if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
   }
 
   const template = await prisma.agentTemplate.update({
@@ -58,16 +52,14 @@ export async function PUT(req: NextRequest) {
   });
 
   return NextResponse.json({ template });
-}
+});
 
-export async function DELETE(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const DELETE = authedHandler(async (req: NextRequest) => {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
   }
 
   await prisma.agentTemplate.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-}
+});

@@ -35,7 +35,8 @@ POLL_INTERVAL = int(os.getenv("EVAL_POLL_INTERVAL", "15"))
 PHOENIX_URL = os.getenv("PHOENIX_URL", "http://localhost:6006").rstrip("/")
 DASHBOARD_URL = os.getenv("DASHBOARD_URL", "http://localhost:3000").rstrip("/")
 MAX_CACHE = 5000
-MAX_LLM_EVALS_PER_TRACE = 5
+MAX_LLM_EVALS_PER_TRACE = int(os.getenv("EVAL_MAX_LLM_PER_TRACE", "5"))
+LOOKBACK_MINUTES = int(os.getenv("EVAL_LOOKBACK_MINUTES", "5"))
 
 BANNED_WORDS_DEFAULT = ["fuck", "shit"]
 _extra = os.getenv("BANNED_WORDS", "")
@@ -44,6 +45,31 @@ BANNED_RE = re.compile("|".join(re.escape(w) for w in BANNED_WORDS), re.IGNORECA
 
 _reeval_raw = os.getenv("REEVAL_ANNOTATIONS", "")
 REEVAL_ANNOTATIONS = {a.strip() for a in _reeval_raw.split(",") if a.strip()}
+
+
+# ── Dashboard settings sync ──────────────────────────────────────────────
+
+_settings_loaded_at: float = 0
+
+def _sync_dashboard_settings() -> None:
+    """Load worker settings from dashboard API every 60s and update globals."""
+    global POLL_INTERVAL, MAX_LLM_EVALS_PER_TRACE, LOOKBACK_MINUTES, _settings_loaded_at
+    now = time.time()
+    if now - _settings_loaded_at < 60:
+        return
+    try:
+        resp = httpx.get(f"{DASHBOARD_URL}/api/settings", timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            if "evalPollInterval" in data:
+                POLL_INTERVAL = max(5, int(data["evalPollInterval"]))
+            if "evalMaxLlmPerTrace" in data:
+                MAX_LLM_EVALS_PER_TRACE = max(1, int(data["evalMaxLlmPerTrace"]))
+            if "evalLookbackMinutes" in data:
+                LOOKBACK_MINUTES = max(1, int(data["evalLookbackMinutes"]))
+            _settings_loaded_at = now
+    except Exception as e:
+        logger.debug("Failed to sync dashboard settings: %s", e)
 
 
 # ── API key helpers ───────────────────────────────────────────────────────
@@ -240,7 +266,7 @@ def get_eval_def(name: str) -> EvalDef | None:
 
 
 # Built-in eval names (always available even without dashboard)
-BUILT_IN_EVALS = {"hallucination", "qa_correctness", "rag_relevance", "banned_word", "citation", "tool_calling"}
+BUILT_IN_EVALS = {"hallucination", "qa_correctness", "rag_relevance", "banned_word", "citation", "tool_calling", "guardrail"}
 
 
 # ── Span tree helpers ─────────────────────────────────────────────────────
@@ -325,21 +351,21 @@ def _extract_query_from_input(raw_input: str) -> str:
                         q = re.search(r"<question>(.*?)</question>", content, re.DOTALL)
                         if q:
                             return q.group(1).strip()
-                        return content[:2000]
+                        return content
             # Flat list
             for msg in msgs:
                 if isinstance(msg, dict):
                     role = msg.get("role", "") or msg.get("type", "")
                     if role in ("user", "human"):
-                        return (msg.get("content", "") or "")[:2000]
+                        return msg.get("content", "") or ""
         # Direct input
         if "input" in data:
-            return str(data["input"])[:2000]
+            return str(data["input"])
         if "prompt" in data:
-            return str(data["prompt"])[:2000]
+            return str(data["prompt"])
     except Exception:
         pass
-    return raw_input[:2000]
+    return raw_input
 
 
 def _extract_context_from_input(raw_input: str) -> str:
@@ -605,9 +631,9 @@ def _run_llm_eval(name: str, default_template: str, context: str, response: str,
     output_mode = edef.output_mode if edef else "score"
 
     filled = template.format(
-        context=context[:3000] if context else "(no context)",
-        response=response[:2000] if response else "(no response)",
-        query=query[:1000] if query else "(no query)",
+        context=context or "(no context)",
+        response=response or "(no response)",
+        query=query or "(no query)",
     )
     sys_msg, user_msg = _split_prompt_for_system(filled)
     raw = _openai_eval(user_msg, system_msg=sys_msg)
@@ -634,7 +660,7 @@ def eval_tool_calling(query: str, context: str) -> dict:
 
 # ── Eval pipeline ─────────────────────────────────────────────────────────
 
-TRACE_EVALS = {"qa_correctness", "banned_word", "tool_calling"}
+TRACE_EVALS = {"qa_correctness", "banned_word", "tool_calling", "guardrail"}
 SPAN_LLM_EVALS = {"hallucination", "citation"}
 SPAN_RETRIEVER_EVALS = {"rag_relevance"}
 ALL_ANNOTATIONS = TRACE_EVALS | SPAN_LLM_EVALS | SPAN_RETRIEVER_EVALS
@@ -667,6 +693,11 @@ def _run_trace_evals(
         if r:
             phoenix_upload_annotation(root_id, "tool_calling", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
+    if "guardrail" in missing and response:
+        r = _run_llm_eval("guardrail", default_prompts.GUARDRAIL, context, response, query)
+        if r:
+            phoenix_upload_annotation(root_id, "guardrail", "LLM", r["label"], r["score"], r.get("explanation", ""))
+
     # ── Custom evals (from dashboard) ──
     for eval_name in missing - BUILT_IN_EVALS:
         edef = get_eval_def(eval_name)
@@ -679,9 +710,9 @@ def _run_trace_evals(
                     phoenix_upload_annotation(root_id, eval_name, "CODE", r["label"], r["score"], r.get("explanation", ""))
             elif edef.eval_type == "llm_prompt" and edef.template:
                 filled = edef.template.format(
-                    context=context[:2000] if context else "(no context)",
-                    response=response[:2000] if response else "(no response)",
-                    query=query[:1000] if query else "(no query)",
+                    context=context or "(no context)",
+                    response=response or "(no response)",
+                    query=query or "(no query)",
                 )
                 sys_msg, user_msg = _split_prompt_for_system(filled)
                 raw = _openai_eval(user_msg, system_msg=sys_msg)
@@ -712,6 +743,31 @@ def _run_llm_span_evals(
             phoenix_upload_annotation(span_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
 
+RAG_RELEVANCE_PROMPT = """You are an expert at evaluating retrieval quality for RAG systems.
+
+Given a user QUERY and a set of RETRIEVED DOCUMENTS, evaluate how well the retrieved documents support answering the query.
+
+QUERY:
+{query}
+
+RETRIEVED DOCUMENTS:
+{context}
+
+Scoring:
+- 1.0: At least one document directly answers or is highly relevant to the query
+- 0.7-0.9: Documents are mostly relevant, with useful supporting information
+- 0.4-0.6: Documents are partially relevant — some useful info but significant gaps
+- 0.1-0.3: Documents are mostly irrelevant, only tangentially related
+- 0.0: Documents are completely unrelated to the query
+
+Important:
+- Even 1 highly relevant document among several irrelevant ones should score 0.7+
+- Partial relevance (related topic, adjacent legal provisions) counts as relevant
+- Judge by whether the documents HELP answer the query, not exact match
+
+Respond with JSON only: {{"label": "relevant" or "irrelevant", "score": 0.0-1.0, "explanation": "one line"}}"""
+
+
 def _run_retriever_span_evals(
     span_id: str, query: str, docs_output: str,
     missing: set[str], project: str,
@@ -720,17 +776,16 @@ def _run_retriever_span_evals(
     if "rag_relevance" not in missing or not query or not docs_output:
         return
     try:
-        docs = [d.strip() for d in docs_output.split("\n\n") if d.strip()][:5]
-        if not docs:
-            docs = [docs_output[:800]]
-        rows = [{"idx": f"d{i}", "input": query, "reference": d[:800]} for i, d in enumerate(docs)]
-        df = pd.DataFrame(rows).set_index("idx")
-        (result,) = run_evals(evaluators=[get_relevance_eval()], dataframe=df[["input", "reference"]], provide_explanation=False, concurrency=3)
-        if result is not None and not result.empty:
-            avg = float(result["score"].mean())
-            n = int(result["score"].sum())
+        filled = RAG_RELEVANCE_PROMPT.format(
+            query=query,
+            context=docs_output[:5000],
+        )
+        sys_msg, user_msg = _split_prompt_for_system(filled)
+        raw = _openai_eval(user_msg, system_msg=sys_msg)
+        r = _parse_eval_result(raw, "score")
+        if r:
             phoenix_upload_annotation(span_id, "rag_relevance", "LLM",
-                "relevant" if avg > 0.5 else "unrelated", avg, f"{n}/{len(result)} docs relevant")
+                r["label"], r["score"], r.get("explanation", ""))
     except Exception as e:
         logger.error("[%s] rag_relevance failed: %s", project, e)
 
@@ -842,13 +897,14 @@ def process_trace(
 def main() -> None:
     evaluated_traces: dict[str, set[str]] = {}  # project → set of trace_ids
     caches: dict[str, deque] = {}
-    lookback = timedelta(days=30) if REEVAL_ANNOTATIONS else timedelta(minutes=5)
+    lookback = timedelta(days=30) if REEVAL_ANNOTATIONS else timedelta(minutes=LOOKBACK_MINUTES)
     last_checked = datetime.now(timezone.utc) - lookback
 
     logger.info("Eval worker started (phoenix=%s, interval=%ds, two-level eval)", PHOENIX_URL, POLL_INTERVAL)
 
     while True:
         time.sleep(POLL_INTERVAL)
+        _sync_dashboard_settings()
         try:
             now = datetime.now(timezone.utc)
             projects = phoenix_get_projects()

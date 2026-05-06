@@ -11,6 +11,7 @@ const DEFAULTS = {
   evalWorkerEnabled: "true",
   evalPollInterval: "15",
   evalMaxLlmPerTrace: "5",
+  evalLookbackMinutes: "5",
   defaultEvalModel: "gpt-4o-mini",
 };
 
@@ -120,6 +121,29 @@ export function EvalWorkerSection() {
                       className="w-20 text-center text-sm tabular-nums"
                     />
                     <span className="text-xs text-muted-foreground/60">sec</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lookback Window */}
+              <div className="rounded-lg border px-5 py-4">
+                <div className="flex items-center justify-between gap-6">
+                  <div>
+                    <p className="text-sm font-medium">Lookback Window</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      How far back to search for unevaluated traces on startup.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={settings.evalLookbackMinutes}
+                      onChange={(e) => update("evalLookbackMinutes", e.target.value)}
+                      className="w-20 text-center text-sm tabular-nums"
+                    />
+                    <span className="text-xs text-muted-foreground/60">min</span>
                   </div>
                 </div>
               </div>

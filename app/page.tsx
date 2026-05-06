@@ -37,7 +37,7 @@ export default function Home() {
         fetchProjects().then((p) => setProjects(p.filter((x) => x.name !== "playground"))).catch(() => {});
         handleProjectChange(name);
       }
-    } catch {}
+    } catch (e) { console.error(e); }
   };
 
   if (!project) return null;

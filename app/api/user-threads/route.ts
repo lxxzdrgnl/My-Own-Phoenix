@@ -1,44 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
 
-export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (req: NextRequest) => {
   const userId = req.nextUrl.searchParams.get("userId");
   const project = req.nextUrl.searchParams.get("project") || "default";
-  if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
-  }
 
-  try {
-    const threads = await prisma.thread.findMany({
-      where: { userId, project },
-      orderBy: { updatedAt: "desc" },
-    });
-    return NextResponse.json({ threads });
-  } catch (e) {
-    console.error("GET /api/user-threads error:", e);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
-  }
-}
+  const err = validateFields([
+    { field: "userId", value: userId, required: true },
+  ]);
+  if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+  const threads = await prisma.thread.findMany({
+    where: { userId: userId!, project },
+    orderBy: { updatedAt: "desc" },
+  });
+  return NextResponse.json({ threads });
+});
+
+export const POST = authedHandler(async (req: NextRequest) => {
   const { userId, langGraphThreadId, title, project } = await req.json();
 
-  if (!userId || !langGraphThreadId) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-  }
+  const err = validateFields([
+    { field: "userId", value: userId, required: true },
+    { field: "langGraphThreadId", value: langGraphThreadId, required: true },
+  ]);
+  if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
-  try {
-    const thread = await prisma.thread.create({
-      data: { userId, langGraphThreadId, title: title || "New Chat", project: project || "default" },
-    });
-    return NextResponse.json({ thread });
-  } catch (e) {
-    console.error("POST /api/user-threads error:", e);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
-  }
-}
+  const thread = await prisma.thread.create({
+    data: { userId, langGraphThreadId, title: title || "New Chat", project: project || "default" },
+  });
+  return NextResponse.json({ thread });
+});

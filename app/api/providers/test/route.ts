@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
 
 const TEST_ENDPOINTS: Record<string, { url: string; buildRequest: (key: string) => { headers: Record<string, string>; body: string } }> = {
   openai: {
@@ -40,19 +40,18 @@ const TEST_ENDPOINTS: Record<string, { url: string; buildRequest: (key: string) 
   },
 };
 
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+const VALID_PROVIDERS = ["openai", "anthropic", "google", "xai"] as const;
+
+export const POST = authedHandler(async (req: NextRequest) => {
   const { provider, apiKey } = (await req.json()) as { provider: string; apiKey: string };
 
-  if (!provider || !apiKey) {
-    return NextResponse.json({ error: "provider and apiKey required" }, { status: 400 });
-  }
+  const err = validateFields([
+    { field: "provider", value: provider, required: true, oneOf: VALID_PROVIDERS },
+    { field: "apiKey", value: apiKey, required: true, minLength: 1 },
+  ]);
+  if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
   const config = TEST_ENDPOINTS[provider];
-  if (!config) {
-    return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
-  }
 
   try {
     const { headers, body } = config.buildRequest(apiKey);
@@ -79,4 +78,4 @@ export async function POST(req: NextRequest) {
       error: e instanceof Error ? e.message : "Connection failed",
     });
   }
-}
+});

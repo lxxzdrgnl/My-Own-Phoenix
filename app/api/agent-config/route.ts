@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
-export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (req: NextRequest) => {
   const project = req.nextUrl.searchParams.get("project");
 
   // If no project specified, return all configs (for alias lookup)
@@ -15,11 +13,9 @@ export async function GET(req: NextRequest) {
 
   const config = await prisma.agentConfig.findUnique({ where: { project }, include: { template: true } });
   return NextResponse.json({ config: config ?? null });
-}
+});
 
-export async function PUT(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const PUT = authedHandler(async (req: NextRequest) => {
   const body = await req.json();
   const { project, alias, templateId, agentType, endpoint, assistantId } = body as {
     project: string;
@@ -31,7 +27,7 @@ export async function PUT(req: NextRequest) {
   };
 
   if (!project) {
-    return NextResponse.json({ error: "project is required" }, { status: 400 });
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { project: "project is required" });
   }
 
   const config = await prisma.agentConfig.upsert({
@@ -54,16 +50,14 @@ export async function PUT(req: NextRequest) {
   });
 
   return NextResponse.json({ config });
-}
+});
 
-export async function DELETE(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const DELETE = authedHandler(async (req: NextRequest) => {
   const project = req.nextUrl.searchParams.get("project");
   if (!project) {
-    return NextResponse.json({ error: "project query param required" }, { status: 400 });
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { project: "project query param required" });
   }
 
   await prisma.agentConfig.deleteMany({ where: { project } });
   return NextResponse.json({ success: true });
-}
+});

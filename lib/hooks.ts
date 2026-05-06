@@ -17,7 +17,7 @@ export function useApiFetch<T>(url: string, extract?: (data: any) => T) {
       const res = await apiFetch(url);
       const json = await res.json();
       setData(extract ? extract(json) : json);
-    } catch {}
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, [url]);
 
@@ -46,7 +46,7 @@ export function useSettingsForm<T extends Record<string, string>>(defaults: T) {
         if (data[key] !== undefined) (merged as any)[key] = data[key];
       }
       setSettings(merged);
-    } catch {}
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
 
@@ -68,7 +68,7 @@ export function useSettingsForm<T extends Record<string, string>>(defaults: T) {
       });
       setSaved(true);
       setDirty(false);
-    } catch {}
+    } catch (e) { console.error(e); }
     setSaving(false);
   }
 

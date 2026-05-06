@@ -36,7 +36,7 @@ export function AgentsSection() {
       const res = await apiFetch("/api/agent-templates");
       const data = await res.json();
       setAgents(data.templates ?? []);
-    } catch {}
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
 
@@ -214,7 +214,7 @@ function AgentFormModal({ mode, initial, onClose, onSave }: {
         setEvalHallucination(p.hallucination ?? "");
         setEvalCitation(p.citation ?? "");
         setEvalToolCalling(p.tool_calling ?? "");
-      } catch {}
+      } catch (e) { console.error(e); }
     }
   }, [initial]);
 

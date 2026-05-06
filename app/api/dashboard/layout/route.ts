@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
-export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (req: NextRequest) => {
   const userId = req.nextUrl.searchParams.get("userId");
   const project = req.nextUrl.searchParams.get("project") ?? "default";
   if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { userId: "userId is required" });
   }
 
   const record = await prisma.dashboardLayout.findUnique({
@@ -16,15 +14,15 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ layout: record?.layout ?? null });
-}
+});
 
-export async function PUT(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const PUT = authedHandler(async (req: NextRequest) => {
   const { userId, project, layout } = await req.json();
 
   if (!userId || !layout) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", {
+      fields: "userId and layout are required",
+    });
   }
 
   const proj = project ?? "default";
@@ -36,4 +34,4 @@ export async function PUT(req: NextRequest) {
   });
 
   return NextResponse.json({ layout: record.layout });
-}
+});

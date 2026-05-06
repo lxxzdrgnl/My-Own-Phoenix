@@ -65,7 +65,7 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
         setCreating(false);
         onClose();
       }
-    } catch {}
+    } catch (e) { console.error(e); }
     setSaving(false);
   }
 
@@ -103,7 +103,7 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
         });
       }
       onClose();
-    } catch {}
+    } catch (e) { console.error(e); }
     setSaving(false);
   }
 

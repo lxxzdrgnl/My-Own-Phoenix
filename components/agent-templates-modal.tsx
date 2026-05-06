@@ -50,7 +50,7 @@ export function AgentTemplatesModal({ open, onClose }: AgentListModalProps) {
       const res = await apiFetch("/api/agent-templates");
       const data = await res.json();
       setAgents(data.templates ?? []);
-    } catch {}
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
 
@@ -63,7 +63,7 @@ export function AgentTemplatesModal({ open, onClose }: AgentListModalProps) {
     try {
       await apiFetch(`/api/agent-templates?id=${agent.id}`, { method: "DELETE" });
       await load();
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   function handleEdit(agent: AgentEntry) {
@@ -227,7 +227,7 @@ function AgentFormModal({ mode, initial, onClose, onSave }: AgentFormModalProps)
         setEvalHallucination(p.hallucination ?? "");
         setEvalCitation(p.citation ?? "");
         setEvalToolCalling(p.tool_calling ?? "");
-      } catch {}
+      } catch (e) { console.error(e); }
     }
   }, [initial]);
 

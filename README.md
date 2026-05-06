@@ -14,18 +14,23 @@ docker compose up --build
 
 ### 환경 변수 설정
 
-`.env.example`을 `.env.local`로 복사 후 키를 입력하세요:
+`.env.example`을 `.env`로 복사 후 키를 입력하세요:
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
 | 변수 | 설명 | 기본값 |
 |------|------|--------|
+| `PHOENIX_URL` | Phoenix 서버 주소 | `http://localhost:6006` |
 | `LANGGRAPH_API_URL` | LangGraph 에이전트 엔드포인트 | `http://localhost:2024` |
 | `NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID` | LangGraph 에이전트 ID | `agent` |
-| `OPENAI_API_KEY` | OpenAI API 키 (Playground 사용 시) | — |
-| `PHOENIX_URL` | Phoenix 서버 주소 | `http://phoenix:6006` (Docker) |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase API 키 | — |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase Auth 도메인 | — |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase 프로젝트 ID | — |
+| `ENCRYPTION_SECRET` | API 키 암호화 시크릿 | — |
+
+> LLM API 키(OpenAI, Anthropic 등)는 `.env`가 아닌 대시보드 **Settings > Providers**에서 관리합니다.
 
 ### Docker 없이 실행
 
@@ -139,7 +144,6 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-# Phoenix 엔드포인트 (Docker Compose 내부: http://phoenix:4318)
 PHOENIX_OTLP = os.getenv("PHOENIX_OTLP_ENDPOINT", "http://localhost:4318/v1/traces")
 
 # 프로젝트 이름 — 대시보드에서 이 이름으로 표시됨
@@ -237,9 +241,9 @@ new OpenAIInstrumentor().manuallyInstrument();
 #### 환경 변수
 
 ```bash
-# .env에 추가
-PHOENIX_OTLP_ENDPOINT=http://localhost:4318/v1/traces  # Docker 내부: http://phoenix:4318/v1/traces
-PHOENIX_PROJECT_NAME=my-agent                           # 대시보드에 표시될 프로젝트 이름
+# 에이전트의 .env에 추가
+PHOENIX_OTLP_ENDPOINT=http://localhost:4318/v1/traces
+PHOENIX_PROJECT_NAME=my-agent  # 대시보드에 표시될 프로젝트 이름
 ```
 
 #### 확인 방법
@@ -391,7 +395,7 @@ app/
 ├── playground/                 # 프롬프트 A/B 비교
 ├── prompts/                    # 프롬프트 CRUD
 ├── api/
-│   ├── phoenix/route.ts        # Phoenix API 프록시
+│   ├── v1/[...path]/route.ts   # Phoenix API 프록시
 │   ├── feedback/               # 피드백 CRUD + 통계
 │   ├── eval-prompts/route.ts   # Eval 프롬프트 설정
 │   ├── risks/route.ts          # 리스크 CRUD

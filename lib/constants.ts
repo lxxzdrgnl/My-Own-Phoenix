@@ -1,12 +1,12 @@
 // Pass/fail label classification
 export const PASS_LABELS = new Set([
-  "pass", "true", "yes", "correct", "factual", "faithful",
+  "pass", "passed", "true", "yes", "correct", "factual", "faithful",
   "appropriate", "clean", "relevant", "positive", "success",
 ]);
 
 export const FAIL_LABELS = new Set([
-  "fail", "false", "no", "incorrect", "hallucinated", "detected",
-  "irrelevant", "unfaithful", "negative",
+  "fail", "failed", "false", "no", "incorrect", "hallucinated", "detected",
+  "irrelevant", "unfaithful", "negative", "violated",
 ]);
 
 // Agent types

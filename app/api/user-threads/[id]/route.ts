@@ -1,26 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler } from "@/lib/api-error";
 
-export async function DELETE(
-  _req: NextRequest,
+export const DELETE = authedHandler(async (
+  req: NextRequest,
+  uid: string,
   { params }: { params: Promise<{ id: string }> },
-) {
-  const auth = await requireAuth(_req);
-  if (auth instanceof NextResponse) return auth;
+) => {
   const { id } = await params;
 
   await prisma.thread.delete({ where: { id } });
 
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function PATCH(
+export const PATCH = authedHandler(async (
   req: NextRequest,
+  uid: string,
   { params }: { params: Promise<{ id: string }> },
-) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+) => {
   const { id } = await params;
   const { title } = await req.json();
 
@@ -30,4 +28,4 @@ export async function PATCH(
   });
 
   return NextResponse.json({ thread });
-}
+});

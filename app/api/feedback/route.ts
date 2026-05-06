@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
 
 const PHOENIX_ENDPOINT =
   process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006";
@@ -43,7 +43,7 @@ async function findSpanForMessage(project: string, messageContent: string, messa
         if (text.includes(snippet)) {
           return s.context.span_id;
         }
-      } catch {}
+      } catch (e) { console.error(e); }
     }
 
     // Fallback: closest root span within 5 minutes
@@ -76,29 +76,27 @@ async function uploadToPhoenix(spanId: string, label: string, score: number) {
         }],
       }),
     });
-  } catch {}
+  } catch (e) { console.error(e); }
 }
 
-export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (request: NextRequest) => {
   const messageId = request.nextUrl.searchParams.get("messageId");
   const userId = request.nextUrl.searchParams.get("userId");
 
-  if (!messageId || !userId) {
-    return NextResponse.json({ error: "messageId and userId required" }, { status: 400 });
-  }
+  const err = validateFields([
+    { field: "messageId", value: messageId, required: true },
+    { field: "userId", value: userId, required: true },
+  ]);
+  if (err) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
   const feedback = await prisma.messageFeedback.findUnique({
-    where: { messageId_userId: { messageId, userId } },
+    where: { messageId_userId: { messageId: messageId!, userId: userId! } },
   });
 
   return NextResponse.json({ feedback });
-}
+});
 
-export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const POST = authedHandler(async (request: NextRequest) => {
   const body = await request.json();
   const { messageId, userId, value } = body as {
     messageId: string;
@@ -106,9 +104,12 @@ export async function POST(request: NextRequest) {
     value: string;
   };
 
-  if (!messageId || !userId || !value) {
-    return NextResponse.json({ error: "messageId, userId, value required" }, { status: 400 });
-  }
+  const err = validateFields([
+    { field: "messageId", value: messageId, required: true },
+    { field: "userId", value: userId, required: true },
+    { field: "value", value: value, required: true },
+  ]);
+  if (err) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
   // Upsert feedback in Prisma
   const feedback = await prisma.messageFeedback.upsert({
@@ -137,17 +138,17 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ feedback });
-}
+});
 
-export async function DELETE(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const DELETE = authedHandler(async (request: NextRequest) => {
   const body = await request.json();
   const { messageId, userId } = body as { messageId: string; userId: string };
 
-  if (!messageId || !userId) {
-    return NextResponse.json({ error: "messageId and userId required" }, { status: 400 });
-  }
+  const err = validateFields([
+    { field: "messageId", value: messageId, required: true },
+    { field: "userId", value: userId, required: true },
+  ]);
+  if (err) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
   // Get message info before deleting feedback
   const message = await prisma.message.findUnique({
@@ -173,4 +174,4 @@ export async function DELETE(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
-}
+});

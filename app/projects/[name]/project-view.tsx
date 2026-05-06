@@ -175,7 +175,7 @@ export function ProjectView({ projectName }: { projectName: string }) {
         const data = await res.json();
         setFeedbackStats({ total: data.totalResponses, downCount: data.downCount });
       }
-    } catch {}
+    } catch (e) { console.error(e); }
   }, [projectName]);
   useEffect(() => { loadFeedbackStats(); }, [loadFeedbackStats]);
 
@@ -232,7 +232,7 @@ export function ProjectView({ projectName }: { projectName: string }) {
         mitigated: risks.filter((r: any) => r.status === "MITIGATED").length,
         openIncidents: incidents.filter((i: any) => i.status !== "RESOLVED").length,
       });
-    } catch {}
+    } catch (e) { console.error(e); }
   }, [projectName]);
   useEffect(() => { loadRiskStats(); }, [loadRiskStats]);
 

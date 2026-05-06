@@ -34,28 +34,7 @@ const BUILTIN_DESCRIPTIONS: Record<string, string> = {
   banned_word: "Detects toxic or banned content (keyword matching)",
 };
 
-const NEW_EVAL_TEMPLATE = `You are an expert AI response evaluator.
-
-Evaluate the quality of the RESPONSE based on the given CONTEXT and QUERY.
-Consider accuracy, relevance, completeness, and faithfulness to the provided context.
-
-CONTEXT:
-{context}
-
-QUERY:
-{query}
-
-RESPONSE:
-{response}
-
-Scoring:
-- 1.0: Excellent — accurate, relevant, complete, and well-grounded
-- 0.7-0.9: Good — mostly accurate with minor issues
-- 0.4-0.6: Fair — partially correct but has notable gaps or inaccuracies
-- 0.1-0.3: Poor — mostly incorrect or irrelevant
-- 0.0: Completely wrong or off-topic
-
-Respond with JSON only: {{"label": "pass" or "fail", "score": 0.0-1.0, "explanation": "one line"}}`;
+import { NEW_EVAL_TEMPLATE } from "@/app/evaluations/eval-constants";
 
 // ─── Props ────────────────────────────────────────────────────────────────
 
@@ -94,7 +73,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
       setEvals(data.prompts ?? []);
-    } catch {}
+    } catch (e) { console.error(e); }
   }, []);
 
   useEffect(() => {
@@ -110,18 +89,6 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
   }, [open, checkedEvals, evalOverrides, loadEvals]);
 
   // Get effective template/ruleConfig for the active eval based on scope
-  function getEffective(ev: EvalItem) {
-    if (scope === "dataset") {
-      const ov = overrides[ev.name];
-      if (ov) {
-        return {
-          template: ov.template ?? ev.template,
-          ruleConfig: ov.ruleConfig ?? ev.ruleConfig,
-        };
-      }
-    }
-    return { template: ev.template, ruleConfig: ev.ruleConfig };
-  }
 
   function selectEval(name: string) {
     if (dirty) {
@@ -207,7 +174,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
           }),
         });
         await loadEvals();
-      } catch {}
+      } catch (e) { console.error(e); }
       setDirty(false);
     }
     setSaving(false);
@@ -255,7 +222,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
       setEditRuleConfig(DEFAULT_RULE_CONFIG);
       setEditBadgeLabel(name.slice(0, 3).toUpperCase());
       setDirty(false);
-    } catch {}
+    } catch (e) { console.error(e); }
     setSaving(false);
   }
 

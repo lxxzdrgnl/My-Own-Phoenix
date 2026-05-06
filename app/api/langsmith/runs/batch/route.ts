@@ -72,12 +72,12 @@ function extractInput(run: LangSmithRun): string {
     if (last?.content) return String(last.content);
     if (Array.isArray(last) && last.length > 0) {
       const msg = last[last.length - 1];
-      return msg?.content ?? msg?.kwargs?.content ?? JSON.stringify(msg).slice(0, 2000);
+      return msg?.content ?? msg?.kwargs?.content ?? JSON.stringify(msg);
     }
   }
   if (run.inputs.prompt) return String(run.inputs.prompt);
   if (run.inputs.input) return String(run.inputs.input);
-  return JSON.stringify(run.inputs).slice(0, 2000);
+  return JSON.stringify(run.inputs);
 }
 
 function extractOutput(run: LangSmithRun): string {
@@ -90,7 +90,7 @@ function extractOutput(run: LangSmithRun): string {
   }
   if (run.outputs.output) return String(run.outputs.output);
   if (run.outputs.content) return String(run.outputs.content);
-  return JSON.stringify(run.outputs).slice(0, 2000);
+  return JSON.stringify(run.outputs);
 }
 
 function runTypeToSpanKind(runType?: string): string {

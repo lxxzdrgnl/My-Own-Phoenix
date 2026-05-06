@@ -117,7 +117,7 @@ export function DatasetManager() {
       const res = await apiFetch("/api/datasets");
       const data = await res.json();
       setDatasets(data.datasets ?? []);
-    } catch {}
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
   useEffect(() => { loadDatasets(); }, [loadDatasets]);
@@ -131,7 +131,7 @@ export function DatasetManager() {
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
       setEvalOptions(data.prompts ?? []);
-    } catch {}
+    } catch (e) { console.error(e); }
   }, []);
   useEffect(() => { loadEvals(); }, [loadEvals]);
 
@@ -148,7 +148,7 @@ export function DatasetManager() {
       setCheckedEvals(new Set(data.evalNames ?? []));
       setEvalOverrides(data.evalOverrides ?? {});
       setPage(p);
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   // ── Select dataset ──
@@ -164,7 +164,7 @@ export function DatasetManager() {
       ]);
       const runsData = await runsRes.json();
       setRuns(runsData.runs ?? []);
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   async function loadRun(runId: string) {
@@ -176,7 +176,7 @@ export function DatasetManager() {
       setRunResults(data.rowResults ?? []);
       setRunEvalNames(data.evalNames ?? []);
       setActiveTab("results");
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   async function handleCreate() {
@@ -190,7 +190,7 @@ export function DatasetManager() {
       setNewName(""); setCreating(false);
       await loadDatasets();
       if (data.dataset?.id) selectDataset(data.dataset.id);
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   async function handleImport(data: {
@@ -210,7 +210,7 @@ export function DatasetManager() {
         body: JSON.stringify({ name: data.name, fileName: data.fileName, headers: data.headers, rows: data.rows, queryCol: data.queryCol, contextCol: data.contextCol }),
       });
       let result: any = {};
-      try { result = await res.json(); } catch {}
+      try { result = await res.json(); } catch (e) { console.error(e); }
       await loadDatasets();
       if (result.dataset?.id) selectDataset(result.dataset.id);
     }

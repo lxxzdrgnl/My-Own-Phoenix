@@ -98,7 +98,7 @@ export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
       setCustomEvals((data.prompts ?? []).filter((p: CustomEval) => p.isCustom));
-    } catch {}
+    } catch (e) { console.error(e); }
   }, []);
 
   useEffect(() => {

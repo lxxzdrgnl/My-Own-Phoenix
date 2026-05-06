@@ -47,7 +47,7 @@ export function MessageFeedback({ messageId, content, initialValue = null }: Mes
       await navigator.clipboard.writeText(content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    } catch (e) { console.error(e); }
   }, [content]);
 
   if (!user) return null;

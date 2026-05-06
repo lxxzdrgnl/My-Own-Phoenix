@@ -87,7 +87,7 @@ export async function fetchProjects(): Promise<Project[]> {
           return ai - bi;
         });
       }
-    } catch {}
+    } catch (e) { console.error(e); }
   }
   return projects;
 }
@@ -100,14 +100,14 @@ function extractTag(input: string, tag: string): string {
       const m = content.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`));
       if (m) return m[1].trim();
     }
-  } catch {}
+  } catch (e) { console.error(e); }
   return "";
 }
 
 function extractResponse(output: string): string {
   try {
     return JSON.parse(output).generations[0][0].text;
-  } catch {}
+  } catch (e) { console.error(e); }
   return "";
 }
 
@@ -276,7 +276,7 @@ export async function fetchTraces(
           // { input: "..." } or { query: "..." }
           if (!query && parsed?.input) query = String(parsed.input);
           if (!query && parsed?.query) query = String(parsed.query);
-        } catch {}
+        } catch { /* plain-text input — not JSON, fallback to other extractors */ }
       }
 
       if (!query) query = root.attributes?.["metadata.prompt_label"] || root.name || "(unknown)";
@@ -302,7 +302,7 @@ export async function fetchTraces(
           const kind = String(ts.attributes?.["openinference.span.kind"] ?? ts.span_kind ?? "").toUpperCase();
           if ((kind === "TOOL" || kind === "RETRIEVER") && ts.attributes?.["output.value"]) {
             const out = String(ts.attributes["output.value"]);
-            if (out && out.length > 10) contextParts.push(out.slice(0, 2000));
+            if (out && out.length > 10) contextParts.push(out);
           }
         }
         context = contextParts.join("\n---\n");
@@ -333,7 +333,7 @@ export async function fetchTraces(
             || parsed?.content
             || "";
         }
-      } catch {}
+      } catch { /* plain-text output — not JSON, fallback below */ }
       if (!response && output && !output.startsWith("{")) response = output;
       if (!response) response = output;
     }
@@ -510,6 +510,20 @@ export async function fetchPromptVersions(
   );
   const data = await res.json();
   return data.data ?? [];
+}
+
+/** Fetch all prompts with their versions in parallel (avoids N+1). */
+export async function fetchPromptsWithVersions(): Promise<
+  Array<{ prompt: PromptInfo; versions: PromptVersion[] }>
+> {
+  const prompts = await fetchPrompts();
+  const results = await Promise.all(
+    prompts.map(async (p) => ({
+      prompt: p,
+      versions: await fetchPromptVersions(p.name),
+    })),
+  );
+  return results;
 }
 
 // --- Prompt Tags ---

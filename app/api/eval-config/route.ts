@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
-export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (request: NextRequest) => {
   const projectId = request.nextUrl.searchParams.get("projectId");
   if (!projectId) {
-    return NextResponse.json({ error: "projectId is required" }, { status: 400 });
+    return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { projectId: "projectId is required" });
   }
 
   const configs = await prisma.projectEvalConfig.findMany({
@@ -15,11 +13,9 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({ configs });
-}
+});
 
-export async function PUT(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const PUT = authedHandler(async (request: NextRequest) => {
   const body = await request.json();
   const { projectId, evalName, enabled, template } = body as {
     projectId: string;
@@ -29,7 +25,9 @@ export async function PUT(request: NextRequest) {
   };
 
   if (!projectId || !evalName) {
-    return NextResponse.json({ error: "projectId and evalName required" }, { status: 400 });
+    return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", {
+      fields: "projectId and evalName required",
+    });
   }
 
   const data: Record<string, unknown> = {};
@@ -43,4 +41,4 @@ export async function PUT(request: NextRequest) {
   });
 
   return NextResponse.json({ config });
-}
+});

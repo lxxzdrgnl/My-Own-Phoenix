@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureBuiltInEvals } from "@/lib/eval-seed";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
-export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (request: NextRequest) => {
   await ensureBuiltInEvals();
   const projectId = request.nextUrl.searchParams.get("projectId");
 
@@ -21,11 +19,9 @@ export async function GET(request: NextRequest) {
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ prompts });
-}
+});
 
-export async function PUT(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const PUT = authedHandler(async (request: NextRequest) => {
   const body = await request.json();
   const { name, projectId, evalType, outputMode, template, ruleConfig, badgeLabel, isCustom } = body as {
     name: string;
@@ -39,7 +35,7 @@ export async function PUT(request: NextRequest) {
   };
 
   if (!name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+    return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { name: "name is required" });
   }
 
   const pid = projectId || null;
@@ -81,15 +77,13 @@ export async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json({ prompt });
-}
+});
 
-export async function DELETE(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const DELETE = authedHandler(async (request: NextRequest) => {
   const name = request.nextUrl.searchParams.get("name");
   const projectId = request.nextUrl.searchParams.get("projectId");
   if (!name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+    return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { name: "name is required" });
   }
   // Try exact projectId match first, then fallback to null/empty (legacy data)
   const deleted = await prisma.evalPrompt.deleteMany({
@@ -101,4 +95,4 @@ export async function DELETE(request: NextRequest) {
     });
   }
   return NextResponse.json({ ok: true });
-}
+});

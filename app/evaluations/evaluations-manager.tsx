@@ -6,7 +6,6 @@ import { fetchProjects, type Project } from "@/lib/phoenix";
 import { LoadingState } from "@/components/ui/empty-state";
 import { Sidebar, SidebarHeader, SidebarItem } from "@/components/ui/sidebar";
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from "@/components/rule-builder";
-import { BUILT_IN_EVALS } from "./eval-constants";
 import { EvalList, type EvalPrompt, type ProjectEvalConfig } from "./eval-list";
 import { EvalEditor } from "./eval-editor";
 
@@ -60,7 +59,7 @@ export function EvaluationsManager() {
       ]);
       setProjectConfigs(configRes.configs ?? []);
       setGlobalPrompts(promptsRes.prompts ?? []);
-    } catch {}
+    } catch (e) { console.error(e); }
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
@@ -94,7 +93,7 @@ export function EvaluationsManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId: selectedProject, evalName, enabled: newEnabled }),
       });
-    } catch {}
+    } catch (e) { console.error(e); }
     loadProjectConfig(selectedProject);
   }
 

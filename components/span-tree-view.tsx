@@ -61,45 +61,7 @@ function formatJson(raw: string): string {
 }
 
 /** Extract a short user-facing input preview from raw span input */
-function extractInputPreview(input: string, maxLen = 80): string {
-  if (!input) return "";
-  try {
-    const parsed = JSON.parse(input);
-
-    // LangGraph style: { messages: [{ type: "human", content: "..." }] }
-    if (Array.isArray(parsed?.messages)) {
-      for (const msg of parsed.messages) {
-        // flat { type, content } or { role, content }
-        if ((msg?.type === "human" || msg?.role === "user") && typeof msg?.content === "string") {
-          return msg.content.trim().slice(0, maxLen);
-        }
-        // nested kwargs style: { kwargs: { content: "..." } }
-        if (Array.isArray(msg)) {
-          for (const m of msg) {
-            const c = m?.kwargs?.content ?? "";
-            const qMatch = c.match?.(/<question>([\s\S]*?)<\/question>/);
-            if (qMatch) return qMatch[1].trim().slice(0, maxLen);
-            if (c && m?.id?.includes("HumanMessage")) return c.trim().slice(0, maxLen);
-          }
-          const last = msg[msg.length - 1];
-          if (last?.kwargs?.content) return last.kwargs.content.trim().slice(0, maxLen);
-        }
-      }
-    }
-
-    // OpenAI style: [{ role: "user", content: "..." }]
-    if (Array.isArray(parsed)) {
-      const userMsg = parsed.find((m: any) => m.role === "user" || m.type === "human");
-      if (userMsg?.content) return userMsg.content.trim().slice(0, maxLen);
-    }
-
-    // { input: "..." } or { query: "..." }
-    if (typeof parsed?.input === "string") return parsed.input.trim().slice(0, maxLen);
-    if (typeof parsed?.query === "string") return parsed.query.trim().slice(0, maxLen);
-  } catch {}
-  // Plain text fallback
-  return input.trim().slice(0, maxLen);
-}
+import { extractInputPreview } from "@/lib/span-extraction";
 
 // ─── Span Tree Node (LangSmith style) ────────────────────────────────────────
 
@@ -532,7 +494,7 @@ export function SpanTreeView({
         body: JSON.stringify({ name: annotationName, span_id: spanId }),
       });
       onRefresh?.();
-    } catch {}
+    } catch (e) { console.error(e); }
   }
 
   return (

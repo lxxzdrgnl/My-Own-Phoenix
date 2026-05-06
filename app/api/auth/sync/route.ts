@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiError, ErrorCode, safeHandler } from "@/lib/api-error";
 
-export async function POST(req: NextRequest) {
+export const POST = safeHandler(async (req: NextRequest) => {
   const { uid, email, name } = await req.json();
 
   if (!uid || !email) {
-    return NextResponse.json({ error: "Missing uid or email" }, { status: 400 });
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", {
+      fields: "uid and email are required",
+    });
   }
 
   const user = await prisma.user.upsert({
@@ -15,4 +18,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ user });
-}
+});

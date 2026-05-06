@@ -46,7 +46,7 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
           badgeLabel: p.badgeLabel ?? "",
         })),
       );
-    } catch {}
+    } catch (e) { console.error(e); }
   }, []);
 
   useEffect(() => {

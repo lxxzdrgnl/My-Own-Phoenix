@@ -46,43 +46,43 @@ export const MEASURE_METRICS: MeasureMetricDef[] = [
     description: "Rate of factually accurate responses. 100% = no hallucinations.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 95, yellow: (v) => v > 90 },
+    threshold: { green: (v) => v > 90, yellow: (v) => v > 75 },
   },
   {
     id: "safety_rate",
     label: "Safety Rate",
     engLabel: "Toxicity Eval",
-    description: "Rate of safe, non-toxic responses. 100% = no toxic content.",
+    description: "Rate of safe, non-toxic responses. 100% = no banned words detected.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 97, yellow: (v) => v > 95 },
+    threshold: { green: (v) => v > 95, yellow: (v) => v > 85 },
   },
   {
     id: "qa_accuracy",
     label: "QA Accuracy",
     engLabel: "QA Eval",
-    description: "Answer accuracy for questions. Core quality metric.",
+    description: "Rate of correct answers. Label-based (correct/incorrect).",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 90, yellow: (v) => v > 80 },
+    threshold: { green: (v) => v > 80, yellow: (v) => v > 60 },
   },
   {
     id: "retrieval_relevance",
     label: "Retrieval Relevance",
     engLabel: "Relevance Eval",
-    description: "Retrieved document relevance to query.",
+    description: "How well retrieved documents support the query. 70%+ = at least 1 relevant doc.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 85, yellow: (v) => v > 70 },
+    threshold: { green: (v) => v > 35, yellow: (v) => v > 20 },
   },
   {
     id: "latency_score",
     label: "Latency Score",
     engLabel: "Span Duration",
-    description: "Response speed score. 100% = under 5s, 0% = over 30s.",
+    description: "Response speed. 100% = p95 under 15s, 0% = over 60s.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 80, yellow: (v) => v > 50 },
+    threshold: { green: (v) => v > 70, yellow: (v) => v > 40 },
   },
   {
     id: "success_rate",
@@ -91,22 +91,22 @@ export const MEASURE_METRICS: MeasureMetricDef[] = [
     description: "API call success rate. 100% = no errors.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 97, yellow: (v) => v > 95 },
+    threshold: { green: (v) => v > 95, yellow: (v) => v > 85 },
   },
   {
     id: "token_score",
     label: "Token Score",
     engLabel: "token_count",
-    description: "Token efficiency. 100% = under 500 avg, 0% = over 5000.",
+    description: "Token efficiency. 100% = avg under 2K, 0% = over 10K.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 70, yellow: (v) => v > 40 },
+    threshold: { green: (v) => v > 60, yellow: (v) => v > 30 },
   },
   {
     id: "cost_score",
     label: "Cost Score",
     engLabel: "llm.cost.total",
-    description: "Cost efficiency. 100% = $0/day, 0% = over $200/day.",
+    description: "Cost efficiency. 100% = under $10/day, 0% = over $200/day.",
     unit: "%",
     lowerIsBetter: false,
     threshold: { green: (v) => v > 50, yellow: (v) => v > 20 },
@@ -115,37 +115,37 @@ export const MEASURE_METRICS: MeasureMetricDef[] = [
     id: "user_satisfaction",
     label: "User Satisfaction",
     engLabel: "Feedback Eval",
-    description: "Rate of positive user feedback. 100% = all positive.",
+    description: "Rate of positive user feedback. Based on thumbs up/down.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 95, yellow: (v) => v > 85 },
+    threshold: { green: (v) => v > 85, yellow: (v) => v > 70 },
   },
   {
     id: "tool_calling_accuracy",
     label: "Tool Accuracy",
     engLabel: "Tool Calling Eval",
-    description: "Tool/function call appropriateness rate.",
+    description: "Average tool/retrieval appropriateness score.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 60, yellow: (v) => v > 30 },
+    threshold: { green: (v) => v > 60, yellow: (v) => v > 40 },
   },
   {
     id: "guardrail_pass",
     label: "Guardrail Pass",
     engLabel: "Guardrail Eval",
-    description: "Rate of responses passing all safety guardrails.",
+    description: "Rate of responses passing safety guardrails (PII, tone, harmful advice).",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 97, yellow: (v) => v > 95 },
+    threshold: { green: (v) => v > 95, yellow: (v) => v > 85 },
   },
   {
     id: "citation_accuracy",
     label: "Citation Accuracy",
     engLabel: "Citation Eval",
-    description: "Accuracy of cited content in responses.",
+    description: "Average context faithfulness score. 100% = fully grounded.",
     unit: "%",
     lowerIsBetter: false,
-    threshold: { green: (v) => v > 85, yellow: (v) => v > 70 },
+    threshold: { green: (v) => v > 70, yellow: (v) => v > 50 },
   },
 ];
 
@@ -204,64 +204,85 @@ export function computeMetrics(
   // Helper: clamp 0-100
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
-  // All values normalized to 0-100, higher = better
+  // All values normalized to 0-100, higher = better. -1 = no data.
+  // Helper: annotation pass rate (label-based) — returns -1 if no data, excludes cancelled
+  const annotationPassRate = (name: string, failLabel: string): number => {
+    const matching = annotations.filter((a) => a.name === name && a.label !== "cancelled");
+    if (matching.length === 0) return -1;
+    return clamp(100 - pct(matching.filter((a) => a.label === failLabel).length, matching.length));
+  };
+  // Helper: annotation avg score — returns -1 if no data, excludes cancelled
+  const annotationScorePercent = (name: string): number => {
+    const matching = annotations.filter((a) => a.name === name && a.label !== "cancelled");
+    if (matching.length === 0) return -1;
+    return clamp(avg(matching.map((a) => a.score)) * 100);
+  };
+
   const rawValues: Record<string, number> = {
-    // 100 - hallucination rate
-    factual_rate: clamp(100 - annotationRate(annotations, "hallucination", "hallucinated")),
-    // 100 - toxicity rate
-    safety_rate: clamp(100 - annotationRate(annotations, "banned_word", "detected")),
-    // Direct: higher = better
-    qa_accuracy: annotationAvgScore(annotations, "qa_correctness") * 100,
-    retrieval_relevance: annotationAvgScore(annotations, "rag_relevance") * 100,
-    // Latency: 100% if p95 < 5s, 0% if > 30s
-    latency_score: clamp((() => {
+    // 100 - hallucination rate (label-based)
+    factual_rate: annotationPassRate("hallucination", "hallucinated"),
+    // 100 - toxicity rate (label-based)
+    safety_rate: annotationPassRate("banned_word", "detected"),
+    // QA: label-based pass rate (correct/incorrect)
+    qa_accuracy: annotationPassRate("qa_correctness", "incorrect"),
+    // RAG relevance: score-based average
+    retrieval_relevance: annotationScorePercent("rag_relevance"),
+    // Latency: 100% if p95 ≤ 15s, 0% if ≥ 60s
+    latency_score: llmSpans.length === 0 ? -1 : clamp((() => {
       const p95 = percentile(llmSpans, 0.95) / 1000;
       if (p95 <= 0) return 100;
-      return 100 - ((p95 - 5) / 25) * 100; // 5s=100%, 30s=0%
+      return 100 - ((p95 - 15) / 45) * 100;
     })()),
     // 100 - error rate
-    success_rate: clamp(100 - pct(errorCount(spans), spans.length)),
-    // Token: 100% if < 1000, 0% if > 10000
-    token_score: clamp((() => {
+    success_rate: spans.length === 0 ? -1 : clamp(100 - pct(errorCount(spans), spans.length)),
+    // Token: 100% if avg ≤ 2000, 0% if ≥ 10000
+    token_score: llmSpans.length === 0 ? -1 : clamp((() => {
       const avgTokens = avg(llmSpans.map((s) => s.totalTokens));
       if (avgTokens <= 0) return 100;
-      if (avgTokens <= 1000) return 100;
-      return 100 - ((avgTokens - 1000) / 9000) * 100;
+      if (avgTokens <= 2000) return 100;
+      return 100 - ((avgTokens - 2000) / 8000) * 100;
     })()),
-    // Cost: 100% if < $1/day, 0% if > $50/day
-    cost_score: clamp((() => {
+    // Cost: 100% if ≤ $10/day, 0% if ≥ $200/day
+    cost_score: llmSpans.length === 0 ? -1 : clamp((() => {
       const totalCost = sum(llmSpans.map((s) => calcCost(s)));
-      if (totalCost <= 1) return 100;
-      return 100 - ((totalCost - 1) / 49) * 100;
+      if (totalCost <= 10) return 100;
+      return 100 - ((totalCost - 10) / 190) * 100;
     })()),
-    // 100 - frustration rate
-    user_satisfaction: feedbackStats
+    // User satisfaction: -1 if no feedback data
+    user_satisfaction: feedbackStats && feedbackStats.total > 0
       ? clamp(100 - pct(feedbackStats.downCount, feedbackStats.total))
-      : 100,
-    // Direct: higher = better
-    tool_calling_accuracy: annotationAvgScore(annotations, "tool_calling") * 100,
-    // 100 - guardrail trigger rate
-    guardrail_pass: clamp(100 - (() => {
+      : -1,
+    // Tool calling: score-based average
+    tool_calling_accuracy: annotationScorePercent("tool_calling"),
+    // Guardrail: dedicated eval, fallback to banned_word+hallucination combo
+    guardrail_pass: (() => {
+      const grd = annotations.filter((a) => a.name === "guardrail");
+      if (grd.length > 0) {
+        const passed = grd.filter((a) => a.label === "passed").length;
+        return clamp(pct(passed, grd.length));
+      }
       const bw = annotations.filter((a) => a.name === "banned_word");
       const hal = annotations.filter((a) => a.name === "hallucination");
-      if (bw.length === 0 && hal.length === 0) return 0;
+      if (bw.length === 0 && hal.length === 0) return -1;
       const total = Math.max(bw.length, hal.length);
       const triggered = new Set<string>();
       for (const a of bw) if (a.label === "detected") triggered.add(a.time);
       for (const a of hal) if (a.score > 0.5) triggered.add(a.time);
-      return pct(triggered.size, total);
-    })()),
-    // Direct: higher = better
-    citation_accuracy: annotationAvgScore(annotations, "citation") * 100,
+      return clamp(100 - pct(triggered.size, total));
+    })(),
+    // Citation: score-based average
+    citation_accuracy: annotationScorePercent("citation"),
   };
 
   return MEASURE_METRICS.map((metric) => {
-    const value = rawValues[metric.id] ?? 0;
+    const raw = rawValues[metric.id] ?? 0;
+    const noData = raw === -1;
+    const value = noData ? 0 : raw;
     return {
       id: metric.id,
       value,
-      formatted: formatValue(value, metric.unit),
-      status: getStatus(metric, value),
+      formatted: noData ? "N/A" : formatValue(value, metric.unit),
+      status: noData ? "green" as StatusLevel : getStatus(metric, value),
     };
   });
 }

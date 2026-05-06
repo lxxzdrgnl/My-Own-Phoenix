@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
 /**
  * GET /api/feedback/stats?project=X
@@ -10,12 +10,10 @@ import { requireAuth } from "@/lib/auth-server";
  * - totalFeedback: messages with any feedback
  * - downCount: messages with "down" feedback
  */
-export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (request: NextRequest) => {
   const project = request.nextUrl.searchParams.get("project");
   if (!project) {
-    return NextResponse.json({ error: "project required" }, { status: 400 });
+    return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { project: "project is required" });
   }
 
   const totalResponses = await prisma.message.count({
@@ -32,4 +30,4 @@ export async function GET(request: NextRequest) {
     totalFeedback: allFeedback.length,
     downCount: allFeedback.filter((f) => f.value === "down").length,
   });
-}
+});

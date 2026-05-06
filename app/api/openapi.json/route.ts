@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MY_PHENIX_PATHS, MY_PHENIX_INFO, SECURITY_SCHEMES } from "@/lib/openapi-spec";
+import { MY_PHENIX_PATHS, MY_PHENIX_INFO, SECURITY_SCHEMES, ERROR_SCHEMAS } from "@/lib/openapi-spec";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -55,14 +55,14 @@ export async function GET() {
       }
       phoenixSchemas = phoenixSpec.components?.schemas ?? {};
     }
-  } catch {}
+  } catch (e) { console.error(e); }
 
   const combined = {
     openapi: "3.1.0",
     info: MY_PHENIX_INFO,
     paths: { ...phoenixPaths, ...MY_PHENIX_PATHS },
     components: {
-      schemas: phoenixSchemas,
+      schemas: { ...phoenixSchemas, ...ERROR_SCHEMAS },
       securitySchemes: SECURITY_SCHEMES,
     },
     security: [{ BearerAuth: [] }],

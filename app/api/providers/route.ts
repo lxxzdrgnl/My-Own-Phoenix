@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt, maskApiKey } from "@/lib/crypto";
-import { requireAuth } from "@/lib/auth-server";
+import { apiError, ErrorCode, validateFields, authedHandler } from "@/lib/api-error";
 
-export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+const VALID_PROVIDERS = ["openai", "anthropic", "google", "xai"] as const;
+
+export const GET = authedHandler(async (req) => {
   const decryptParam = req.nextUrl.searchParams.get("decrypt");
   const providers = await prisma.llmProvider.findMany({ orderBy: { createdAt: "asc" } });
 
@@ -19,36 +19,31 @@ export async function GET(req: NextRequest) {
   }));
 
   return NextResponse.json({ providers: result });
-}
+});
 
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
-  const { provider, apiKey } = (await req.json()) as { provider: string; apiKey: string };
+export const POST = authedHandler(async (req) => {
+  const body = (await req.json()) as { provider: string; apiKey: string };
 
-  if (!provider || !apiKey) {
-    return NextResponse.json({ error: "provider and apiKey required" }, { status: 400 });
-  }
+  const err = validateFields([
+    { field: "provider", value: body.provider, required: true, oneOf: VALID_PROVIDERS },
+    { field: "apiKey", value: body.apiKey, required: true, minLength: 1 },
+  ]);
+  if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
-  const validProviders = ["openai", "anthropic", "google", "xai"];
-  if (!validProviders.includes(provider)) {
-    return NextResponse.json({ error: `Invalid provider. Must be one of: ${validProviders.join(", ")}` }, { status: 400 });
-  }
-
-  const existing = await prisma.llmProvider.findUnique({ where: { provider } });
+  const existing = await prisma.llmProvider.findUnique({ where: { provider: body.provider } });
   if (existing) {
-    return NextResponse.json({ error: `Provider "${provider}" already registered. Use PUT to update.` }, { status: 409 });
+    return apiError(req, ErrorCode.PROVIDER_DUPLICATE, `Provider "${body.provider}" already registered. Use PUT to update.`);
   }
 
-  const encrypted = encrypt(apiKey);
+  const encrypted = encrypt(body.apiKey);
   const created = await prisma.llmProvider.create({
-    data: { provider, apiKey: encrypted, isActive: true },
+    data: { provider: body.provider, apiKey: encrypted, isActive: true },
   });
 
   return NextResponse.json({
     id: created.id,
     provider: created.provider,
-    apiKey: maskApiKey(apiKey),
+    apiKey: maskApiKey(body.apiKey),
     isActive: created.isActive,
   });
-}
+});

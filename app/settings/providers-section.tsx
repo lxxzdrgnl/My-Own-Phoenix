@@ -5,8 +5,8 @@ import { useState, useCallback, useEffect } from "react";
 import { CheckCircle, XCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FormLabel } from "@/components/ui/form-field";
 import { LoadingState } from "@/components/ui/empty-state";
+import { ProviderIcon } from "@/components/provider-icon";
 
 interface ProviderEntry {
   id: string;
@@ -31,7 +31,7 @@ export function ProvidersSection() {
       const res = await apiFetch("/api/providers");
       const data = await res.json();
       setProviders(data.providers ?? []);
-    } catch {}
+    } catch { console.error("Failed to load providers"); }
     setLoading(false);
   }, []);
 
@@ -44,7 +44,6 @@ export function ProvidersSection() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold tracking-tight">LLM Providers</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
@@ -129,7 +128,7 @@ function ProviderRow({
       setApiKey("");
       setTestResult(null);
       onUpdate();
-    } catch {}
+    } catch { console.error("Failed to save provider"); }
     setSaving(false);
   }
 
@@ -164,16 +163,17 @@ function ProviderRow({
       <div className="px-4 py-3 space-y-2.5">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-[10px] font-bold uppercase text-muted-foreground">
-            {label.slice(0, 2)}
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/60">
+            <ProviderIcon provider={providerKey} size={18} />
           </div>
           <p className="flex-1 text-sm font-semibold">{label}</p>
           {isConfigured ? (
-            <span className="rounded-full bg-[#10b981] px-2 py-0.5 text-[10px] font-semibold text-white">
+            <span className="flex items-center gap-1 text-[11px] font-medium text-[#10b981]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
               Active
             </span>
           ) : (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground/60">
+            <span className="text-[11px] font-medium text-muted-foreground/40">
               Not configured
             </span>
           )}
