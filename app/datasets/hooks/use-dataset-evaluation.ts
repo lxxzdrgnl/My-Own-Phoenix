@@ -118,7 +118,7 @@ export function useDatasetEvaluation({
             const apiRes = await fetch(endpoint, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ evalName: eval_.name, query, response, context, rowData }),
+              body: JSON.stringify({ evalName: eval_.name, query, response, context, rowData, capture: result.capture }),
             });
             if (!apiRes.ok) throw new Error(`eval API returned ${apiRes.status}`);
             const apiData = await apiRes.json();
@@ -144,12 +144,20 @@ export function useDatasetEvaluation({
         done++; setEvalProgress(Math.round((done / totalWork) * 100));
         if (liveRunId) setLiveResults([...updatedResults]);
         else setRunResults([...updatedResults]);
+
+        // Save incrementally after each eval
+        try {
+          await apiFetch(`/api/datasets/runs/${runId}`, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rowResults: updatedResults }),
+          });
+        } catch {}
       }
     }
 
     await apiFetch(`/api/datasets/runs/${runId}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rowResults: updatedResults, status: cancelRef.current ? "stopped" : "completed" }),
+      body: JSON.stringify({ status: cancelRef.current ? "stopped" : "completed" }),
     });
     setEvaluating(false); cancelRef.current = false; setRunEvalNames(evalNamesList);
     if (liveRunId) setLiveResults([...updatedResults]);

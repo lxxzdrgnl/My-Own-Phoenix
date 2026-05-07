@@ -5,6 +5,7 @@ interface DatasetRow { [key: string]: string; }
 interface RowResult {
   rowIdx: number; response: string; query?: string;
   evals: Record<string, { label: string; score: number; explanation: string }>;
+  capture?: Record<string, unknown>;
 }
 interface AgentConfigOption {
   id: string; project: string; alias: string | null;
@@ -72,6 +73,7 @@ export function useDatasetGeneration({
       const row = allRows[i];
       const query = queryCol ? row[queryCol] ?? "" : "";
       let response = "";
+      let captureData: Record<string, unknown> | undefined;
       try {
         if (selectedAgent.startsWith("llm:")) {
           const model = selectedAgent.replace("llm:", "");
@@ -94,6 +96,8 @@ export function useDatasetGeneration({
               if ((event.event as string) === "messages/partial") {
                 const d = event.data as any;
                 if (Array.isArray(d)) { const last = d[d.length - 1]; if (last?.content) response = typeof last.content === "string" ? last.content : last.content.map((p: any) => p.text ?? "").join(""); }
+              } else if ((event.event as string) === "capture") {
+                captureData = event.data as Record<string, unknown>;
               }
             }
           } else {
@@ -109,14 +113,22 @@ export function useDatasetGeneration({
         }
       } catch (e) { response = `(error: ${e instanceof Error ? e.message : String(e)})`; }
 
-      results.push({ rowIdx: (row as any)._rowIndex ?? i, response, evals: {}, query });
+      results.push({ rowIdx: (row as any)._rowIndex ?? i, response, evals: {}, query, capture: captureData });
       setGenProgress(Math.round(((i + 1) / allRows.length) * 100));
       setLiveResults([...results]);
+
+      // Save incrementally after each row
+      try {
+        await apiFetch(`/api/datasets/runs/${run.id}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rowResults: results }),
+        });
+      } catch {}
     }
 
     await apiFetch(`/api/datasets/runs/${run.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rowResults: results, status: cancelRef.current ? "stopped" : "generated" }),
+      body: JSON.stringify({ status: cancelRef.current ? "stopped" : "generated" }),
     });
     setGenerating(false); cancelRef.current = false;
     const runsData = await (await apiFetch(`/api/datasets/runs?datasetId=${selectedId}`)).json();

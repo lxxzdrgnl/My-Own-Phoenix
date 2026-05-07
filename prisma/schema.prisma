@@ -199,6 +199,7 @@ model DatasetRunResult {
   response  String     @default("")
   query     String     @default("")
   evals     String     @default("{}") // JSON: Record<string, {label, score, explanation}>
+  capture   String     @default("{}") // JSON: AgentRunCapture (toolCalls, thinking, iterations)
   run       DatasetRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId, rowIdx])

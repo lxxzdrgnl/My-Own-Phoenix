@@ -15,8 +15,8 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
   const run = runRows[0];
 
   // Read results from DatasetRunResult table
-  const results = await prisma.$queryRaw<Array<{ rowIdx: number; response: string; query: string; evals: string }>>`
-    SELECT rowIdx, response, query, evals FROM DatasetRunResult
+  const results = await prisma.$queryRaw<Array<{ rowIdx: number; response: string; query: string; evals: string; capture: string }>>`
+    SELECT rowIdx, response, query, evals, capture FROM DatasetRunResult
     WHERE runId = ${runId} ORDER BY rowIdx ASC
   `;
 
@@ -25,6 +25,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
     response: r.response,
     query: r.query,
     evals: JSON.parse(r.evals ?? "{}"),
+    capture: JSON.parse(r.capture ?? "{}"),
   }));
 
   return NextResponse.json({

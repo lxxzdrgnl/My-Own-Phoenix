@@ -29,16 +29,17 @@ export async function batchInsertRows(
  */
 export async function batchInsertRunResults(
   runId: string,
-  results: Array<{ rowIdx: number; response: string; query?: string; evals: Record<string, unknown> }>,
+  results: Array<{ rowIdx: number; response: string; query?: string; evals: Record<string, unknown>; capture?: Record<string, unknown> }>,
 ): Promise<void> {
   for (const r of results) {
     const id = `rr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${r.rowIdx}`;
     const response = r.response ?? "";
     const query = r.query ?? "";
     const evals = JSON.stringify(r.evals ?? {});
+    const capture = JSON.stringify(r.capture ?? {});
     await prisma.$executeRaw`
-      INSERT INTO DatasetRunResult (id, runId, rowIdx, response, query, evals)
-      VALUES (${id}, ${runId}, ${r.rowIdx}, ${response}, ${query}, ${evals})
+      INSERT INTO DatasetRunResult (id, runId, rowIdx, response, query, evals, capture)
+      VALUES (${id}, ${runId}, ${r.rowIdx}, ${response}, ${query}, ${evals}, ${capture})
     `;
   }
 }
