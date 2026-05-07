@@ -124,8 +124,8 @@ export async function* sendMessageRest(params: {
         const parsed = JSON.parse(raw);
 
         // Handle different SSE formats from agents
-        if (parsed.event === "messages/partial" || parsed.event === "messages/complete") {
-          // Already in LangGraph format
+        if (parsed.event === "messages/partial" || parsed.event === "messages/complete" || parsed.event === "capture") {
+          // Already in LangGraph format or capture data
           yield parsed;
           continue;
         }
