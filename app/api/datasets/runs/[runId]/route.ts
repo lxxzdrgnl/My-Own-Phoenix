@@ -40,6 +40,9 @@ export const PUT = authedHandler(async (req: NextRequest, uid: string, { params 
   const body = await req.json();
 
   // Update run metadata
+  if (body.agentSource !== undefined) {
+    await prisma.$executeRaw`UPDATE DatasetRun SET agentSource = ${body.agentSource} WHERE id = ${runId}`;
+  }
   if (body.status !== undefined) {
     await prisma.$executeRaw`UPDATE DatasetRun SET status = ${body.status} WHERE id = ${runId}`;
   }

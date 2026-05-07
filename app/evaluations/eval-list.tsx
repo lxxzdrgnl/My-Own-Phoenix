@@ -92,10 +92,11 @@ export function EvalList({
           <span className={cn(
             "shrink-0 rounded px-1 py-0.5 text-[8px] font-bold uppercase",
             t === "code_rule" ? "bg-muted text-muted-foreground"
+              : t === "api" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
               : t === "builtin" ? "bg-foreground/10 text-foreground/70"
               : "bg-foreground text-background"
           )}>
-            {t === "code_rule" ? "rule" : t === "builtin" ? "built-in" : "llm"}
+            {t === "code_rule" ? "rule" : t === "api" ? "api" : t === "builtin" ? "built-in" : "llm"}
           </span>
           <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
         </button>

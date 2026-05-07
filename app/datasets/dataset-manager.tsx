@@ -420,7 +420,7 @@ export function DatasetManager() {
                 <button
                   key={tab}
                   onClick={() => {
-                    if (tab === "results" && !hasResults && runs.length > 0) {
+                    if (tab === "results" && runs.length > 0 && !selectedRunId && !liveRunId) {
                       loadRun(runs[0].id);
                     } else {
                       setActiveTab(tab);

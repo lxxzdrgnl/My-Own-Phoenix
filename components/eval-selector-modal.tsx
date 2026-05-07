@@ -66,7 +66,8 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
   // Create state
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState<"llm_prompt" | "code_rule">("llm_prompt");
+  const [newType, setNewType] = useState<"llm_prompt" | "code_rule" | "api">("llm_prompt");
+  const [newApiEndpoint, setNewApiEndpoint] = useState("http://localhost:2024/evaluate");
 
   const loadEvals = useCallback(async () => {
     try {
@@ -208,7 +209,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
           evalType: newType,
           outputMode: newType === "code_rule" ? "binary" : "score",
           template: newType === "llm_prompt" ? NEW_EVAL_TEMPLATE : "",
-          ruleConfig: newType === "code_rule" ? DEFAULT_RULE_CONFIG : undefined,
+          ruleConfig: newType === "api" ? { endpoint: newApiEndpoint } : newType === "code_rule" ? DEFAULT_RULE_CONFIG : undefined,
           badgeLabel: name.slice(0, 3).toUpperCase(),
           isCustom: true,
         }),
@@ -238,6 +239,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
 
   function typeTag(ev: EvalItem) {
     if (ev.evalType === "code_rule") return { label: "RULE", color: "bg-muted text-muted-foreground" };
+    if (ev.evalType === "api") return { label: "API", color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" };
     if (ev.evalType === "builtin") return { label: "BUILT-IN", color: "bg-foreground/10 text-foreground/70" };
     return { label: "LLM", color: "bg-foreground text-background" };
   }
@@ -371,13 +373,25 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
                     >LLM</button>
                     <button
                       onClick={() => setNewType("code_rule")}
-                      className={cn("flex-1 rounded-r-md px-2 py-1 text-[10px] transition-colors", newType === "code_rule" ? "bg-foreground text-background" : "hover:bg-accent")}
+                      className={cn("flex-1 px-2 py-1 text-[10px] transition-colors", newType === "code_rule" ? "bg-foreground text-background" : "hover:bg-accent")}
                     >Rule</button>
+                    <button
+                      onClick={() => setNewType("api")}
+                      className={cn("flex-1 rounded-r-md px-2 py-1 text-[10px] transition-colors", newType === "api" ? "bg-foreground text-background" : "hover:bg-accent")}
+                    >API</button>
                   </div>
                   <Button size="sm" onClick={handleCreate} disabled={!newName.trim() || saving} className="h-7 px-3 text-xs">
                     Create
                   </Button>
                 </div>
+                {newType === "api" && (
+                  <input
+                    className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs font-mono mt-1"
+                    value={newApiEndpoint}
+                    onChange={(e) => setNewApiEndpoint(e.target.value)}
+                    placeholder="http://localhost:2024/evaluate"
+                  />
+                )}
               </div>
             )}
           </div>
@@ -441,7 +455,24 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
               )}
 
               {/* Builder */}
-              {activeEvData.evalType === "code_rule" ? (
+              {activeEvData.evalType === "api" ? (
+                <div className="rounded-lg border p-4 bg-blue-50/50 dark:bg-blue-950/20 space-y-3">
+                  <p className="text-sm font-semibold">External API Evaluator</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {activeEvData.description || "외부 API 엔드포인트를 호출하여 평가합니다."}
+                  </p>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">Endpoint</label>
+                    <code className="block rounded bg-muted px-3 py-2 text-xs font-mono">
+                      {(() => { try { return JSON.parse(activeEvData.ruleConfig)?.endpoint ?? '—'; } catch { return '—'; } })()}
+                    </code>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground space-y-0.5">
+                    <p><strong>Request:</strong> POST endpoint {`{ evalName, query, response, context }`}</p>
+                    <p><strong>Response:</strong> {`{ score, label, explanation }`}</p>
+                  </div>
+                </div>
+              ) : activeEvData.evalType === "code_rule" ? (
                 <RuleBuilder
                   config={editRuleConfig}
                   onChange={(c) => { setEditRuleConfig(c); setDirty(true); }}

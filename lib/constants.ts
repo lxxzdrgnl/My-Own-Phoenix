@@ -2,6 +2,7 @@
 export const PASS_LABELS = new Set([
   "pass", "passed", "true", "yes", "correct", "factual", "faithful",
   "appropriate", "clean", "relevant", "positive", "success",
+  "skipped", "partial",
 ]);
 
 export const FAIL_LABELS = new Set([

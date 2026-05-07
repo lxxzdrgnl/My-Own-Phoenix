@@ -341,7 +341,7 @@ export function EvalEditor({
 
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Type</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => setNewType("llm_prompt")}
                 className={cn(
@@ -364,6 +364,18 @@ export function EvalEditor({
                 <p className="text-sm font-semibold">Code Rule</p>
                 <p className="text-[11px] text-muted-foreground mt-1">
                   Check text patterns, token limits, or metadata with rules. Fast, no LLM cost.
+                </p>
+              </button>
+              <button
+                onClick={() => setNewType("api")}
+                className={cn(
+                  "rounded-lg border p-4 text-left transition-colors",
+                  newType === "api" ? "border-foreground bg-accent" : "hover:bg-accent/50"
+                )}
+              >
+                <p className="text-sm font-semibold">External API</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Call an external HTTP endpoint for evaluation. Supports custom evaluator logic.
                 </p>
               </button>
             </div>
@@ -419,7 +431,7 @@ export function EvalEditor({
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl font-semibold tracking-tight">{selectedEval}</h1>
               <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-foreground/8 text-foreground/60">
-                {editEvalType === "llm_prompt" ? "LLM" : editEvalType === "code_rule" ? "Rule" : "Built-in"}
+                {editEvalType === "llm_prompt" ? "LLM" : editEvalType === "code_rule" ? "Rule" : editEvalType === "api" ? "API" : "Built-in"}
               </span>
             </div>
             <div className="flex items-center gap-1">
@@ -505,7 +517,32 @@ export function EvalEditor({
         </div>
 
         {/* Editor — changes by eval type */}
-        {editEvalType === "code_rule" ? (
+        {editEvalType === "api" ? (
+          <div className="mb-5 space-y-4">
+            <div className="rounded-lg border p-4 bg-blue-50/50 dark:bg-blue-950/20">
+              <p className="text-xs font-semibold mb-2">External API Evaluator</p>
+              <p className="text-[11px] text-muted-foreground mb-3">
+                이 eval은 외부 API 엔드포인트를 호출하여 평가합니다. serve-agent가 실행 중이어야 합니다.
+              </p>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Endpoint</label>
+                <input
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
+                  value={(() => { try { return JSON.parse(editRuleConfig as any)?.endpoint ?? ''; } catch { return ''; } })()}
+                  onChange={(e) => {
+                    setEditRuleConfig({ ...editRuleConfig, endpoint: e.target.value } as any);
+                    setDirty(true);
+                  }}
+                  placeholder="http://localhost:2024/evaluate"
+                />
+              </div>
+              <div className="mt-3 text-[10px] text-muted-foreground space-y-1">
+                <p><strong>Request:</strong> POST {`{endpoint}`} {`{ evalName, query, response, context }`}</p>
+                <p><strong>Response:</strong> {`{ score, label, explanation }`}</p>
+              </div>
+            </div>
+          </div>
+        ) : editEvalType === "code_rule" ? (
           <div className="mb-5">
             <RuleBuilder
               config={editRuleConfig}

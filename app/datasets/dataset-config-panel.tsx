@@ -51,7 +51,7 @@ export function DatasetConfigPanel({
             <X className="size-3" /> Stop ({genProgress}%)
           </Button>
         ) : (
-          <Button onClick={onGenerate} disabled={totalRows === 0} variant="outline" className="h-8 gap-1.5 text-xs">
+          <Button onClick={onGenerate} disabled={totalRows === 0 || !selectedAgent} variant="outline" className="h-8 gap-1.5 text-xs">
             <Play className="size-3" />Generate{selectedRowIndices.size > 0 && ` (${selectedRowIndices.size})`}
           </Button>
         )}
@@ -72,7 +72,7 @@ export function DatasetConfigPanel({
               return (
                 <span key={name} className="flex items-center gap-1 rounded border bg-foreground/5 px-2 py-1 text-[11px] font-medium">
                   {name}
-                  {ev && <span className="text-[9px] text-muted-foreground">{ev.evalType === "code_rule" ? "rule" : ev.isCustom ? "custom" : "llm"}</span>}
+                  {ev && <span className="text-[9px] text-muted-foreground">{ev.evalType === "code_rule" ? "rule" : ev.evalType === "api" ? "api" : ev.isCustom ? "custom" : "llm"}</span>}
                 </span>
               );
             })

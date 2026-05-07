@@ -64,6 +64,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   const [runtimeKey, setRuntimeKey] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [agentConfig, setAgentConfig] = useState<{ endpoint: string; assistantId: string; agentType: string } | null>(null);
+  const [agentConfigLoaded, setAgentConfigLoaded] = useState(false);
   const [agentConfigOpen, setAgentConfigOpen] = useState(false);
 
   // Keep ref in sync with state
@@ -91,6 +92,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   }, [user, refreshThreads]);
 
   useEffect(() => {
+    setAgentConfigLoaded(false);
     apiFetch(`/api/agent-config?project=${encodeURIComponent(project)}`)
       .then((r) => r.json())
       .then((data) => {
@@ -100,7 +102,8 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
           setAgentConfig(null);
         }
       })
-      .catch(() => setAgentConfig(null));
+      .catch(() => setAgentConfig(null))
+      .finally(() => setAgentConfigLoaded(true));
   }, [project]);
 
   // Reset chat state when project changes
@@ -298,7 +301,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   );
 
   return (
-    <AssistantRuntimeProvider key={`${project}-${runtimeKey}`} runtime={runtime}>
+    <AssistantRuntimeProvider key={`${project}-${runtimeKey}-${agentConfigLoaded}`} runtime={runtime}>
       <div className="flex h-dvh flex-col">
         <Nav />
         <div className="flex flex-1 min-h-0">

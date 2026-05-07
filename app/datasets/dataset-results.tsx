@@ -4,8 +4,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PASS_LABELS } from "@/lib/constants";
-import { formatDate } from "@/lib/date-utils";
-import { Trash2, ChevronRight, FlaskConical, Filter, X } from "lucide-react";
+import { formatDateTime } from "@/lib/date-utils";
+import { Trash2, ChevronRight, FlaskConical, Filter, X, Pencil, Check as CheckIcon } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 
 interface RunMeta {
   id: string; agentSource: string; evalNames: string; status: string; createdAt: string;
@@ -28,6 +29,7 @@ interface DatasetResultsProps {
   hasResponses: boolean;
   onLoadRun: (runId: string) => void;
   onDeleteRun: (runId: string) => void;
+  onRenameRun?: (runId: string, newName: string) => void;
   onBackToPrompts: () => void;
 }
 
@@ -68,8 +70,15 @@ export function DatasetResults({
 }: DatasetResultsProps) {
   const [expandedResultIdx, setExpandedResultIdx] = useState<number | null>(null);
   const [openFilter, setOpenFilter] = useState<string | null>(null);
-
   const [evalFilters, setEvalFilters] = useState<Record<string, EvalFilter>>({});
+
+  // Run rename state
+  const [editingRunId, setEditingRunId] = useState<string | null>(null);
+  const [editingRunName, setEditingRunName] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (editingRunId && renameInputRef.current) renameInputRef.current.focus();
+  }, [editingRunId]);
 
   // Only show eval columns that have at least one result
   const activeEvalNames = displayEvalNames.filter((name) =>
@@ -117,10 +126,29 @@ export function DatasetResults({
               </div>
             </div>
           )}
-          {runs.map((r) => (
+          {runs.map((r) => {
+            const displayName = r.agentSource.replace("llm:", "").replace(/^agent:.*/, "Dexter Agent");
+            const isEditing = editingRunId === r.id;
+
+            const handleSaveRename = async () => {
+              const newName = editingRunName.trim();
+              if (newName && newName !== r.agentSource) {
+                try {
+                  await apiFetch(`/api/datasets/runs/${r.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ agentSource: newName }),
+                  });
+                  r.agentSource = newName;
+                } catch {}
+              }
+              setEditingRunId(null);
+            };
+
+            return (
             <div
               key={r.id}
-              onClick={() => onLoadRun(r.id)}
+              onClick={() => !isEditing && onLoadRun(r.id)}
               className={cn(
                 "group flex cursor-pointer items-center gap-2 border-b px-3 py-2.5 transition-colors hover:bg-accent last:border-b-0",
                 selectedRunId === r.id && !liveRunId && "bg-accent"
@@ -131,17 +159,47 @@ export function DatasetResults({
                 r.status === "completed" ? "bg-[#3b82f6]" : r.status === "running" ? "bg-foreground/40 animate-pulse" : "bg-muted-foreground/20"
               )} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium">{r.agentSource.replace("llm:", "").replace("agent:", "")}</p>
-                <p className="text-[10px] text-muted-foreground">{formatDate(r.createdAt)}</p>
+                {isEditing ? (
+                  <input
+                    ref={renameInputRef}
+                    className="w-full rounded border bg-background px-1.5 py-0.5 text-xs font-medium outline-none focus:ring-1 focus:ring-ring"
+                    value={editingRunName}
+                    onChange={(e) => setEditingRunName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveRename(); if (e.key === "Escape") setEditingRunId(null); }}
+                    onBlur={handleSaveRename}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <p className="truncate text-xs font-medium">{displayName}</p>
+                )}
+                <p className="text-[10px] text-muted-foreground">{formatDateTime(r.createdAt)}</p>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDeleteRun(r.id); }}
-                className="shrink-0 rounded p-1 opacity-0 hover:text-red-500 group-hover:opacity-100"
-              >
-                <Trash2 className="size-3 text-muted-foreground" />
-              </button>
+              {isEditing ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleSaveRename(); }}
+                  className="shrink-0 rounded p-1 hover:text-green-500"
+                >
+                  <CheckIcon className="size-3 text-muted-foreground" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingRunId(r.id); setEditingRunName(displayName); }}
+                    className="shrink-0 rounded p-1 opacity-0 hover:text-foreground group-hover:opacity-100"
+                  >
+                    <Pencil className="size-3 text-muted-foreground" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteRun(r.id); }}
+                    className="shrink-0 rounded p-1 opacity-0 hover:text-red-500 group-hover:opacity-100"
+                  >
+                    <Trash2 className="size-3 text-muted-foreground" />
+                  </button>
+                </>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

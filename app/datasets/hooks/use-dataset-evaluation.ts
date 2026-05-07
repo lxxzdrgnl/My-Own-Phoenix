@@ -108,6 +108,25 @@ export function useDatasetEvaluation({
             }
             const ruleResult = matched ? ruleConfig.match : ruleConfig.clean;
             result.evals[eval_.name] = { label: ruleResult?.label ?? (matched ? "detected" : "clean"), score: ruleResult?.score ?? (matched ? 1.0 : 0.0), explanation: "" };
+          } else if (eval_.evalType === "api") {
+            const config = JSON.parse(eval_.ruleConfig || "{}");
+            const endpoint = config.endpoint;
+            if (!endpoint) throw new Error("api eval missing endpoint in ruleConfig");
+            // Send full row data so evaluators can access level, category, required_tool, etc.
+            const rowData = row ? { ...row } : {};
+            delete (rowData as any)._rowIndex;
+            const apiRes = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ evalName: eval_.name, query, response, context, rowData }),
+            });
+            if (!apiRes.ok) throw new Error(`eval API returned ${apiRes.status}`);
+            const apiData = await apiRes.json();
+            result.evals[eval_.name] = {
+              label: String(apiData.label ?? "error"),
+              score: Number(apiData.score ?? 0),
+              explanation: apiData.explanation ?? "",
+            };
           } else if (eval_.template || evalOverrides[eval_.name]?.template) {
             const effectiveTemplate = evalOverrides[eval_.name]?.template || eval_.template;
             const filled = effectiveTemplate.replace(/\{context\}/g, context || "(no context)").replace(/\{response\}/g, response || "(no response)").replace(/\{query\}/g, query || "(no query)");
