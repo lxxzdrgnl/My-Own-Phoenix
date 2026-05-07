@@ -217,6 +217,32 @@ export function DatasetResults({
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Summary cards */}
+            {displayResults.length > 0 && (() => {
+              const latencies = displayResults
+                .map(r => (r as any).capture?.latencyMs ?? (r as any).latencyMs)
+                .filter((v: any) => typeof v === "number" && v > 0) as number[];
+              const avgLatency = latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length / 1000 : null;
+              const p95Latency = latencies.length > 0 ? (() => { const s = [...latencies].sort((a,b) => a-b); return s[Math.floor(s.length * 0.95)] / 1000; })() : null;
+
+              return latencies.length > 0 ? (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg border px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rows</p>
+                    <p className="text-2xl font-bold tabular-nums">{displayResults.length}</p>
+                  </div>
+                  <div className="rounded-lg border px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Avg Latency</p>
+                    <p className="text-2xl font-bold tabular-nums">{avgLatency!.toFixed(1)}s</p>
+                  </div>
+                  <div className="rounded-lg border px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">p95 Latency</p>
+                    <p className="text-2xl font-bold tabular-nums">{p95Latency!.toFixed(1)}s</p>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
             {/* Per-eval stats */}
             {evalStats.length > 0 && (
               <div className="rounded-lg border divide-y">

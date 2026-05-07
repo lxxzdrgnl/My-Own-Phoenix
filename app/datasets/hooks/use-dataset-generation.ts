@@ -6,6 +6,7 @@ interface RowResult {
   rowIdx: number; response: string; query?: string;
   evals: Record<string, { label: string; score: number; explanation: string }>;
   capture?: Record<string, unknown>;
+  latencyMs?: number;
 }
 interface AgentConfigOption {
   id: string; project: string; alias: string | null;
@@ -74,6 +75,7 @@ export function useDatasetGeneration({
       const query = queryCol ? row[queryCol] ?? "" : "";
       let response = "";
       let captureData: Record<string, unknown> | undefined;
+      const t0 = Date.now();
       try {
         if (selectedAgent.startsWith("llm:")) {
           const model = selectedAgent.replace("llm:", "");
@@ -113,7 +115,9 @@ export function useDatasetGeneration({
         }
       } catch (e) { response = `(error: ${e instanceof Error ? e.message : String(e)})`; }
 
-      results.push({ rowIdx: (row as any)._rowIndex ?? i, response, evals: {}, query, capture: captureData });
+      const latencyMs = Date.now() - t0;
+      const captureWithLatency = { ...(captureData ?? {}), latencyMs };
+      results.push({ rowIdx: (row as any)._rowIndex ?? i, response, evals: {}, query, capture: captureWithLatency, latencyMs });
       setGenProgress(Math.round(((i + 1) / allRows.length) * 100));
       setLiveResults([...results]);
 
