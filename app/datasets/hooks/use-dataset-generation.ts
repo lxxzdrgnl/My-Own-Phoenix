@@ -121,13 +121,11 @@ export function useDatasetGeneration({
       setGenProgress(Math.round(((i + 1) / allRows.length) * 100));
       setLiveResults([...results]);
 
-      // Save incrementally after each row
-      try {
-        await apiFetch(`/api/datasets/runs/${run.id}`, {
-          method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rowResults: results }),
-        });
-      } catch {}
+      // Save incrementally (fire-and-forget, don't block UI)
+      apiFetch(`/api/datasets/runs/${run.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rowResults: [...results] }),
+      }).catch(() => {});
     }
 
     await apiFetch(`/api/datasets/runs/${run.id}`, {
@@ -135,6 +133,8 @@ export function useDatasetGeneration({
       body: JSON.stringify({ status: cancelRef.current ? "stopped" : "generated" }),
     });
     setGenerating(false); cancelRef.current = false;
+    setLiveRunId(null); setLiveResults([]);
+    setSelectedRunId(run.id);
     const runsData = await (await apiFetch(`/api/datasets/runs?datasetId=${selectedId}`)).json();
     setRuns(() => runsData.runs ?? []);
   }, [selectedId, selectedAgent, agentConfigs, queryCol, selectedRowIndices, cancelRef, setLiveRunId, setSelectedRunId, setLiveResults, setActiveTab, setRuns]);

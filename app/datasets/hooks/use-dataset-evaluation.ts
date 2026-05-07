@@ -145,13 +145,11 @@ export function useDatasetEvaluation({
         if (liveRunId) setLiveResults([...updatedResults]);
         else setRunResults([...updatedResults]);
 
-        // Save incrementally after each eval
-        try {
-          await apiFetch(`/api/datasets/runs/${runId}`, {
-            method: "PUT", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rowResults: updatedResults }),
-          });
-        } catch {}
+        // Save incrementally (fire-and-forget, don't block UI)
+        apiFetch(`/api/datasets/runs/${runId}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rowResults: [...updatedResults] }),
+        }).catch(() => {});
       }
     }
 
