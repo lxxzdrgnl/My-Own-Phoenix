@@ -96,6 +96,7 @@ export function ChatSection() {
                 <ProjectCard
                   key={c.id}
                   config={c}
+                  templates={templates}
                   expanded={expandedId === c.id}
                   onToggle={() => setExpandedId(expandedId === c.id ? null : c.id)}
                   onDisconnect={() => handleDisconnect(c.project)}
@@ -131,12 +132,14 @@ export function ChatSection() {
 
 function ProjectCard({
   config: c,
+  templates,
   expanded,
   onToggle,
   onDisconnect,
   onUpdated,
 }: {
   config: AgentConfig;
+  templates: AgentTemplate[];
   expanded: boolean;
   onToggle: () => void;
   onDisconnect: () => void;

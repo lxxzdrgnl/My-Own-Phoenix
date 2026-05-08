@@ -20,6 +20,7 @@ interface EvalItem {
   ruleConfig: string;
   badgeLabel: string;
   isCustom: boolean;
+  description?: string;
 }
 
 /** Per-eval override stored on dataset: { template?, ruleConfig? } */

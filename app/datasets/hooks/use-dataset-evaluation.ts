@@ -118,7 +118,7 @@ export function useDatasetEvaluation({
             const apiRes = await fetch(endpoint, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ evalName: eval_.name, query, response, context, rowData, capture: result.capture }),
+              body: JSON.stringify({ evalName: eval_.name, query, response, context, rowData, capture: (result as any).capture }),
             });
             if (!apiRes.ok) throw new Error(`eval API returned ${apiRes.status}`);
             const apiData = await apiRes.json();
