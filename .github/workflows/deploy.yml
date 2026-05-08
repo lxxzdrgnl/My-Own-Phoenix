@@ -1,0 +1,46 @@
+name: Deploy Phoenix Dashboard
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PC_SSH_KEY }}" > ~/.ssh/pc_key
+          chmod 600 ~/.ssh/pc_key
+          ssh-keyscan -H ${{ secrets.PC_SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Write .env
+        run: |
+          echo "${{ secrets.PHOENIX_ENV }}" > phoenix.env
+          scp -i ~/.ssh/pc_key phoenix.env \
+            ${{ secrets.PC_SSH_USER }}@${{ secrets.PC_SSH_HOST }}:~/servers/phoenix/.env
+          rm -f phoenix.env
+
+      - name: Deploy to server
+        run: |
+          ssh -i ~/.ssh/pc_key \
+            ${{ secrets.PC_SSH_USER }}@${{ secrets.PC_SSH_HOST }} \
+            "cd ~/servers/phoenix/repo && \
+             git fetch origin && git reset --hard origin/main && \
+             cd ~/servers && \
+             docker compose build --no-cache phoenix-dashboard phoenix-eval-worker && \
+             docker compose up -d phoenix phoenix-dashboard phoenix-eval-worker && \
+             echo '⏳ Waiting for startup...' && \
+             sleep 10 && \
+             docker compose logs --tail=10 phoenix-dashboard && \
+             docker inspect -f '{{.State.Running}}' phoenix-dashboard | grep -q 'true' && echo '✅ Dashboard deployed' || (echo '❌ Dashboard failed' && exit 1)"
+
+      - name: Cleanup SSH Key
+        if: always()
+        run: rm -f ~/.ssh/pc_key
