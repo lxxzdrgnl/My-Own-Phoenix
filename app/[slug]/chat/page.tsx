@@ -1,17 +1,14 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useProject } from "@/lib/project-context";
 import { Assistant } from "@/app/assistant";
 
 export default function ChatPage() {
-  const params = useParams<{ slug: string }>();
-  const slug = params.slug;
+  const { phoenixProject } = useProject();
 
-  // For now, use slug as the Phoenix project name
-  // TODO: resolve slug → phoenixProject from Project model
   return (
     <div className="h-full">
-      <Assistant project={slug} />
+      <Assistant project={phoenixProject} />
     </div>
   );
 }

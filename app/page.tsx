@@ -76,7 +76,7 @@ export default function Home() {
     return (
       <>
         <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-screen items-center justify-center bg-background">
           <div className="text-center">
             <h1 className="text-2xl font-bold tracking-tight">My Own Phoenix</h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -136,6 +136,7 @@ export default function Home() {
       </Modal>
 
       {/* Main content */}
+      <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-6 py-10">
         {projects.length === 0 ? (
           <div className="flex h-[60vh] flex-col items-center justify-center text-center">
@@ -186,6 +187,7 @@ export default function Home() {
             )}
           </>
         )}
+      </div>
       </div>
     </>
   );

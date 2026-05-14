@@ -21,7 +21,7 @@ import {
   Plus,
   Database,
 } from "lucide-react";
-import { Nav } from "@/components/nav";
+
 import { Sidebar } from "@/components/ui/sidebar";
 import { AnnotationBadges } from "@/components/annotation-badge";
 import { AddToDatasetModal } from "@/components/add-to-dataset-modal";
@@ -215,8 +215,7 @@ export function Playground() {
   const anyRunning = columns.some((c) => c.running);
 
   return (
-    <div className="flex h-dvh flex-col bg-background">
-      <Nav />
+    <div className="flex h-full flex-col bg-background">
 
       <div className="flex min-h-0 flex-1">
         {/* ── LEFT: Trace list ── */}

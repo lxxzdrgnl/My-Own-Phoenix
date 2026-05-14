@@ -15,7 +15,7 @@ import { auth } from "@/lib/firebase";
 
 import { createThread, sendMessage, createThreadRest, sendMessageRest } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
-import { Nav } from "@/components/nav";
+
 import { useAuth } from "@/lib/auth-context";
 import { ProjectSelector } from "@/components/project-selector";
 import { AgentConfigModal } from "@/components/agent-config-modal";
@@ -302,8 +302,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
 
   return (
     <AssistantRuntimeProvider key={`${project}-${runtimeKey}-${agentConfigLoaded}`} runtime={runtime}>
-      <div className="flex h-dvh flex-col">
-        <Nav />
+      <div className="flex h-full flex-col">
         <div className="flex flex-1 min-h-0">
           {/* Sidebar */}
           {user && sidebarOpen && (

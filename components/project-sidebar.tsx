@@ -15,8 +15,13 @@ import {
   ShieldAlert,
   Settings2,
   Settings,
+  LogOut,
 } from "lucide-react";
-import { Sidebar, SidebarHeader, SidebarItemLink } from "@/components/ui/sidebar";
+import { Sidebar, SidebarHeader } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface ProjectSidebarProps {
   slug: string;
@@ -25,18 +30,18 @@ interface ProjectSidebarProps {
 
 const NAV_GROUPS = [
   {
+    label: "Develop",
+    items: [
+      { href: "chat", label: "Chat", icon: MessageSquare },
+      { href: "playground", label: "Playground", icon: FlaskConical },
+    ],
+  },
+  {
     label: "Analytics",
     items: [
       { href: "dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "overview", label: "Overview", icon: BarChart3 },
       { href: "requests", label: "Requests", icon: List },
-    ],
-  },
-  {
-    label: "Develop",
-    items: [
-      { href: "chat", label: "Chat", icon: MessageSquare },
-      { href: "playground", label: "Playground", icon: FlaskConical },
     ],
   },
   {
@@ -52,63 +57,99 @@ const NAV_GROUPS = [
 
 export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
   const pathname = usePathname();
-
-  // Extract the current sub-path: /my-slug/dashboard → dashboard
+  const { user } = useAuth();
   const segments = pathname.split("/").filter(Boolean);
-  const currentPage = segments.length > 1 ? segments[1] : "dashboard";
+  const currentPage = segments.length > 1 ? segments[1] : "chat";
 
   return (
-    <Sidebar className="py-3">
-      {/* Back button */}
-      <div className="px-3 mb-1">
+    <Sidebar className="py-4 bg-card">
+      {/* Back + Project name */}
+      <div className="px-4 mb-5">
         <Link
           href="/"
-          className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/50"
+          className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Projects</span>
+          <ArrowLeft className="h-3 w-3" />
+          Projects
         </Link>
+        <h2 className="text-sm font-semibold truncate">{projectName}</h2>
       </div>
 
-      {/* Project name */}
-      <div className="px-5 mb-4 mt-1">
-        <p className="text-sm font-semibold truncate">{projectName}</p>
+      {/* Navigation */}
+      <div className="flex-1 space-y-5 px-3">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            <div className="px-2 mb-1.5">
+              <SidebarHeader>{group.label}</SidebarHeader>
+            </div>
+            <div className="space-y-0.5">
+              {group.items.map(({ href, label, icon: Icon }) => {
+                const active = currentPage === href;
+                return (
+                  <Link
+                    key={href}
+                    href={`/${slug}/${href}`}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
+                      active
+                        ? "bg-accent font-semibold"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Navigation groups */}
-      {NAV_GROUPS.map((group) => (
-        <div key={group.label} className="mb-2">
-          <div className="px-5 mb-1">
-            <SidebarHeader>{group.label}</SidebarHeader>
-          </div>
-          <div className="px-3 space-y-0.5">
-            {group.items.map(({ href, label, icon: Icon }) => (
-              <SidebarItemLink
-                key={href}
-                href={`/${slug}/${href}`}
-                active={currentPage === href}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{label}</span>
-              </SidebarItemLink>
-            ))}
-          </div>
+      {/* Bottom: Settings + User */}
+      <div className="mt-auto space-y-1 px-3">
+        <div className="border-t pt-3 space-y-0.5">
+          <Link
+            href={`/${slug}/settings`}
+            className={cn(
+              "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
+              currentPage === "settings"
+                ? "bg-accent font-semibold"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            )}
+          >
+            <Settings2 className="h-4 w-4" />
+            Settings
+          </Link>
+          <Link
+            href="/settings"
+            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted-foreground/50 transition-colors hover:bg-accent hover:text-muted-foreground"
+          >
+            <Settings className="h-4 w-4" />
+            Global Settings
+          </Link>
         </div>
-      ))}
 
-      {/* Settings */}
-      <div className="mt-auto border-t pt-2 px-3">
-        <SidebarItemLink
-          href={`/${slug}/settings`}
-          active={currentPage === "settings"}
-        >
-          <Settings2 className="h-4 w-4 shrink-0" />
-          <span>Settings</span>
-        </SidebarItemLink>
-        <SidebarItemLink href="/settings" active={false}>
-          <Settings className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-          <span className="text-muted-foreground/60">Global Settings</span>
-        </SidebarItemLink>
+        {/* User */}
+        {user && (
+          <div className="border-t pt-3">
+            <div className="flex items-center justify-between px-2.5 py-1">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium">{user.displayName || user.email}</p>
+                {user.displayName && (
+                  <p className="truncate text-[10px] text-muted-foreground">{user.email}</p>
+                )}
+              </div>
+              <button
+                onClick={() => signOut(auth)}
+                className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title="Sign out"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Sidebar>
   );
