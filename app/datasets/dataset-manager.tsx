@@ -336,15 +336,6 @@ export function DatasetManager() {
           )}
         </div>
 
-        <div
-          onClick={() => setImportModal({ open: true, target: null })}
-          onDragOver={e => e.preventDefault()}
-          onDrop={e => { e.preventDefault(); setImportModal({ open: true, target: null }); }}
-          className="mx-2 mb-2 cursor-pointer rounded-lg border-2 border-dashed border-muted-foreground/15 py-4 text-center hover:border-muted-foreground/30 hover:bg-muted/20 transition-colors"
-        >
-          <Upload className="mx-auto mb-1 size-4 text-muted-foreground/30" />
-          <p className="text-[10px] text-muted-foreground/50">Drop CSV or click</p>
-        </div>
       </Sidebar>
 
       {/* ── Right panel ── */}
@@ -362,7 +353,7 @@ export function DatasetManager() {
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <EmptyState icon={Database} title="Select a dataset" description="Choose a dataset from the list to get started." className="h-auto" />
             <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: null })} className="gap-1.5 text-xs">
-              <Upload className="size-3" /> Import CSV
+              <Upload className="size-3" /> Import
             </Button>
           </div>
         ) : (
@@ -381,7 +372,7 @@ export function DatasetManager() {
                   </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })} className="h-7 gap-1.5 text-xs">
-                  <Upload className="size-3" /> Import CSV
+                  <Upload className="size-3" /> Import
                 </Button>
                 <button
                   onClick={() => setConfigOpen(!configOpen)}
@@ -451,9 +442,9 @@ export function DatasetManager() {
                 <div className="px-5 py-4">
                   {rows.length === 0 ? (
                     <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <EmptyState icon={Database} title="No prompts yet" description="Import a CSV or add prompts from the Playground." className="h-auto" />
+                      <EmptyState icon={Database} title="No prompts yet" description="Import a file or add prompts from the Playground." className="h-auto" />
                       <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })} className="mt-1 gap-1.5 text-xs">
-                        <Upload className="size-3" /> Import CSV
+                        <Upload className="size-3" /> Import
                       </Button>
                     </div>
                   ) : (

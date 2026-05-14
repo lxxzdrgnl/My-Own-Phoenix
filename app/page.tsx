@@ -1,53 +1,192 @@
 "use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
+import { ProjectCard } from "@/components/project-card";
+import { LoadingState, EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
+import { FolderOpen, Plus, LogIn } from "lucide-react";
+import { AuthModal } from "@/components/auth-modal";
 
-export const dynamic = "force-dynamic";
-
-import { useEffect, useState, useCallback } from "react";
-import { Assistant } from "./assistant";
-import { fetchProjects } from "@/lib/phoenix";
-
-const LS_KEY = "last_chat_project";
+interface ProjectItem {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+  createdAt: string;
+}
 
 export default function Home() {
-  const [project, setProject] = useState<string | null>(null);
-  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const { user } = useAuth();
+  const router = useRouter();
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(LS_KEY);
-    setProject(saved || "default");
-    fetchProjects()
-      .then((p) => setProjects(p.filter((x) => x.name !== "playground")))
-      .catch(() => {});
+  const loadProjects = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/projects");
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleProjectChange = (name: string) => {
-    setProject(name);
-    localStorage.setItem(LS_KEY, name);
-  };
+  useEffect(() => {
+    if (user) loadProjects();
+    else setLoading(false);
+  }, [user, loadProjects]);
 
-  const handleProjectAdd = async (name: string) => {
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    setCreating(true);
     try {
-      const res = await apiFetch(`/api/v1/projects`, {
+      const res = await apiFetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description: "" }),
+        body: JSON.stringify({ name: newName.trim() }),
       });
       if (res.ok) {
-        fetchProjects().then((p) => setProjects(p.filter((x) => x.name !== "playground"))).catch(() => {});
-        handleProjectChange(name);
+        const data = await res.json();
+        setShowCreate(false);
+        setNewName("");
+        router.push(`/${data.slug}/dashboard`);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCreating(false);
+    }
   };
 
-  if (!project) return null;
+  // Not logged in
+  if (!user) {
+    return (
+      <>
+        <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
+        <div className="flex h-screen items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold tracking-tight">My Own Phoenix</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Monitor and test your AI agents
+            </p>
+            <Button className="mt-6" onClick={() => setShowAuth(true)}>
+              <LogIn className="mr-2 h-4 w-4" />
+              Sign in to get started
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LoadingState />
+      </div>
+    );
+  }
+
+  const myProjects = projects.filter((p) => p.role === "owner");
+  const sharedProjects = projects.filter((p) => p.role !== "owner");
 
   return (
-    <Assistant
-      project={project}
-      projects={projects}
-      onProjectChange={handleProjectChange}
-      onProjectAdd={handleProjectAdd}
-    />
+    <>
+      {/* Create Project Modal */}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} className="w-[420px]">
+        <ModalHeader onClose={() => setShowCreate(false)}>Create Project</ModalHeader>
+        <ModalBody>
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleCreate(); }}
+            className="space-y-4"
+          >
+            <div>
+              <label className="text-sm font-medium">Project Name</label>
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="my-legal-rag"
+                autoFocus
+                className="mt-1"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!newName.trim() || creating}>
+                {creating ? "Creating..." : "Create"}
+              </Button>
+            </div>
+          </form>
+        </ModalBody>
+      </Modal>
+
+      {/* Main content */}
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        {projects.length === 0 ? (
+          <div className="flex h-[60vh] flex-col items-center justify-center text-center">
+            <EmptyState
+              icon={FolderOpen}
+              title="Welcome to My Own Phoenix"
+              description="Create a project or join an existing one to start monitoring your AI agents."
+            />
+            <Button className="mt-6" onClick={() => setShowCreate(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Project
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-8 flex items-center justify-between">
+              <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
+              <Button size="sm" onClick={() => setShowCreate(true)}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                New Project
+              </Button>
+            </div>
+
+            {myProjects.length > 0 && (
+              <section className="mb-8">
+                <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  My Projects
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {myProjects.map((p) => (
+                    <ProjectCard key={p.id} {...p} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {sharedProjects.length > 0 && (
+              <section>
+                <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Shared with me
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {sharedProjects.map((p) => (
+                    <ProjectCard key={p.id} {...p} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
 }

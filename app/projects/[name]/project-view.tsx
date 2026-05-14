@@ -94,14 +94,14 @@ function buildPassFailChartOptions(traces: Trace[]): Highcharts.Options {
   };
 }
 
-export function ProjectView({ projectName }: { projectName: string }) {
+export function ProjectView({ projectName, defaultTab = "traces" }: { projectName: string; defaultTab?: "traces" | "measure" | "risk" }) {
   const [traces, setTraces] = useState<Trace[]>([]);
   const [traceTrees, setTraceTrees] = useState<TraceTree[]>([]);
   const [tracesLoading, setTracesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [annotationFilter, setAnnotationFilter] = useState<"all" | "pass" | "fail" | "none">("all");
   const [latencyFilter, setLatencyFilter] = useState<"all" | "fast" | "medium" | "slow">("all");
-  const [activeTab, setActiveTab] = useState<"traces" | "measure" | "risk">("traces");
+  const [activeTab, setActiveTab] = useState<"traces" | "measure" | "risk">(defaultTab);
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(7));
 

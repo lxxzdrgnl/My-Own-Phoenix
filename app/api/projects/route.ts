@@ -74,3 +74,28 @@ export async function POST(req: NextRequest) {
     traceKey, // shown once only
   }, { status: 201 });
 }
+
+// DELETE /api/projects — delete a project (owner only)
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
+  const { projectId } = await req.json();
+  if (!projectId) {
+    return apiError(req, ErrorCode.BAD_REQUEST, "projectId is required");
+  }
+
+  // Check ownership
+  const member = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId: auth } },
+  });
+
+  if (!member || member.role !== "owner") {
+    return apiError(req, ErrorCode.FORBIDDEN, "Only the project owner can delete a project");
+  }
+
+  // Delete project — cascades to all related data (members, datasets, configs, etc.)
+  await prisma.project.delete({ where: { id: projectId } });
+
+  return NextResponse.json({ ok: true });
+}

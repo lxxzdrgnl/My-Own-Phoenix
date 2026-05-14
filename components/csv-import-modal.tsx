@@ -84,6 +84,45 @@ function parseCSV(text: string): { headers: string[]; rows: Record<string, strin
   return { headers, rows };
 }
 
+function parseJSON(text: string): { headers: string[]; rows: Record<string, string>[] } {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { headers: [], rows: [] };
+  }
+
+  // Single object → wrap in array
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    raw = [raw];
+  }
+  if (!Array.isArray(raw) || raw.length === 0) return { headers: [], rows: [] };
+
+  // Collect union of all keys (preserve first-object order, then extras)
+  const keySet = new Set<string>();
+  for (const item of raw) {
+    if (item && typeof item === "object") {
+      for (const k of Object.keys(item as Record<string, unknown>)) keySet.add(k);
+    }
+  }
+  const headers = Array.from(keySet);
+
+  // Normalize values to strings
+  const rows: Record<string, string>[] = raw.map((item: unknown) => {
+    const obj = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    const row: Record<string, string> = {};
+    for (const h of headers) {
+      const v = obj[h];
+      if (v === null || v === undefined) row[h] = "";
+      else if (typeof v === "object") row[h] = JSON.stringify(v);
+      else row[h] = String(v);
+    }
+    return row;
+  });
+
+  return { headers, rows };
+}
+
 function autoMapColumns(headers: string[]) {
   const lower = headers.map((x) => x.toLowerCase());
   const find = (keywords: string[]) =>
@@ -107,10 +146,11 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
 
   function handleFile(f: File) {
     setFile(f);
-    if (!targetDataset && !name) setName(f.name.replace(/\.(csv|tsv)$/i, ""));
+    if (!targetDataset && !name) setName(f.name.replace(/\.(csv|tsv|json)$/i, ""));
     setParsing(true);
     f.text().then((text) => {
-      const parsed = parseCSV(text);
+      const isJson = /\.json$/i.test(f.name);
+      const parsed = isJson ? parseJSON(text) : parseCSV(text);
       setHeaders(parsed.headers);
       setRows(parsed.rows);
       const mapping = autoMapColumns(parsed.headers);
@@ -151,7 +191,7 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
   return (
     <Modal open={open} onClose={handleClose} className="w-[700px]">
       <ModalHeader onClose={handleClose}>
-        {targetDataset ? `Import CSV \u2192 ${targetDataset.name}` : "Import CSV \u2014 New Dataset"}
+        {targetDataset ? `Import File \u2192 ${targetDataset.name}` : "Import File \u2014 New Dataset"}
       </ModalHeader>
       <ModalBody>
         <div className="space-y-4">
@@ -178,8 +218,8 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
               className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/20 py-10 transition-colors hover:border-muted-foreground/40"
             >
               <Upload className="size-6 text-muted-foreground/40" />
-              <p className="text-xs text-muted-foreground">Drop a CSV file or click to browse</p>
-              <input ref={fileRef} type="file" accept=".csv,.tsv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <p className="text-xs text-muted-foreground">Drop a CSV or JSON file or click to browse</p>
+              <input ref={fileRef} type="file" accept=".csv,.tsv,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </div>
           ) : (
             <>
