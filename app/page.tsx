@@ -9,8 +9,11 @@ import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
-import { FolderOpen, Plus, LogIn } from "lucide-react";
+import { FolderOpen, Plus, LogIn, LogOut, Settings } from "lucide-react";
 import { AuthModal } from "@/components/auth-modal";
+import { JoinProjectModal } from "@/components/join-project-modal";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface ProjectItem {
   id: string;
@@ -26,6 +29,7 @@ export default function Home() {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -135,8 +139,31 @@ export default function Home() {
         </ModalBody>
       </Modal>
 
+      <JoinProjectModal open={showJoin} onClose={() => { setShowJoin(false); loadProjects(); }} />
+
       {/* Main content */}
       <div className="min-h-screen bg-background">
+      {/* Top bar */}
+      <div className="border-b bg-card">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+          <h1 className="text-sm font-bold tracking-tight">My Own Phoenix</h1>
+          <div className="flex items-center gap-3">
+            <a href="/settings" className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+              <Settings className="h-3.5 w-3.5" />
+              Settings
+            </a>
+            <span className="text-xs text-muted-foreground">{user.email}</span>
+            <button
+              onClick={() => signOut(auth)}
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="mx-auto max-w-5xl px-6 py-10">
         {projects.length === 0 ? (
           <div className="flex h-[60vh] flex-col items-center justify-center text-center">
@@ -149,15 +176,21 @@ export default function Home() {
               <Plus className="mr-2 h-4 w-4" />
               Create Project
             </Button>
+            <Button variant="outline" className="mt-6 ml-2" onClick={() => setShowJoin(true)}>
+              Join with Code
+            </Button>
           </div>
         ) : (
           <>
             <div className="mb-8 flex items-center justify-between">
               <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
-              <Button size="sm" onClick={() => setShowCreate(true)}>
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                New Project
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setShowJoin(true)}>Join</Button>
+                <Button size="sm" onClick={() => setShowCreate(true)}>
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  New Project
+                </Button>
+              </div>
             </div>
 
             {myProjects.length > 0 && (

@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-server";
 import { apiError, ErrorCode } from "@/lib/api-error";
+import { rateLimit } from "@/lib/rate-limit";
 
 // POST — submit join request with invite code
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
+
+  const { allowed } = rateLimit(`join:${auth}`, 5, 60_000);
+  if (!allowed) {
+    return apiError(req, ErrorCode.BAD_REQUEST, "Too many join attempts. Please try again later.");
+  }
 
   const { code } = await req.json();
   if (!code?.trim()) {

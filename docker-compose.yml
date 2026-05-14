@@ -19,9 +19,9 @@ services:
     image: arizephoenix/phoenix:latest
     user: "1000:1000"
     ports:
-      - "6006:6006"   # UI + API
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
+      - "6006:6006"   # UI + API (remove in production — use internal network)
+      - "4317:4317"   # OTLP gRPC (remove in production)
+      - "4318:4318"   # OTLP HTTP (remove in production)
     volumes:
       - ~/.phoenix:/data
     environment:

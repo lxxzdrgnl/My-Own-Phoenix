@@ -18,11 +18,18 @@ if (admin.apps.length === 0) {
  * Returns user UID if valid, or null.
  */
 export async function verifyAuth(req: NextRequest): Promise<string | null> {
-  // Allow internal service calls (eval-worker, etc.) from localhost
-  const host = req.headers.get("host") ?? "";
-  if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) {
-    const ua = req.headers.get("user-agent") ?? "";
-    if (ua.startsWith("python-httpx")) return "internal-service";
+  // Allow internal service calls (eval-worker, etc.) via shared secret
+  const internalToken = req.headers.get("X-Internal-Token");
+  const expected = process.env.INTERNAL_SERVICE_TOKEN;
+  if (internalToken && expected && internalToken.length === expected.length) {
+    try {
+      const { timingSafeEqual } = await import("crypto");
+      if (timingSafeEqual(Buffer.from(internalToken), Buffer.from(expected))) {
+        return "internal-service";
+      }
+    } catch {
+      // Length mismatch or encoding error — fall through
+    }
   }
 
   const header = req.headers.get("Authorization");
