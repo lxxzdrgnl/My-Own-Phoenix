@@ -7,7 +7,9 @@ export const PUT = authedHandler(async (req: NextRequest, uid: string, { params 
   const { id } = await params;
   const body = (await req.json()) as { apiKey?: string; isActive?: boolean };
 
-  const existing = await prisma.llmProvider.findUnique({ where: { id } });
+  const existing = await prisma.llmProvider.findFirst({
+    where: { id, userId: uid },
+  });
   if (!existing) {
     return apiError(req, ErrorCode.PROVIDER_NOT_FOUND, "Provider not found");
   }
@@ -29,10 +31,13 @@ export const PUT = authedHandler(async (req: NextRequest, uid: string, { params 
 export const DELETE = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
-  try {
-    await prisma.llmProvider.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
-  } catch {
+  const existing = await prisma.llmProvider.findFirst({
+    where: { id, userId: uid },
+  });
+  if (!existing) {
     return apiError(req, ErrorCode.PROVIDER_NOT_FOUND, "Provider not found");
   }
+
+  await prisma.llmProvider.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 });

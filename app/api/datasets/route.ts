@@ -4,16 +4,26 @@ import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { batchInsertRows } from "@/lib/dataset-utils";
 
 export const GET = authedHandler(async (request: NextRequest) => {
-  const datasets = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT id, name, fileName, headers, queryCol, contextCol, rowCount, createdAt, updatedAt
-    FROM Dataset ORDER BY updatedAt DESC
-  `;
+  const projectId = request.nextUrl.searchParams.get("projectId");
+
+  let datasets: Array<Record<string, unknown>>;
+  if (projectId) {
+    datasets = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+      SELECT id, name, fileName, headers, queryCol, contextCol, rowCount, createdAt, updatedAt
+      FROM Dataset WHERE projectId = ${projectId} ORDER BY updatedAt DESC
+    `;
+  } else {
+    datasets = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+      SELECT id, name, fileName, headers, queryCol, contextCol, rowCount, createdAt, updatedAt
+      FROM Dataset ORDER BY updatedAt DESC
+    `;
+  }
   return NextResponse.json({ datasets });
 });
 
 export const POST = authedHandler(async (request: NextRequest) => {
   const body = await request.json();
-  const { name, fileName, headers, queryCol, contextCol, rows } = body;
+  const { name, fileName, headers, queryCol, contextCol, rows, projectId } = body;
 
   if (!name) {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { name: "name is required" });
@@ -23,8 +33,8 @@ export const POST = authedHandler(async (request: NextRequest) => {
   const rowsArr: Record<string, string>[] = rows ?? [];
 
   await prisma.$executeRaw`
-    INSERT INTO Dataset (id, name, fileName, headers, queryCol, contextCol, evalNames, evalOverrides, rowCount, rows, createdAt, updatedAt)
-    VALUES (${id}, ${name}, ${fileName ?? ""}, ${JSON.stringify(headers ?? [])}, ${queryCol ?? ""}, ${contextCol ?? ""}, '[]', '{}', ${rowsArr.length}, '[]', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    INSERT INTO Dataset (id, name, fileName, headers, queryCol, contextCol, evalNames, evalOverrides, rowCount, rows, projectId, createdAt, updatedAt)
+    VALUES (${id}, ${name}, ${fileName ?? ""}, ${JSON.stringify(headers ?? [])}, ${queryCol ?? ""}, ${contextCol ?? ""}, '[]', '{}', ${rowsArr.length}, '[]', ${projectId ?? null}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `;
 
   await batchInsertRows(id, rowsArr, 0);
@@ -44,6 +54,7 @@ export const PUT = authedHandler(async (request: NextRequest) => {
   const values: unknown[] = [];
 
   if (data.name !== undefined) { setParts.push(`name = ?`); values.push(data.name); }
+  if (data.projectId !== undefined) { setParts.push(`projectId = ?`); values.push(data.projectId || null); }
   if (data.queryCol !== undefined) { setParts.push(`queryCol = ?`); values.push(data.queryCol); }
   if (data.contextCol !== undefined) { setParts.push(`contextCol = ?`); values.push(data.contextCol); }
   if (data.evalNames !== undefined) { setParts.push(`evalNames = ?`); values.push(JSON.stringify(data.evalNames)); }

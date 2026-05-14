@@ -5,9 +5,12 @@ import { apiError, ErrorCode, validateFields, authedHandler } from "@/lib/api-er
 
 const VALID_PROVIDERS = ["openai", "anthropic", "google", "xai"] as const;
 
-export const GET = authedHandler(async (req) => {
+export const GET = authedHandler(async (req, uid) => {
   const decryptParam = req.nextUrl.searchParams.get("decrypt");
-  const providers = await prisma.llmProvider.findMany({ orderBy: { createdAt: "asc" } });
+  const providers = await prisma.llmProvider.findMany({
+    where: { userId: uid },
+    orderBy: { createdAt: "asc" },
+  });
 
   const result = providers.map((p) => ({
     id: p.id,
@@ -21,7 +24,7 @@ export const GET = authedHandler(async (req) => {
   return NextResponse.json({ providers: result });
 });
 
-export const POST = authedHandler(async (req) => {
+export const POST = authedHandler(async (req, uid) => {
   const body = (await req.json()) as { provider: string; apiKey: string };
 
   const err = validateFields([
@@ -30,14 +33,16 @@ export const POST = authedHandler(async (req) => {
   ]);
   if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
-  const existing = await prisma.llmProvider.findUnique({ where: { provider: body.provider } });
+  const existing = await prisma.llmProvider.findUnique({
+    where: { userId_provider: { userId: uid, provider: body.provider } },
+  });
   if (existing) {
     return apiError(req, ErrorCode.PROVIDER_DUPLICATE, `Provider "${body.provider}" already registered. Use PUT to update.`);
   }
 
   const encrypted = encrypt(body.apiKey);
   const created = await prisma.llmProvider.create({
-    data: { provider: body.provider, apiKey: encrypted, isActive: true },
+    data: { provider: body.provider, apiKey: encrypted, isActive: true, userId: uid },
   });
 
   return NextResponse.json({

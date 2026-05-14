@@ -5,12 +5,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get("projectId");
 
-  if (!projectId) {
-    return NextResponse.json({ error: "projectId is required" }, { status: 400 });
-  }
+  const where: Record<string, unknown> = {};
+  if (projectId) where.projectId = projectId;
 
   const incidents = await prisma.incident.findMany({
-    where: { projectId },
+    where,
     orderBy: { createdAt: "desc" },
   });
 
