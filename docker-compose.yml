@@ -1,4 +1,20 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: phoenix
+      POSTGRES_USER: phoenix
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phoenix_dev}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phoenix"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   phoenix:
     image: arizephoenix/phoenix:latest
     user: "1000:1000"
@@ -34,9 +50,12 @@ services:
       - PHOENIX_URL=http://localhost:6006
       - PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
       - LANGGRAPH_API_URL=http://localhost:2024
+      - DATABASE_URL=postgresql://phoenix:${POSTGRES_PASSWORD:-phoenix_dev}@localhost:5432/phoenix
       - WATCHPACK_POLLING=true
     depends_on:
       phoenix:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   eval-worker:
@@ -54,4 +73,7 @@ services:
       phoenix:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  pgdata:
 

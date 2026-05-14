@@ -3,17 +3,20 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
-  id        String              @id
-  email     String
-  name      String?
-  createdAt DateTime            @default(now())
-  threads   Thread[]
-  layouts   DashboardLayout[]
-  feedbacks MessageFeedback[]
+  id                String              @id
+  email             String
+  name              String?
+  relayKeyHash      String?
+  createdAt         DateTime            @default(now())
+  threads           Thread[]
+  layouts           DashboardLayout[]
+  feedbacks         MessageFeedback[]
+  memberships       ProjectMember[]
+  connectorSessions ConnectorSession[]
 }
 
 model Thread {
@@ -22,9 +25,11 @@ model Thread {
   langGraphThreadId String
   title             String    @default("새 대화")
   project           String    @default("default")
+  projectId         String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   user              User      @relation(fields: [userId], references: [id])
+  projectRef        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   messages          Message[]
 }
 
@@ -53,7 +58,7 @@ model MessageFeedback {
 
 model RiskItem {
   id         String    @id @default(cuid())
-  projectId  String
+  projectId  String?
   name       String
   system     String
   riskLevel  String
@@ -64,25 +69,29 @@ model RiskItem {
   resolvedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  projectRef Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model Incident {
   id         String    @id @default(cuid())
-  projectId  String
+  projectId  String?
   title      String
   severity   String
   status     String    @default("OPEN")
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
+  projectRef Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model DashboardLayout {
   id        String   @id @default(cuid())
   userId    String
   project   String   @default("default")
+  projectId String?
   layout    String
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id])
+  projectRef Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([userId, project])
 }
@@ -100,16 +109,18 @@ model EvalPrompt {
   isCustom     Boolean  @default(false)
   model      String   @default("gpt-4o-mini")
   updatedAt  DateTime @updatedAt
+  projectRef Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([name, projectId])
 }
 
 model ProjectEvalConfig {
   id         String  @id @default(cuid())
-  projectId  String
+  projectId  String?
   evalName   String  // annotation name (e.g. "hallucination")
   enabled    Boolean @default(true)
   template   String? // project-specific prompt override (null = use global default)
+  projectRef Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, evalName])
 }
@@ -122,13 +133,16 @@ model AgentConfig {
   agentType   String   @default("langgraph")
   endpoint    String   @default("http://localhost:2024")
   assistantId String   @default("agent")
+  projectId   String?
   updatedAt   DateTime @updatedAt
   template    AgentTemplate? @relation(fields: [templateId], references: [id])
+  projectRef  Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model AgentTemplate {
   id          String        @id @default(cuid())
-  name        String        @unique    // "Legal RAG", "Financial Research", etc.
+  name        String
+  userId      String?
   description String        @default("")
   agentType   String        @default("langgraph")
   endpoint    String        @default("http://localhost:2024")
@@ -137,20 +151,29 @@ model AgentTemplate {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   configs     AgentConfig[]
+
+  @@unique([userId, name])
 }
 
 model AppSettings {
-  key   String @id     // e.g. "defaultEvalModel"
-  value String
+  id     String  @id @default(cuid())
+  key    String
+  value  String
+  userId String?
+
+  @@unique([key, userId])
 }
 
 model LlmProvider {
   id        String   @id @default(cuid())
-  provider  String   @unique  // "openai" | "anthropic" | "google" | "xai"
+  provider  String
+  userId    String?
   apiKey    String             // encrypted
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
 }
 
 model Dataset {
@@ -164,8 +187,10 @@ model Dataset {
   evalOverrides String       @default("{}")
   rowCount      Int          @default(0)
   rows          String       @default("[]") // deprecated — kept for backward compat
+  projectId     String?
   datasetRows   DatasetRow[]
   runs          DatasetRun[]
+  project       Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -203,4 +228,52 @@ model DatasetRunResult {
   run       DatasetRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId, rowIdx])
+}
+
+model Project {
+  id                String              @id @default(cuid())
+  name              String
+  slug              String              @unique
+  traceKeyHash      String              @default("")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  members           ProjectMember[]
+  agentConfigs      AgentConfig[]
+  datasets          Dataset[]
+  evalConfigs       ProjectEvalConfig[]
+  evalPrompts       EvalPrompt[]
+  riskItems         RiskItem[]
+  incidents         Incident[]
+  dashboardLayouts  DashboardLayout[]
+  threads           Thread[]
+  connectorSessions ConnectorSession[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("editor")
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model ConnectorSession {
+  id          String   @id @default(cuid())
+  userId      String
+  projectId   String
+  agentType   String   @default("langgraph")
+  assistantId String   @default("agent")
+  status      String   @default("online")
+  connectedAt DateTime @default(now())
+  lastPingAt  DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([projectId, status])
 }
