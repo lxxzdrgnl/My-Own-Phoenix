@@ -1,46 +1,42 @@
-name: Deploy Phoenix Dashboard
+name: Deploy to Server
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
     steps:
-      - name: Setup SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.PC_SSH_KEY }}" > ~/.ssh/pc_key
-          chmod 600 ~/.ssh/pc_key
-          ssh-keyscan -H ${{ secrets.PC_SSH_HOST }} >> ~/.ssh/known_hosts
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PC_SSH_HOST }}
+          username: ${{ secrets.PC_SSH_USER }}
+          key: ${{ secrets.PC_SSH_KEY }}
+          script: |
+            set -e
 
-      - name: Write .env
-        run: |
-          echo "${{ secrets.PHOENIX_ENV }}" > phoenix.env
-          scp -i ~/.ssh/pc_key phoenix.env \
-            ${{ secrets.PC_SSH_USER }}@${{ secrets.PC_SSH_HOST }}:~/servers/phoenix/.env
-          rm -f phoenix.env
+            cd ~/servers/my-own-phoenix
 
-      - name: Deploy to server
-        run: |
-          ssh -i ~/.ssh/pc_key \
-            ${{ secrets.PC_SSH_USER }}@${{ secrets.PC_SSH_HOST }} \
-            "cd ~/servers/phoenix/repo && \
-             git fetch origin && git reset --hard origin/main && \
-             cd ~/servers && \
-             docker compose build --no-cache phoenix-dashboard phoenix-eval-worker && \
-             docker compose up -d phoenix phoenix-dashboard phoenix-eval-worker && \
-             echo '⏳ Waiting for startup...' && \
-             sleep 10 && \
-             docker compose logs --tail=10 phoenix-dashboard && \
-             docker inspect -f '{{.State.Running}}' phoenix-dashboard | grep -q 'true' && echo '✅ Dashboard deployed' || (echo '❌ Dashboard failed' && exit 1)"
+            # Write env file
+            echo '${{ secrets.APP_ENV }}' > .env
 
-      - name: Cleanup SSH Key
-        if: always()
-        run: rm -f ~/.ssh/pc_key
+            # Pull latest
+            cd repo
+            git pull origin main
+
+            # Rebuild and restart
+            docker compose build --no-cache dashboard
+            docker compose up -d --no-deps dashboard
+
+            # Run migrations
+            docker compose exec -T dashboard npx prisma migrate deploy
+
+            # Restart eval-worker
+            docker compose up -d --no-deps eval-worker
+
+            # Health check
+            sleep 8
+            curl -sf http://localhost:3000/api/health || exit 1
+            echo "Deploy successful"
