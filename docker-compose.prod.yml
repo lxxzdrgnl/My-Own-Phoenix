@@ -1,0 +1,32 @@
+# Production compose — Phoenix and PostgreSQL run separately on the host
+# Only dashboard and eval-worker are managed here
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+        - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+        - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+        - NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=${NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID:-agent}
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      - PHOENIX_URL=http://localhost:6006
+      - PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+    restart: unless-stopped
+
+  eval-worker:
+    build:
+      context: ./eval-worker
+      dockerfile: Dockerfile
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      - PHOENIX_URL=http://localhost:6006
+      - DASHBOARD_URL=http://localhost:3000
+      - EVAL_POLL_INTERVAL=15
+    restart: unless-stopped

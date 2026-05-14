@@ -47,7 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     include: { code: true },
   });
   if (!joinRequest || joinRequest.projectId !== projectId) {
-    return apiError(req, ErrorCode.NOT_FOUND, "Request not found");
+    return apiError(req, ErrorCode.RESOURCE_NOT_FOUND, "Request not found");
   }
 
   if (action === "approve") {

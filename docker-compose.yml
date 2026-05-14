@@ -37,6 +37,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+        - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+        - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+        - NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=${NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID:-agent}
     network_mode: host
     volumes:
       # Mount source for hot-reload in dev mode
@@ -50,7 +55,6 @@ services:
       - PHOENIX_URL=http://localhost:6006
       - PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
       - LANGGRAPH_API_URL=http://localhost:2024
-      - DATABASE_URL=postgresql://phoenix:${POSTGRES_PASSWORD:-phoenix_dev}@localhost:5432/phoenix
       - WATCHPACK_POLLING=true
     depends_on:
       phoenix:

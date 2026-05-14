@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!inviteCode) {
-    return apiError(req, ErrorCode.NOT_FOUND, "Invalid invite code");
+    return apiError(req, ErrorCode.RESOURCE_NOT_FOUND, "Invalid invite code");
   }
 
   // Check expiry

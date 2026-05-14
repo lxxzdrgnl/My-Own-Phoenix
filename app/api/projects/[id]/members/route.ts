@@ -96,7 +96,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     where: { projectId_userId: { projectId, userId: targetUserId } },
   });
   if (!target) {
-    return apiError(req, ErrorCode.NOT_FOUND, "Target user is not a member");
+    return apiError(req, ErrorCode.RESOURCE_NOT_FOUND, "Target user is not a member");
   }
 
   await prisma.$transaction([

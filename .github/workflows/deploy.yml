@@ -17,26 +17,22 @@ jobs:
           script: |
             set -e
 
-            cd ~/servers/my-own-phoenix
-
             # Write env file
-            echo '${{ secrets.APP_ENV }}' > .env
+            echo '${{ secrets.APP_ENV }}' > ~/servers/phoenix/.env
 
-            # Pull latest
-            cd repo
+            # Pull latest code
+            cd ~/servers/phoenix/repo
             git pull origin main
 
-            # Rebuild and restart
-            docker compose build --no-cache dashboard
-            docker compose up -d --no-deps dashboard
-
-            # Run migrations
-            docker compose exec -T dashboard npx prisma migrate deploy
+            # Rebuild phoenix-dashboard via main servers compose
+            cd ~/servers
+            docker compose build --no-cache phoenix-dashboard
+            docker compose up -d --force-recreate --no-deps phoenix-dashboard
 
             # Restart eval-worker
-            docker compose up -d --no-deps eval-worker
+            docker compose up -d --force-recreate --no-deps phoenix-eval-worker
 
-            # Health check
-            sleep 8
-            curl -sf http://localhost:3000/api/health || exit 1
+            # Health check (wait for startup + migration)
+            sleep 20
+            curl -sf http://localhost:3100/api/health || exit 1
             echo "Deploy successful"

@@ -31,7 +31,7 @@ export function getProviderForModel(modelId: string): string {
 }
 
 async function getApiKey(provider: string): Promise<string> {
-  const record = await prisma.llmProvider.findUnique({ where: { provider } });
+  const record = await prisma.llmProvider.findFirst({ where: { provider, isActive: true } });
   if (!record || !record.isActive) {
     throw new Error(`No active API key for provider "${provider}". Add one in Settings > Providers.`);
   }
