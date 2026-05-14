@@ -25,8 +25,8 @@ export const POST = authedHandler(async (request: NextRequest) => {
   const id = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const evalNamesJson = JSON.stringify(evalNames ?? []);
   await prisma.$executeRaw`
-    INSERT INTO DatasetRun (id, datasetId, agentSource, evalNames, status, rowResults, createdAt)
-    VALUES (${id}, ${datasetId}, ${agentSource}, ${evalNamesJson}, 'running', '[]', CURRENT_TIMESTAMP)
+    INSERT INTO "DatasetRun" (id, "datasetId", "agentSource", "evalNames", status, "createdAt")
+    VALUES (${id}, ${datasetId}, ${agentSource}, ${evalNamesJson}, 'running', CURRENT_TIMESTAMP)
   `;
   return NextResponse.json({ run: { id, datasetId, agentSource, evalNames: evalNames ?? [], status: "running" } }, { status: 201 });
 });

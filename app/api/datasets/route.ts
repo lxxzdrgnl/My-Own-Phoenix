@@ -33,8 +33,8 @@ export const POST = authedHandler(async (request: NextRequest) => {
   const rowsArr: Record<string, string>[] = rows ?? [];
 
   await prisma.$executeRaw`
-    INSERT INTO Dataset (id, name, fileName, headers, queryCol, contextCol, evalNames, evalOverrides, rowCount, rows, projectId, createdAt, updatedAt)
-    VALUES (${id}, ${name}, ${fileName ?? ""}, ${JSON.stringify(headers ?? [])}, ${queryCol ?? ""}, ${contextCol ?? ""}, '[]', '{}', ${rowsArr.length}, '[]', ${projectId ?? null}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    INSERT INTO "Dataset" (id, name, "fileName", headers, "queryCol", "contextCol", "evalNames", "evalOverrides", "rowCount", "projectId", "createdAt", "updatedAt")
+    VALUES (${id}, ${name}, ${fileName ?? ""}, ${JSON.stringify(headers ?? [])}, ${queryCol ?? ""}, ${contextCol ?? ""}, '[]', '{}', ${rowsArr.length}, ${projectId ?? null}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `;
 
   await batchInsertRows(id, rowsArr, 0);
