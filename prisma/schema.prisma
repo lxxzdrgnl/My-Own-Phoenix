@@ -17,6 +17,7 @@ model User {
   feedbacks         MessageFeedback[]
   memberships       ProjectMember[]
   connectorSessions ConnectorSession[]
+  joinRequests      ProjectJoinRequest[]
 }
 
 model Thread {
@@ -260,6 +261,8 @@ model Project {
   dashboardLayouts  DashboardLayout[]
   threads           Thread[]
   connectorSessions ConnectorSession[]
+  inviteCodes       ProjectInviteCode[]
+  joinRequests      ProjectJoinRequest[]
 }
 
 model ProjectMember {
@@ -288,5 +291,36 @@ model ConnectorSession {
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([userId, projectId])
+  @@index([projectId, status])
+}
+
+model ProjectInviteCode {
+  id           String    @id @default(cuid())
+  projectId    String
+  code         String    @unique
+  role         String    @default("editor")
+  maxUses      Int       @default(0)
+  useCount     Int       @default(0)
+  expiresAt    DateTime?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  joinRequests ProjectJoinRequest[]
+
+  @@index([projectId])
+}
+
+model ProjectJoinRequest {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  codeId    String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+  code      ProjectInviteCode @relation(fields: [codeId], references: [id])
+
+  @@unique([projectId, userId])
   @@index([projectId, status])
 }
