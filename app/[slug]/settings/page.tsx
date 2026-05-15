@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useProject } from "@/lib/project-context";
 import { MembersTab } from "./members-tab";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-client";
 
 const TABS = [
   { id: "members", label: "Members" },
@@ -57,21 +58,7 @@ export default function ProjectSettingsPage() {
           </section>
         </div>
       )}
-      {activeTab === "agent" && (
-        <div className="space-y-6">
-          <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Agent Connection</h3>
-            <div className="rounded-lg border px-5 py-4">
-              <p className="text-xs text-muted-foreground mb-3">
-                Connect your local agent using the phoenix-connector CLI.
-              </p>
-              <div className="rounded-lg bg-muted/50 p-3 font-mono text-xs text-muted-foreground">
-                phoenix-connector --key=pc_... --agent=http://localhost:2024 --project={name}
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
+      {activeTab === "agent" && <AgentTab />}
       {activeTab === "eval" && (
         <div className="space-y-6">
           <section>
@@ -100,6 +87,90 @@ export default function ProjectSettingsPage() {
           </section>
         </div>
       )}
+    </div>
+  );
+}
+
+function AgentTab() {
+  const { id: projectId, name } = useProject();
+  const [connectors, setConnectors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch(`/api/connectors?projectId=${projectId}`)
+      .then((r) => r.json())
+      .then((data) => setConnectors(data.connectors || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+
+    const interval = setInterval(() => {
+      apiFetch(`/api/connectors?projectId=${projectId}`)
+        .then((r) => r.json())
+        .then((data) => setConnectors(data.connectors || []))
+        .catch(console.error);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [projectId]);
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+          Connected Agents
+        </h3>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : connectors.length === 0 ? (
+          <div className="rounded-lg border border-dashed px-5 py-8 text-center">
+            <p className="text-sm text-muted-foreground mb-1">No agents connected</p>
+            <p className="text-xs text-muted-foreground/60">
+              Connect your local agent using the phoenix-connector CLI.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {connectors.map((c: any) => (
+              <div
+                key={c.userId}
+                className="flex items-center justify-between rounded-lg border px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  {c.status === "online" ? (
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  ) : (
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">{c.userName}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {c.agentType} · {c.status}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+          Setup Guide
+        </h3>
+        <div className="rounded-lg border px-5 py-4 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Connect your local agent using the phoenix-connector CLI:
+          </p>
+          <div className="rounded-lg bg-muted/50 p-3 font-mono text-xs text-muted-foreground break-all">
+            pip install phoenix-connector
+            <br />
+            phoenix-connector --key=pc_... --agent=http://localhost:2024 --project={name}
+          </div>
+          <p className="text-[10px] text-muted-foreground/60">
+            Get your connector key from Global Settings &rarr; Profile &amp; Key.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

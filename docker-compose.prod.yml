@@ -10,6 +10,7 @@ services:
         - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
         - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
         - NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=${NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID:-agent}
+    command: ["sh", "-c", "npx prisma migrate deploy && npx tsx server.ts"]
     network_mode: host
     env_file:
       - .env

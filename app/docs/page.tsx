@@ -111,7 +111,7 @@ export default function DocsPage() {
 from openinference.instrumentation.openai import OpenAIInstrumentor
 
 os.environ["PHOENIX_API_KEY"] = "pt_your_key_here"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://your-app.com/api/collect"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://phoenix.rheon.kr/api/collect"
 
 OpenAIInstrumentor().instrument()
 
@@ -156,12 +156,12 @@ OpenAIInstrumentor().instrument()
                   </p>
                   <CodeBlock code={`# Set as environment variable
 export PHOENIX_API_KEY="pt_your_trace_key"
-export PHOENIX_COLLECTOR_ENDPOINT="https://your-app.com/api/collect"
+export PHOENIX_COLLECTOR_ENDPOINT="https://phoenix.rheon.kr/api/collect"
 
 # Or in Python
 import os
 os.environ["PHOENIX_API_KEY"] = "pt_your_trace_key"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://your-app.com/api/collect"`} />
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://phoenix.rheon.kr/api/collect"`} />
                 </div>
 
                 <div>
@@ -204,12 +204,33 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://your-app.com/api/collect"`} 
 
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-sm font-semibold mb-2">Why use the connector?</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    The connector creates a WebSocket tunnel between your local agent and the SaaS.
-                    This means you can test agents running on <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">localhost</code> through
-                    the web UI — no public URL or deployment needed.
+                  <h3 className="text-sm font-semibold mb-2">How it works</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                    The connector creates a <strong>reverse WebSocket tunnel</strong> between your local agent and the SaaS.
+                    Your agent stays on localhost — no public URL, no deployment, no port forwarding needed.
                   </p>
+                  <div className="rounded-lg border p-4 font-mono text-xs text-muted-foreground leading-relaxed">
+                    <p>Your PC                           Server (phoenix.rheon.kr)</p>
+                    <p>┌──────────────┐                ┌──────────────────┐</p>
+                    <p>│ Agent        │                │ SaaS App         │</p>
+                    <p>│ localhost    │                │                  │</p>
+                    <p>│ :2024       │                │ WebSocket Relay  │</p>
+                    <p>│              │                │                  │</p>
+                    <p>│ Connector ───┼── WSS ────────→│ Chat/Playground  │</p>
+                    <p>│ (Python)     │  (outbound)    │ Dataset runs     │</p>
+                    <p>└──────────────┘                └──────────────────┘</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Setup flow</h3>
+                  <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside leading-relaxed">
+                    <li>Go to <strong>Global Settings → Profile & Key</strong> and generate a Connector Key (<code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">pc_*</code>)</li>
+                    <li>Install the connector: <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">pip install phoenix-connector</code></li>
+                    <li>Start your agent locally (e.g. <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">langgraph dev</code> on port 2024)</li>
+                    <li>Run the connector (see command below)</li>
+                    <li>Open Chat or Playground in the browser — your agent is now accessible</li>
+                  </ol>
                 </div>
 
                 <div>
@@ -255,7 +276,7 @@ phoenix-connector \\
                           ["--project", "Project slug", "required"],
                           ["--type", "Agent type (langgraph | rest)", "langgraph"],
                           ["--assistant-id", "LangGraph assistant ID", "agent"],
-                          ["--saas-url", "SaaS WebSocket URL", "wss://app.com"],
+                          ["--saas-url", "SaaS WebSocket URL", "wss://phoenix.rheon.kr"],
                         ].map(([flag, desc, def]) => (
                           <tr key={flag}>
                             <td className="px-4 py-2.5 font-mono text-xs">{flag}</td>
@@ -390,7 +411,7 @@ phoenix-connector \\
                     <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">/api/collect</code>) require a Firebase ID token:
                   </p>
                   <CodeBlock code={`curl -H "Authorization: Bearer <firebase_id_token>" \\
-  https://your-app.com/api/projects`} />
+  https://phoenix.rheon.kr/api/projects`} />
                   <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                     The <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">/api/collect</code> endpoint uses Trace API Keys instead:
                   </p>
@@ -398,7 +419,7 @@ phoenix-connector \\
   -H "Authorization: Bearer pt_your_trace_key" \\
   -H "Content-Type: application/json" \\
   -d '{"resourceSpans": [...]}' \\
-  https://your-app.com/api/collect`} />
+  https://phoenix.rheon.kr/api/collect`} />
                 </div>
 
                 <div>
