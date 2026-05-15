@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
-import { apiError, ErrorCode } from "@/lib/api-error";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { rateLimit } from "@/lib/rate-limit";
 
 // POST — submit join request with invite code
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
-
-  const { allowed } = rateLimit(`join:${auth}`, 5, 60_000);
+export const POST = authedHandler(async (req: NextRequest, uid: string) => {
+  const { allowed } = rateLimit(`join:${uid}`, 5, 60_000);
   if (!allowed) {
     return apiError(req, ErrorCode.BAD_REQUEST, "Too many join attempts. Please try again later.");
   }
@@ -41,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   // Check if already a member
   const existing = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId: inviteCode.projectId, userId: auth } },
+    where: { projectId_userId: { projectId: inviteCode.projectId, userId: uid } },
   });
   if (existing) {
     return apiError(req, ErrorCode.BAD_REQUEST, "You are already a member of this project");
@@ -49,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   // Check if already has pending request
   const existingRequest = await prisma.projectJoinRequest.findUnique({
-    where: { projectId_userId: { projectId: inviteCode.projectId, userId: auth } },
+    where: { projectId_userId: { projectId: inviteCode.projectId, userId: uid } },
   });
   if (existingRequest) {
     return NextResponse.json({
@@ -63,7 +59,7 @@ export async function POST(req: NextRequest) {
     prisma.projectJoinRequest.create({
       data: {
         projectId: inviteCode.projectId,
-        userId: auth,
+        userId: uid,
         codeId: inviteCode.id,
         status: "pending",
       },
@@ -78,4 +74,4 @@ export async function POST(req: NextRequest) {
     project: inviteCode.project,
     status: "pending",
   }, { status: 201 });
-}
+});

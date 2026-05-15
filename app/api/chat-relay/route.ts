@@ -1,12 +1,9 @@
 import { NextRequest } from "next/server";
-import { requireAuth } from "@/lib/auth-server";
+import { authedHandler } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof Response) return auth;
-
+export const POST = authedHandler(async (req: NextRequest, uid: string) => {
   const { projectId, targetUserId, messages, threadId } = await req.json();
   if (!projectId || !targetUserId || !messages) {
     return new Response(
@@ -19,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   // Verify membership
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member) {
     return new Response(
@@ -96,4 +93,4 @@ export async function POST(req: NextRequest) {
       Connection: "keep-alive",
     },
   });
-}
+});

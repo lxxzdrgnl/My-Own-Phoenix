@@ -184,10 +184,10 @@ export function validateFields(rules: ValidationRule[]): Record<string, string> 
 
 // ── Handler Wrappers ──
 
-type RawHandler = (req: NextRequest, ctx?: any) => Promise<NextResponse>;
-type AuthedHandlerFn = (req: NextRequest, uid: string, ctx?: any) => Promise<NextResponse>;
+type RawHandler = (req: NextRequest, ctx?: any) => Promise<Response>;
+type AuthedHandlerFn = (req: NextRequest, uid: string, ctx?: any) => Promise<Response>;
 
-function wrapWithErrorCatching(req: NextRequest, handler: () => Promise<NextResponse>): Promise<NextResponse> {
+function wrapWithErrorCatching(req: NextRequest, handler: () => Promise<Response>): Promise<Response> {
   return handler().catch((e) => {
     console.error(`[API Error] ${req.method} ${req.nextUrl.pathname}:`, e);
     const message = e instanceof Error ? e.message : "An unexpected error occurred";

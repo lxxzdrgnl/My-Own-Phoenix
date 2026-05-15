@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
-import { apiError, ErrorCode } from "@/lib/api-error";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { randomBytes } from "crypto";
 
 function generateCode(): string {
@@ -9,13 +8,11 @@ function generateCode(): string {
 }
 
 // GET — list invite codes (owner only)
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
@@ -28,19 +25,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
     return NextResponse.json({ codes });
   } catch (e) {
-    console.error("Failed to list invite codes:", e);
-    return NextResponse.json({ message: String(e) }, { status: 500 });
+    console.error("[invite-codes]", e);
+    return NextResponse.json({ message: "Internal error" }, { status: 500 });
   }
-}
+});
 
 // POST — generate invite code (owner only)
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const POST = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
@@ -57,25 +52,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         role,
         maxUses,
         expiresAt,
-        createdBy: auth,
+        createdBy: uid,
       },
     });
 
     return NextResponse.json({ code }, { status: 201 });
   } catch (e) {
-    console.error("Failed to create invite code:", e);
-    return NextResponse.json({ message: String(e) }, { status: 500 });
+    console.error("[invite-codes]", e);
+    return NextResponse.json({ message: "Internal error" }, { status: 500 });
   }
-}
+});
 
 // DELETE — delete invite code (owner only)
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const DELETE = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
@@ -84,4 +77,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { codeId } = await req.json();
   await prisma.projectInviteCode.delete({ where: { id: codeId } });
   return NextResponse.json({ ok: true });
-}
+});

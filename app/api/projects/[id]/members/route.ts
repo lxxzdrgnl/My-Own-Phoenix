@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
-import { apiError, ErrorCode } from "@/lib/api-error";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
 // GET — list members (any member)
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member) {
     return apiError(req, ErrorCode.FORBIDDEN, "Not a project member");
@@ -22,16 +19,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     orderBy: { createdAt: "asc" },
   });
   return NextResponse.json({ members, currentRole: member.role });
-}
+});
 
 // PUT — update member role (owner only)
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const PUT = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
@@ -47,23 +42,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     data: { role },
   });
   return NextResponse.json({ ok: true });
-}
+});
 
 // DELETE — remove member (owner only, cannot remove self)
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const DELETE = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
   }
 
   const { userId } = await req.json();
-  if (userId === auth) {
+  if (userId === uid) {
     return apiError(req, ErrorCode.BAD_REQUEST, "Cannot remove yourself");
   }
 
@@ -71,16 +64,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     where: { projectId_userId: { projectId, userId } },
   });
   return NextResponse.json({ ok: true });
-}
+});
 
 // PATCH — transfer ownership (owner only)
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const PATCH = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
@@ -101,7 +92,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   await prisma.$transaction([
     prisma.projectMember.update({
-      where: { projectId_userId: { projectId, userId: auth } },
+      where: { projectId_userId: { projectId, userId: uid } },
       data: { role: "editor" },
     }),
     prisma.projectMember.update({
@@ -111,4 +102,4 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   ]);
 
   return NextResponse.json({ ok: true });
-}
+});

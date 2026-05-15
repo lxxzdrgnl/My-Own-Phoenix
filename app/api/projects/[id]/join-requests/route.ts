@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
-import { apiError, ErrorCode } from "@/lib/api-error";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
 // GET — list pending join requests (owner only)
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const GET = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
@@ -22,16 +19,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({ requests });
-}
+});
 
 // PUT — approve or reject a join request (owner only)
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const PUT = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
@@ -72,4 +67,4 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json({ ok: true });
-}
+});

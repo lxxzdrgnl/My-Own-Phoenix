@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
-import { apiError, ErrorCode } from "@/lib/api-error";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { randomBytes, createHash } from "crypto";
 
 function generateSlug(): string {
@@ -17,12 +16,9 @@ function hashKey(key: string): string {
 }
 
 // GET /api/projects — list my projects
-export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
-
+export const GET = authedHandler(async (req: NextRequest, uid: string) => {
   const memberships = await prisma.projectMember.findMany({
-    where: { userId: auth },
+    where: { userId: uid },
     include: { project: true },
     orderBy: { createdAt: "desc" },
   });
@@ -37,13 +33,10 @@ export async function GET(req: NextRequest) {
       createdAt: m.project.createdAt,
     })),
   );
-}
+});
 
 // POST /api/projects — create a project
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
-
+export const POST = authedHandler(async (req: NextRequest, uid: string) => {
   const { name } = await req.json();
   if (!name?.trim()) {
     return apiError(req, ErrorCode.BAD_REQUEST, "Project name is required");
@@ -59,14 +52,14 @@ export async function POST(req: NextRequest) {
       slug,
       traceKeyHash,
       members: {
-        create: { userId: auth, role: "owner" },
+        create: { userId: uid, role: "owner" },
       },
     },
   });
 
   // Copy owner's API keys to the new project
   const ownerKeys = await prisma.llmProvider.findMany({
-    where: { userId: auth, isActive: true, projectId: null },
+    where: { userId: uid, isActive: true, projectId: null },
   });
   if (ownerKeys.length > 0) {
     await prisma.llmProvider.createMany({
@@ -74,7 +67,7 @@ export async function POST(req: NextRequest) {
         provider: k.provider,
         apiKey: k.apiKey,
         isActive: true,
-        userId: auth,
+        userId: uid,
         projectId: project.id,
       })),
     });
@@ -86,20 +79,17 @@ export async function POST(req: NextRequest) {
     slug: project.slug,
     traceKey, // shown once only
   }, { status: 201 });
-}
+});
 
 // PUT /api/projects — rename project
-export async function PUT(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
-
+export const PUT = authedHandler(async (req: NextRequest, uid: string) => {
   const { projectId, name } = await req.json();
   if (!projectId || !name?.trim()) {
     return apiError(req, ErrorCode.BAD_REQUEST, "projectId and name are required");
   }
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || member.role !== "owner") {
     return apiError(req, ErrorCode.FORBIDDEN, "Only the project owner can rename");
@@ -111,13 +101,10 @@ export async function PUT(req: NextRequest) {
   });
 
   return NextResponse.json({ ok: true });
-}
+});
 
 // DELETE /api/projects — delete a project (owner only)
-export async function DELETE(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
-
+export const DELETE = authedHandler(async (req: NextRequest, uid: string) => {
   const { projectId } = await req.json();
   if (!projectId) {
     return apiError(req, ErrorCode.BAD_REQUEST, "projectId is required");
@@ -125,7 +112,7 @@ export async function DELETE(req: NextRequest) {
 
   // Check ownership
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
 
   if (!member || member.role !== "owner") {
@@ -136,4 +123,4 @@ export async function DELETE(req: NextRequest) {
   await prisma.project.delete({ where: { id: projectId } });
 
   return NextResponse.json({ ok: true });
-}
+});
