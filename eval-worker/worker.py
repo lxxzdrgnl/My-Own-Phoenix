@@ -76,10 +76,38 @@ def _sync_dashboard_settings() -> None:
 
 # ── API key helpers ───────────────────────────────────────────────────────
 
-def fetch_provider_key(provider: str) -> str:
-    """Fetch decrypted API key from dashboard."""
+_phoenix_to_db_project: dict[str, str] = {}  # phoenixProject name → DB project ID
+_phoenix_to_db_loaded_at: float = 0
+
+
+def _resolve_project_id(phoenix_project: str) -> str:
+    """Map Phoenix project name to DB project ID. Refresh cache every 60s."""
+    global _phoenix_to_db_loaded_at
+    now = time.time()
+    if now - _phoenix_to_db_loaded_at > 60 or phoenix_project not in _phoenix_to_db_project:
+        try:
+            resp = httpx.get(f"{DASHBOARD_URL}/api/projects", headers=DASHBOARD_HEADERS, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                # Handle both array and {projects: [...]} formats
+                projects = data if isinstance(data, list) else data.get("projects", [])
+                for p in projects:
+                    pp = p.get("phoenixProject", "")
+                    if pp:
+                        _phoenix_to_db_project[pp] = p["id"]
+                _phoenix_to_db_loaded_at = now
+        except Exception as e:
+            logger.debug("Failed to resolve project IDs: %s", e)
+    return _phoenix_to_db_project.get(phoenix_project, "")
+
+
+def fetch_provider_key(provider: str, project_id: str = "") -> str:
+    """Fetch decrypted API key from dashboard, preferring project-level key."""
     try:
-        resp = httpx.get(f"{DASHBOARD_URL}/api/providers?decrypt=true", headers=DASHBOARD_HEADERS, timeout=10)
+        url = f"{DASHBOARD_URL}/api/providers?decrypt=true"
+        if project_id:
+            url += f"&projectId={project_id}"
+        resp = httpx.get(url, headers=DASHBOARD_HEADERS, timeout=10)
         for p in resp.json().get("providers", []):
             if p["provider"] == provider and p.get("isActive", False):
                 return p["apiKey"]
@@ -89,14 +117,21 @@ def fetch_provider_key(provider: str) -> str:
     return os.environ.get("OPENAI_API_KEY", "")
 
 
-_openai_key_cache: str | None = None
+_openai_key_cache: dict[str, str] = {}  # project_id → key (empty string = global)
 
 
-def get_openai_key() -> str:
-    global _openai_key_cache
-    if _openai_key_cache is None:
-        _openai_key_cache = fetch_provider_key("openai")
-    return _openai_key_cache
+def get_openai_key(project_id: str = "") -> str:
+    if project_id not in _openai_key_cache:
+        key = fetch_provider_key("openai", project_id)
+        if not key and project_id:
+            key = fetch_provider_key("openai", "")  # fallback to global
+        _openai_key_cache[project_id] = key
+    return _openai_key_cache[project_id]
+
+
+def invalidate_key_cache() -> None:
+    """Clear key cache so next eval cycle refetches keys."""
+    _openai_key_cache.clear()
 
 
 # ── Phoenix API helpers ───────────────────────────────────────────────────
@@ -528,38 +563,34 @@ def _eval_code_rule(rule_config: dict, query: str, response: str, context: str, 
 
 # ── Lazy OpenAI client / evaluator initialization ────────────────────────
 
-_openai_client = None
-_openai_model = None
-_qa_eval = None
-_relevance_eval = None
+_openai_clients: dict[str, OpenAI] = {}
+_openai_models: dict[str, OpenAIModel] = {}
+_qa_evals: dict[str, QAEvaluator] = {}
+_relevance_evals: dict[str, RelevanceEvaluator] = {}
 
 
-def get_openai_client():
-    global _openai_client
-    if _openai_client is None:
-        _openai_client = OpenAI(api_key=get_openai_key())
-    return _openai_client
+def get_openai_client(project_id: str = "") -> OpenAI:
+    if project_id not in _openai_clients:
+        _openai_clients[project_id] = OpenAI(api_key=get_openai_key(project_id))
+    return _openai_clients[project_id]
 
 
-def get_openai_model():
-    global _openai_model
-    if _openai_model is None:
-        _openai_model = OpenAIModel(model="gpt-4o-mini", api_key=get_openai_key())
-    return _openai_model
+def get_openai_model(project_id: str = "") -> OpenAIModel:
+    if project_id not in _openai_models:
+        _openai_models[project_id] = OpenAIModel(model="gpt-4o-mini", api_key=get_openai_key(project_id))
+    return _openai_models[project_id]
 
 
-def get_qa_eval():
-    global _qa_eval
-    if _qa_eval is None:
-        _qa_eval = QAEvaluator(get_openai_model())
-    return _qa_eval
+def get_qa_eval(project_id: str = "") -> QAEvaluator:
+    if project_id not in _qa_evals:
+        _qa_evals[project_id] = QAEvaluator(get_openai_model(project_id))
+    return _qa_evals[project_id]
 
 
-def get_relevance_eval():
-    global _relevance_eval
-    if _relevance_eval is None:
-        _relevance_eval = RelevanceEvaluator(get_openai_model())
-    return _relevance_eval
+def get_relevance_eval(project_id: str = "") -> RelevanceEvaluator:
+    if project_id not in _relevance_evals:
+        _relevance_evals[project_id] = RelevanceEvaluator(get_openai_model(project_id))
+    return _relevance_evals[project_id]
 
 
 # ── Evaluators ────────────────────────────────────────────────────────────
@@ -567,9 +598,9 @@ def get_relevance_eval():
 PASS_LABELS = {"pass", "true", "yes", "correct", "factual", "faithful", "appropriate", "clean", "relevant"}
 
 
-def _openai_eval(prompt_text: str, system_msg: str | None = None) -> dict:
+def _openai_eval(prompt_text: str, system_msg: str | None = None, project_id: str = "") -> dict:
     try:
-        client = get_openai_client()
+        client = get_openai_client(project_id)
         messages = []
         if system_msg:
             messages.append({"role": "system", "content": system_msg})
@@ -626,7 +657,7 @@ def eval_banned_word(response: str, query: str = "", context: str = "", span: di
             "explanation": f"Matched: '{m.group()}'" if m else ""}
 
 
-def _run_llm_eval(name: str, default_template: str, context: str, response: str, query: str) -> dict:
+def _run_llm_eval(name: str, default_template: str, context: str, response: str, query: str, project_id: str = "") -> dict:
     """Run an LLM-based eval with system/user split and dashboard prompt override."""
     template = get_prompt(name, default_template)
     edef = get_eval_def(name)
@@ -638,26 +669,26 @@ def _run_llm_eval(name: str, default_template: str, context: str, response: str,
         query=query or "(no query)",
     )
     sys_msg, user_msg = _split_prompt_for_system(filled)
-    raw = _openai_eval(user_msg, system_msg=sys_msg)
+    raw = _openai_eval(user_msg, system_msg=sys_msg, project_id=project_id)
     return _parse_eval_result(raw, output_mode)
 
 
-def eval_hallucination(response: str, context: str) -> dict:
+def eval_hallucination(response: str, context: str, project_id: str = "") -> dict:
     if not context:
         return {}
-    return _run_llm_eval("hallucination", default_prompts.HALLUCINATION, context, response, "")
+    return _run_llm_eval("hallucination", default_prompts.HALLUCINATION, context, response, "", project_id)
 
 
-def eval_citation(response: str, context: str) -> dict:
+def eval_citation(response: str, context: str, project_id: str = "") -> dict:
     if not context:
         return {}
-    return _run_llm_eval("citation", default_prompts.CITATION, context, response, "")
+    return _run_llm_eval("citation", default_prompts.CITATION, context, response, "", project_id)
 
 
-def eval_tool_calling(query: str, context: str) -> dict:
+def eval_tool_calling(query: str, context: str, project_id: str = "") -> dict:
     if not context:
         return {}
-    return _run_llm_eval("tool_calling", default_prompts.TOOL_CALLING, context, "", query)
+    return _run_llm_eval("tool_calling", default_prompts.TOOL_CALLING, context, "", query, project_id)
 
 
 # ── Eval pipeline ─────────────────────────────────────────────────────────
@@ -672,6 +703,7 @@ def _run_trace_evals(
     root_id: str, query: str, response: str, context: str,
     missing: set[str], project: str,
     root_span_data: dict | None = None,
+    project_id: str = "",
 ) -> None:
     """Trace-level evals on root span."""
     if "banned_word" in missing and response:
@@ -682,7 +714,7 @@ def _run_trace_evals(
         try:
             ref = context or response  # Use context if available, else self-reference
             df = pd.DataFrame([{"context.span_id": root_id, "input": query, "output": response, "reference": ref}]).set_index("context.span_id")
-            (result,) = run_evals(evaluators=[get_qa_eval()], dataframe=df[["input", "output", "reference"]], provide_explanation=True, concurrency=1)
+            (result,) = run_evals(evaluators=[get_qa_eval(project_id)], dataframe=df[["input", "output", "reference"]], provide_explanation=True, concurrency=1)
             if result is not None and not result.empty:
                 row = result.iloc[0]
                 phoenix_upload_annotation(root_id, "qa_correctness", "LLM",
@@ -691,12 +723,12 @@ def _run_trace_evals(
             logger.error("[%s] qa_correctness failed: %s", project, e)
 
     if "tool_calling" in missing and query and context:
-        r = eval_tool_calling(query, context)
+        r = eval_tool_calling(query, context, project_id)
         if r:
             phoenix_upload_annotation(root_id, "tool_calling", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
     if "guardrail" in missing and response:
-        r = _run_llm_eval("guardrail", default_prompts.GUARDRAIL, context, response, query)
+        r = _run_llm_eval("guardrail", default_prompts.GUARDRAIL, context, response, query, project_id)
         if r:
             phoenix_upload_annotation(root_id, "guardrail", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
@@ -717,7 +749,7 @@ def _run_trace_evals(
                     query=query or "(no query)",
                 )
                 sys_msg, user_msg = _split_prompt_for_system(filled)
-                raw = _openai_eval(user_msg, system_msg=sys_msg)
+                raw = _openai_eval(user_msg, system_msg=sys_msg, project_id=project_id)
                 r = _parse_eval_result(raw, edef.output_mode)
                 if r:
                     phoenix_upload_annotation(root_id, eval_name, "LLM",
@@ -729,18 +761,19 @@ def _run_trace_evals(
 def _run_llm_span_evals(
     span_id: str, response: str, context: str,
     missing: set[str], project: str,
+    project_id: str = "",
 ) -> None:
     """Span-level evals on individual LLM spans."""
     if not context:
         return
 
     if "hallucination" in missing and response:
-        r = eval_hallucination(response, context)
+        r = eval_hallucination(response, context, project_id)
         if r:
             phoenix_upload_annotation(span_id, "hallucination", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
     if "citation" in missing and response:
-        r = eval_citation(response, context)
+        r = eval_citation(response, context, project_id)
         if r:
             phoenix_upload_annotation(span_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
@@ -773,6 +806,7 @@ Respond with JSON only: {{"label": "relevant" or "irrelevant", "score": 0.0-1.0,
 def _run_retriever_span_evals(
     span_id: str, query: str, docs_output: str,
     missing: set[str], project: str,
+    project_id: str = "",
 ) -> None:
     """Span-level evals on RETRIEVER spans."""
     if "rag_relevance" not in missing or not query or not docs_output:
@@ -783,7 +817,7 @@ def _run_retriever_span_evals(
             context=docs_output[:5000],
         )
         sys_msg, user_msg = _split_prompt_for_system(filled)
-        raw = _openai_eval(user_msg, system_msg=sys_msg)
+        raw = _openai_eval(user_msg, system_msg=sys_msg, project_id=project_id)
         r = _parse_eval_result(raw, "score")
         if r:
             phoenix_upload_annotation(span_id, "rag_relevance", "LLM",
@@ -794,6 +828,7 @@ def _run_retriever_span_evals(
 
 def process_trace(
     trace_spans: list[dict], project: str,
+    project_id: str = "",
 ) -> int:
     """Process one trace (group of spans with same trace_id). Returns eval count."""
     root = _find_root(trace_spans)
@@ -837,7 +872,7 @@ def process_trace(
 
     if root_missing:
         logger.info("[%s] Trace eval %s (%d missing: %s)", project, root_id[:8], len(root_missing), ", ".join(root_missing))
-        _run_trace_evals(root_id, query, response, trace_context, root_missing, project, root)
+        _run_trace_evals(root_id, query, response, trace_context, root_missing, project, root, project_id)
         eval_count += 1
 
     # ── Level 2: LLM span evals ──
@@ -869,7 +904,7 @@ def process_trace(
 
         if span_missing:
             logger.info("[%s]   LLM span eval %s (%s)", project, sid[:8], ", ".join(span_missing))
-            _run_llm_span_evals(sid, span_output, context, span_missing, project)
+            _run_llm_span_evals(sid, span_output, context, span_missing, project, project_id)
             llm_budget += 1
             eval_count += 1
 
@@ -888,7 +923,7 @@ def process_trace(
 
         if ret_missing and ret_output:
             logger.info("[%s]   RETRIEVER eval %s", project, sid[:8])
-            _run_retriever_span_evals(sid, ret_query, _extract_text(ret_output), ret_missing, project)
+            _run_retriever_span_evals(sid, ret_query, _extract_text(ret_output), ret_missing, project, project_id)
             eval_count += 1
 
     return eval_count
@@ -911,8 +946,11 @@ def main() -> None:
             now = datetime.now(timezone.utc)
             projects = phoenix_get_projects()
 
+            invalidate_key_cache()  # refresh API key cache each cycle
+
             for project in projects:
                 set_current_project(project)
+                db_project_id = _resolve_project_id(project)
                 if project not in evaluated_traces:
                     evaluated_traces[project] = set()
                     caches[project] = deque(maxlen=MAX_CACHE)
@@ -937,7 +975,7 @@ def main() -> None:
                     if not root or not root.get("end_time"):
                         continue
 
-                    count = process_trace(trace_spans, project)
+                    count = process_trace(trace_spans, project, db_project_id)
                     if count > 0:
                         new_count += count
 

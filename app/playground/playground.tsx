@@ -37,7 +37,7 @@ function filterKey(pid: string) {
   return `pg_filter_${pid}`;
 }
 
-export function Playground({ fixedProject }: { fixedProject?: string } = {}) {
+export function Playground({ fixedProject, dbProjectId }: { fixedProject?: string; dbProjectId?: string } = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectIdState] = useState(fixedProject || "");
   const setProjectId = (id: string) => {
@@ -75,7 +75,7 @@ export function Playground({ fixedProject }: { fixedProject?: string } = {}) {
     runAll,
     syncColumnsToTrace,
     clearColumns,
-  } = usePlaygroundColumns(versionOptions);
+  } = usePlaygroundColumns(versionOptions, dbProjectId);
 
   function selectTrace(t: Trace) {
     if (selected?.spanId === t.spanId) {

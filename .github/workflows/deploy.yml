@@ -20,9 +20,10 @@ jobs:
             # Write env file
             echo '${{ secrets.APP_ENV }}' > ~/servers/phoenix/.env
 
-            # Pull latest code
+            # Pull latest code (force reset to handle rebased/squashed history)
             cd ~/servers/phoenix/repo
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             # Rebuild phoenix-dashboard via main servers compose
             cd ~/servers

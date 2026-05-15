@@ -7,8 +7,17 @@ const VALID_PROVIDERS = ["openai", "anthropic", "google", "xai"] as const;
 
 export const GET = authedHandler(async (req, uid) => {
   const decryptParam = req.nextUrl.searchParams.get("decrypt");
+  const projectId = req.nextUrl.searchParams.get("projectId");
+
+  const where: Record<string, unknown> = { userId: uid };
+  if (projectId) {
+    // Return project-level keys + user-level keys (fallback)
+    where.OR = [{ projectId }, { projectId: null }];
+    delete where.userId;
+  }
+
   const providers = await prisma.llmProvider.findMany({
-    where: { userId: uid },
+    where,
     orderBy: { createdAt: "asc" },
   });
 

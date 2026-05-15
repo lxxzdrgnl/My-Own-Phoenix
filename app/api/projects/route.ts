@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
       id: m.project.id,
       name: m.project.name,
       slug: m.project.slug,
+      phoenixProject: m.project.phoenixProject,
       role: m.role,
       createdAt: m.project.createdAt,
     })),

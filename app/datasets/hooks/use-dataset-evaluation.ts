@@ -25,6 +25,7 @@ interface UseDatasetEvaluationParams {
   queryCol: string;
   contextCol: string;
   selectedRowIndices: Set<number>;
+  projectId?: string;
   cancelRef: React.MutableRefObject<boolean>;
   setLiveResults: (results: RowResult[]) => void;
   setRunResults: (results: RowResult[]) => void;
@@ -44,6 +45,7 @@ export function useDatasetEvaluation({
   queryCol,
   contextCol,
   selectedRowIndices,
+  projectId,
   cancelRef,
   setLiveResults,
   setRunResults,
@@ -132,7 +134,7 @@ export function useDatasetEvaluation({
             const filled = effectiveTemplate.replace(/\{context\}/g, context || "(no context)").replace(/\{response\}/g, response || "(no response)").replace(/\{query\}/g, query || "(no query)");
             const res = await apiFetch("/api/llm", {
               method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: filled }], temperature: 0 }),
+              body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: filled }], temperature: 0, projectId }),
             });
             const data = await res.json();
             const parsed = JSON.parse(data.choices?.[0]?.message?.content ?? "{}");
@@ -167,7 +169,7 @@ export function useDatasetEvaluation({
   }, [
     selectedId, liveRunId, selectedRunId, liveResults, runResults,
     checkedEvals, evalOptions, evalOverrides, queryCol, contextCol,
-    selectedRowIndices, cancelRef, setLiveResults, setRunResults, setRunEvalNames, setRuns,
+    selectedRowIndices, projectId, cancelRef, setLiveResults, setRunResults, setRunEvalNames, setRuns,
   ]);
 
   return { evaluating, evalProgress, handleEvaluate };

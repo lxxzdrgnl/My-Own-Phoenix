@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useProject } from "@/lib/project-context";
 import { MembersTab } from "./members-tab";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, CheckCircle, Loader2 } from "lucide-react";
+import { Trash2, Plus, CheckCircle, Loader2, AlertTriangle, ArrowRightLeft } from "lucide-react";
 
 const TABS = [
   { id: "members", label: "Members" },
@@ -35,9 +36,11 @@ function ApiKeysTab() {
   const load = useCallback(async () => {
     try {
       const res = await apiFetch(`/api/projects/${projectId}/providers`);
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setKeys(data.providers || []);
+      } else {
+        console.error("Failed to load providers:", data);
       }
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -49,14 +52,19 @@ function ApiKeysTab() {
     if (!newKey.trim()) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/projects/${projectId}/providers`, {
+      const res = await apiFetch(`/api/projects/${projectId}/providers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider, apiKey: newKey.trim() }),
       });
-      setAdding(null);
-      setNewKey("");
-      load();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed to save key: ${err.message || res.status}`);
+      } else {
+        setAdding(null);
+        setNewKey("");
+        await load();
+      }
     } catch (e) { console.error(e); }
     setSaving(false);
   };
@@ -71,15 +79,6 @@ function ApiKeysTab() {
 
   return (
     <div className="space-y-6">
-      <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Trace API Key</h3>
-        <div className="rounded-lg border px-5 py-4">
-          <p className="text-xs text-muted-foreground">
-            Set <code className="rounded bg-muted px-1.5 py-0.5 font-mono">PHOENIX_API_KEY</code> in your agent to send traces to this project.
-          </p>
-        </div>
-      </section>
-
       <section>
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">LLM Provider Keys</h3>
         <p className="text-xs text-muted-foreground mb-3">
@@ -177,21 +176,188 @@ export default function ProjectSettingsPage() {
           </section>
         </div>
       )}
-      {activeTab === "danger" && (
-        <div className="space-y-6">
-          <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-destructive mb-3">Delete Project</h3>
-            <div className="rounded-lg border border-destructive/20 px-5 py-4">
-              <p className="text-xs text-muted-foreground mb-3">
-                Permanently delete this project and all its data. This action cannot be undone.
-              </p>
-              <button className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:bg-destructive/90">
-                Delete Project
-              </button>
-            </div>
-          </section>
+      {activeTab === "danger" && <DangerTab />}
+    </div>
+  );
+}
+
+interface MemberInfo {
+  id: string;
+  userId: string;
+  role: string;
+  user: { id: string; email: string; name: string | null };
+}
+
+function DangerTab() {
+  const { id: projectId, name } = useProject();
+  const router = useRouter();
+  const [currentRole, setCurrentRole] = useState("");
+  const [members, setMembers] = useState<MemberInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Transfer state
+  const [transferTarget, setTransferTarget] = useState("");
+  const [transferConfirm, setTransferConfirm] = useState("");
+  const [transferring, setTransferring] = useState(false);
+
+  // Delete state
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    apiFetch(`/api/projects/${projectId}/members`)
+      .then((r) => r.json())
+      .then((data) => {
+        setMembers(data.members || []);
+        setCurrentRole(data.currentRole || "");
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [projectId]);
+
+  const isOwner = currentRole === "owner";
+  const otherMembers = members.filter((m) => m.role !== "owner");
+
+  const handleTransfer = async () => {
+    if (transferConfirm !== name) return;
+    setTransferring(true);
+    try {
+      const res = await apiFetch(`/api/projects/${projectId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: transferTarget, confirmProjectName: name }),
+      });
+      if (res.ok) {
+        setCurrentRole("editor");
+        setTransferTarget("");
+        setTransferConfirm("");
+        alert("Ownership transferred successfully.");
+        window.location.reload();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed: ${err.message || res.status}`);
+      }
+    } catch (e) { console.error(e); }
+    setTransferring(false);
+  };
+
+  const handleDelete = async () => {
+    if (deleteConfirm !== name) return;
+    setDeleting(true);
+    try {
+      const res = await apiFetch("/api/projects", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      if (res.ok) {
+        router.push("/projects");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed: ${err.message || res.status}`);
+        setDeleting(false);
+      }
+    } catch (e) {
+      console.error(e);
+      setDeleting(false);
+    }
+  };
+
+  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+
+  if (!isOwner) {
+    return (
+      <div className="rounded-lg border px-5 py-8 text-center">
+        <p className="text-sm text-muted-foreground">Only the project owner can access this section.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Transfer Ownership */}
+      <section>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+          <ArrowRightLeft className="inline h-3 w-3 mr-1" />
+          Transfer Ownership
+        </h3>
+        <div className="rounded-lg border px-5 py-4 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Transfer this project to another member. You will become an editor.
+          </p>
+          {otherMembers.length === 0 ? (
+            <p className="text-xs text-muted-foreground/60">No other members to transfer to.</p>
+          ) : (
+            <>
+              <select
+                value={transferTarget}
+                onChange={(e) => setTransferTarget(e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select a member</option>
+                {otherMembers.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.user.name || m.user.email} ({m.role})
+                  </option>
+                ))}
+              </select>
+              {transferTarget && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Type <strong>{name}</strong> to confirm:
+                  </p>
+                  <Input
+                    value={transferConfirm}
+                    onChange={(e) => setTransferConfirm(e.target.value)}
+                    placeholder={name}
+                    className="text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleTransfer}
+                    disabled={transferConfirm !== name || transferring}
+                  >
+                    {transferring ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+                    Transfer Ownership
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      )}
+      </section>
+
+      {/* Delete Project */}
+      <section>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-destructive mb-3">
+          <AlertTriangle className="inline h-3 w-3 mr-1" />
+          Delete Project
+        </h3>
+        <div className="rounded-lg border border-destructive/20 px-5 py-4 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Permanently delete this project and all its data. This action cannot be undone.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Type <strong>{name}</strong> to confirm:
+          </p>
+          <Input
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            placeholder={name}
+            className="text-sm"
+          />
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={deleteConfirm !== name || deleting}
+          >
+            {deleting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+            Delete Project
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

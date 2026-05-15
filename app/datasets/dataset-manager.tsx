@@ -48,7 +48,7 @@ interface EvalOption {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function DatasetManager() {
+export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   const [datasets, setDatasets] = useState<DatasetMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,7 +93,7 @@ export function DatasetManager() {
   // ── Hooks ──
   const { generating, genProgress, handleGenerate } = useDatasetGeneration({
     selectedId, selectedAgent, agentConfigs, queryCol, selectedRowIndices, pageSize,
-    cancelRef,
+    projectId, cancelRef,
     setLiveRunId,
     setSelectedRunId,
     setLiveResults,
@@ -104,7 +104,7 @@ export function DatasetManager() {
   const { evaluating, evalProgress, handleEvaluate } = useDatasetEvaluation({
     selectedId, liveRunId, selectedRunId, liveResults, runResults,
     checkedEvals, evalOptions, evalOverrides, queryCol, contextCol,
-    selectedRowIndices, cancelRef,
+    selectedRowIndices, projectId, cancelRef,
     setLiveResults,
     setRunResults,
     setRunEvalNames,

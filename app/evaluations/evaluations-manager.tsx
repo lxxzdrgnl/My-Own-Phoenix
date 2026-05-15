@@ -11,7 +11,7 @@ import { EvalEditor } from "./eval-editor";
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function EvaluationsManager({ fixedProject }: { fixedProject?: string } = {}) {
+export function EvaluationsManager({ fixedProject, projectId }: { fixedProject?: string; projectId?: string } = {}) {
   // Data
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalPrompts, setGlobalPrompts] = useState<EvalPrompt[]>([]);
@@ -165,6 +165,7 @@ export function EvaluationsManager({ fixedProject }: { fixedProject?: string } =
           globalPrompts={globalPrompts}
           projectConfigs={projectConfigs}
           defaultEvalModel={defaultEvalModel}
+          projectId={projectId}
           onCreated={handleCreated}
           onCancelCreate={() => setCreating(false)}
           onDeleted={handleDeleted}

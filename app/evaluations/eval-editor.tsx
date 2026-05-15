@@ -35,6 +35,7 @@ interface EvalEditorProps {
   globalPrompts: EvalPrompt[];
   projectConfigs: ProjectEvalConfig[];
   defaultEvalModel: string;
+  projectId?: string;
   onCreated: (name: string, evalType: string, template: string, ruleConfig: RuleConfig, model: string) => void;
   onCancelCreate: () => void;
   onDeleted: () => void;
@@ -48,6 +49,7 @@ export function EvalEditor({
   selectedProject,
   creating,
   projects,
+  projectId,
   globalPrompts,
   projectConfigs,
   defaultEvalModel,
@@ -303,7 +305,7 @@ export function EvalEditor({
       const res = await apiFetch("/api/llm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "gpt-4o-mini", messages, temperature: 0 }),
+        body: JSON.stringify({ model: "gpt-4o-mini", messages, temperature: 0, projectId }),
       });
       const data = await res.json();
       const result = JSON.parse(data.choices?.[0]?.message?.content ?? "{}");

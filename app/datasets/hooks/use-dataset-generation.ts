@@ -21,6 +21,7 @@ interface UseDatasetGenerationParams {
   queryCol: string;
   selectedRowIndices: Set<number>;
   pageSize: number;
+  projectId?: string;
   cancelRef: React.MutableRefObject<boolean>;
   setLiveRunId: (id: string | null) => void;
   setSelectedRunId: (id: string | null) => void;
@@ -36,6 +37,7 @@ export function useDatasetGeneration({
   queryCol,
   selectedRowIndices,
   pageSize,
+  projectId,
   cancelRef,
   setLiveRunId,
   setSelectedRunId,
@@ -81,7 +83,7 @@ export function useDatasetGeneration({
           const model = selectedAgent.replace("llm:", "");
           const res = await apiFetch("/api/llm", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model, messages: [{ role: "user", content: query }], temperature: 0.7 }),
+            body: JSON.stringify({ model, messages: [{ role: "user", content: query }], temperature: 0.7, projectId }),
           });
           const data = await res.json();
           response = data.choices?.[0]?.message?.content ?? "(no response)";
@@ -137,7 +139,7 @@ export function useDatasetGeneration({
     setSelectedRunId(run.id);
     const runsData = await (await apiFetch(`/api/datasets/runs?datasetId=${selectedId}`)).json();
     setRuns(() => runsData.runs ?? []);
-  }, [selectedId, selectedAgent, agentConfigs, queryCol, selectedRowIndices, cancelRef, setLiveRunId, setSelectedRunId, setLiveResults, setActiveTab, setRuns]);
+  }, [selectedId, selectedAgent, agentConfigs, queryCol, selectedRowIndices, projectId, cancelRef, setLiveRunId, setSelectedRunId, setLiveResults, setActiveTab, setRuns]);
 
   return { generating, genProgress, handleGenerate };
 }

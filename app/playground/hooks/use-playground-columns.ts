@@ -37,7 +37,7 @@ function makeColumn(
   };
 }
 
-export function usePlaygroundColumns(versionOptions: VersionOption[]) {
+export function usePlaygroundColumns(versionOptions: VersionOption[], projectId?: string) {
   const [columns, setColumns] = useState<Column[]>([]);
 
   // Init first column once prompts load
@@ -93,7 +93,7 @@ export function usePlaygroundColumns(versionOptions: VersionOption[]) {
       result: { label, text: "", tokens: 0, loading: true },
     });
     try {
-      const r = await callLLM(version, col.query, col.context);
+      const r = await callLLM(version, col.query, col.context, projectId);
       updateColumn(colId, {
         running: false,
         result: { label, text: r.text, tokens: r.tokens, loading: false },

@@ -676,6 +676,7 @@ export async function callLLM(
   version: PromptVersion,
   query: string,
   context: string,
+  projectId?: string,
 ): Promise<{ text: string; tokens: number; spanId?: string }> {
   const messages = (version.template?.messages ?? []).map((m) => ({
     role: m.role,
@@ -694,6 +695,7 @@ export async function callLLM(
       messages,
       temperature: params.temperature ?? 0.7,
       promptLabel: version.description || version.id,
+      projectId,
     }),
   });
 
