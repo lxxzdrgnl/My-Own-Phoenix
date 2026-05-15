@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Settings2, Key, Bot, Activity, MessageSquare, FileText, ArrowLeft } from "lucide-react";
+import { Settings2, Key, Bot, ArrowLeft } from "lucide-react";
 import { Sidebar } from "@/components/ui/sidebar";
 import { GeneralSection } from "./general-section";
 import { ProvidersSection } from "./providers-section";
 import { AgentsSection } from "./agents-section";
-import { EvalWorkerSection } from "./eval-worker-section";
 import { ChatSection } from "./chat-section";
 
 interface TabDef {
@@ -20,23 +19,16 @@ interface TabDef {
 
 const TAB_GROUPS: { label: string; tabs: TabDef[] }[] = [
   {
-    label: "App",
+    label: "Account",
     tabs: [
-      { id: "general", label: "General", icon: Settings2, desc: "Phoenix URL & basics" },
+      { id: "general", label: "Profile & Key", icon: Settings2, desc: "Account & connector key" },
       { id: "providers", label: "Providers", icon: Key, desc: "LLM API keys" },
     ],
   },
   {
-    label: "AI",
+    label: "Templates",
     tabs: [
-      { id: "agents", label: "Agents", icon: Bot, desc: "Agent templates" },
-      { id: "chat", label: "Chat", icon: MessageSquare, desc: "Project agent mapping" },
-    ],
-  },
-  {
-    label: "Eval",
-    tabs: [
-      { id: "eval-worker", label: "Eval Worker", icon: Activity, desc: "Background evaluator" },
+      { id: "agents", label: "Agent Templates", icon: Bot, desc: "Reusable agent configs" },
     ],
   },
 ];
@@ -54,13 +46,13 @@ export function SettingsPage() {
     <div className="flex h-screen">
       <Sidebar className="py-4 bg-card">
         <div className="px-4 mb-5">
-          <a
-            href="/"
+          <button
+            onClick={() => window.history.back()}
             className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" />
-            Projects
-          </a>
+            Back
+          </button>
           <h2 className="mt-3 text-sm font-semibold">Global Settings</h2>
         </div>
 
@@ -99,14 +91,11 @@ export function SettingsPage() {
 
         <div className="mt-auto border-t px-3 py-3">
           <a
-            href="/api/docs"
-            target="_blank"
+            href="/docs"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-muted-foreground/50 transition-colors hover:bg-accent/50 hover:text-foreground"
           >
-            <FileText className="h-4 w-4 shrink-0" />
             <div className="min-w-0">
-              <p className="text-[13px] font-medium leading-tight">API Docs</p>
-              <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground/40">Swagger / OpenAPI</p>
+              <p className="text-[13px] font-medium leading-tight">Docs</p>
             </div>
           </a>
         </div>
@@ -117,8 +106,6 @@ export function SettingsPage() {
           {activeTab === "general" && <GeneralSection />}
           {activeTab === "providers" && <ProvidersSection />}
           {activeTab === "agents" && <AgentsSection />}
-          {activeTab === "eval-worker" && <EvalWorkerSection />}
-          {activeTab === "chat" && <ChatSection />}
         </div>
       </div>
     </div>

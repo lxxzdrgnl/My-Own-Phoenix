@@ -27,9 +27,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-dvh">
+    <div className="flex h-dvh items-center justify-center bg-background p-6 lg:p-12">
+      <div className="flex h-full max-h-[720px] w-full max-w-5xl overflow-hidden rounded-2xl border shadow-sm">
       {/* Left: Testimonial / Branding — light gray panel */}
-      <div className="hidden w-1/2 flex-col justify-between rounded-r-3xl bg-muted/50 p-12 lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between bg-muted/50 p-12 lg:flex">
         <div className="flex items-center justify-between">
           <h1 className="text-sm font-bold tracking-tight">My Own Phoenix</h1>
         </div>
@@ -57,7 +58,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right: Login form */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-background px-6">
+      <div className="flex flex-1 flex-col items-center justify-center bg-card px-6">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="mb-10 lg:hidden">
@@ -101,6 +102,7 @@ export default function LoginPage() {
             By signing in, you agree to our terms of service.
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

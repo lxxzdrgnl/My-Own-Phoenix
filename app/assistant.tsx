@@ -317,6 +317,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
                 </button>
               </div>
               <div className="px-2 pt-2 flex items-center gap-1">
+                {projects.length > 0 && (
                 <div className="flex-1">
                   <ProjectSelector
                     project={project}
@@ -326,6 +327,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
                     size="sm"
                   />
                 </div>
+                )}
                 <button
                   onClick={() => setAgentConfigOpen(true)}
                   className="shrink-0 rounded p-1.5 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"

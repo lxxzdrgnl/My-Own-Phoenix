@@ -5,5 +5,5 @@ import { ProjectView } from "@/app/projects/[name]/project-view";
 
 export default function OverviewPage() {
   const { phoenixProject } = useProject();
-  return <ProjectView projectName={phoenixProject} defaultTab="traces" />;
+  return <ProjectView projectName={phoenixProject} defaultTab="traces" hideTabBar />;
 }

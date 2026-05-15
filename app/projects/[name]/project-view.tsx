@@ -94,7 +94,7 @@ function buildPassFailChartOptions(traces: Trace[]): Highcharts.Options {
   };
 }
 
-export function ProjectView({ projectName, defaultTab = "traces" }: { projectName: string; defaultTab?: "traces" | "measure" | "risk" }) {
+export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = false }: { projectName: string; defaultTab?: "traces" | "measure" | "risk"; hideTabBar?: boolean }) {
   const [traces, setTraces] = useState<Trace[]>([]);
   const [traceTrees, setTraceTrees] = useState<TraceTree[]>([]);
   const [tracesLoading, setTracesLoading] = useState(false);
@@ -286,12 +286,15 @@ export function ProjectView({ projectName, defaultTab = "traces" }: { projectNam
         {/* Header + Tab bar + Date picker */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">{projectName}</h1>
-              <p className="text-sm text-muted-foreground">Project overview</p>
-            </div>
+            {!hideTabBar && (
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">{projectName}</h1>
+                <p className="text-sm text-muted-foreground">Project overview</p>
+              </div>
+            )}
             <DateRangePicker value={dateRange} onChange={setDateRange} />
           </div>
+          {!hideTabBar && (
           <div className="flex gap-1 border-b">
           {(["traces", "measure", "risk"] as const).map((tab) => (
             <button
@@ -308,6 +311,7 @@ export function ProjectView({ projectName, defaultTab = "traces" }: { projectNam
             </button>
           ))}
           </div>
+          )}
         </div>
 
         {/* Traces tab */}

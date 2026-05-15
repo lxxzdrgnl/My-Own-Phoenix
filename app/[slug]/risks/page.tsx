@@ -5,5 +5,5 @@ import { ProjectView } from "@/app/projects/[name]/project-view";
 
 export default function RisksPage() {
   const { phoenixProject } = useProject();
-  return <ProjectView projectName={phoenixProject} defaultTab="risk" />;
+  return <ProjectView projectName={phoenixProject} defaultTab="risk" hideTabBar />;
 }

@@ -16,6 +16,7 @@ import {
   Settings2,
   Settings,
   LogOut,
+  FileText,
 } from "lucide-react";
 import { Sidebar, SidebarHeader } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
@@ -40,8 +41,7 @@ const NAV_GROUPS = [
     label: "Analytics",
     items: [
       { href: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "overview", label: "Overview", icon: BarChart3 },
-      { href: "requests", label: "Requests", icon: List },
+      { href: "overview", label: "Requests", icon: List },
     ],
   },
   {
@@ -66,7 +66,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
       {/* Back + Project name */}
       <div className="px-4 mb-5">
         <Link
-          href="/"
+          href="/projects"
           className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3 w-3" />
@@ -119,7 +119,14 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
             )}
           >
             <Settings2 className="h-4 w-4" />
-            Settings
+            Project Settings
+          </Link>
+          <Link
+            href="/docs"
+            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted-foreground/50 transition-colors hover:bg-accent hover:text-muted-foreground"
+          >
+            <FileText className="h-4 w-4" />
+            Docs
           </Link>
           <Link
             href="/settings"

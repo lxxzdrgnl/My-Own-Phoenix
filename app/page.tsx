@@ -1,471 +1,215 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
-import { ProjectCard } from "@/components/project-card";
-import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
-import { FolderOpen, Plus, LogIn, LogOut, Settings } from "lucide-react";
 import { AuthModal } from "@/components/auth-modal";
-import { JoinProjectModal } from "@/components/join-project-modal";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-
-interface ProjectItem {
-  id: string;
-  name: string;
-  slug: string;
-  role: string;
-  createdAt: string;
-}
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [showJoin, setShowJoin] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [creating, setCreating] = useState(false);
 
-  const loadProjects = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/projects");
-      if (res.ok) {
-        const data = await res.json();
-        setProjects(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) loadProjects();
-    else setLoading(false);
-  }, [user, loadProjects]);
-
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await apiFetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setShowCreate(false);
-        setNewName("");
-        router.push(`/${data.slug}/dashboard`);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  // Not logged in — Landing page
-  if (!user) {
-    return (
-      <>
-        <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
-        <div className="min-h-screen bg-background">
-          {/* Nav */}
-          <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-sm">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-              <span className="text-sm font-bold tracking-tight">My Own Phoenix</span>
-              <div className="flex items-center gap-4">
-                <a href="/docs" target="_blank" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  Docs
-                </a>
-                <button
-                  onClick={() => setShowAuth(true)}
-                  className="rounded-lg bg-foreground px-4 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80"
-                >
-                  Sign in
-                </button>
-              </div>
-            </div>
-          </nav>
-
-          {/* Hero */}
-          <section className="mx-auto max-w-6xl px-6 pt-32 pb-8">
-            <div className="max-w-3xl animate-[fadeUp_0.6s_ease-out_both]">
-              <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                LLM Observability Platform
-              </p>
-              <h1 className="text-5xl font-bold tracking-tight leading-[1.1]">
-                Monitor, Evaluate &
-                <br />
-                <span className="text-muted-foreground/30">Test Your AI Agents</span>
-              </h1>
-              <p className="mt-6 max-w-lg text-base text-muted-foreground leading-relaxed">
-                Real-time trace collection, automated evaluations, and integrated agent
-                testing with WebSocket relay — no deployment required.
-              </p>
-              <div className="mt-10 flex items-center gap-5">
-                <button
-                  onClick={() => setShowAuth(true)}
-                  className="group rounded-lg bg-foreground px-7 py-3 text-sm font-medium text-background transition-all hover:opacity-90"
-                >
-                  Get started free
-                  <span className="ml-2 inline-block transition-transform group-hover:translate-x-0.5">→</span>
-                </button>
-                <a
-                  href="/docs"
-                  target="_blank"
-                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Read the docs
-                </a>
-              </div>
-            </div>
-          </section>
-
-          {/* Dashboard preview */}
-          <section className="mx-auto max-w-6xl px-6 pb-24 animate-[fadeUp_0.6s_ease-out_0.2s_both]">
-            <div className="rounded-2xl border bg-card shadow-lg shadow-black/[0.03] overflow-hidden">
-              <div className="flex min-h-[340px]">
-                {/* Mini sidebar */}
-                <div className="w-52 border-r p-5 hidden md:flex flex-col">
-                  <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">
-                    Navigate
-                  </p>
-                  <div className="space-y-0.5">
-                    {[
-                      { name: "Chat", active: false },
-                      { name: "Playground", active: false },
-                      { name: "Dashboard", active: true },
-                      { name: "Requests", active: false },
-                      { name: "Evaluations", active: false },
-                      { name: "Datasets", active: false },
-                    ].map((item) => (
-                      <div
-                        key={item.name}
-                        className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                          item.active ? "bg-accent font-semibold" : "text-muted-foreground"
-                        }`}
-                      >
-                        {item.name}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {/* Dashboard content */}
-                <div className="flex-1 p-6 bg-background">
-                  <div className="mb-5 flex items-center justify-between">
-                    <span className="text-sm font-semibold">Dashboard</span>
-                    <div className="flex rounded-lg border overflow-hidden">
-                      {["24H", "7D", "1M", "3M"].map((t) => (
-                        <span
-                          key={t}
-                          className={`px-3 py-1.5 text-[10px] font-medium border-r last:border-r-0 ${
-                            t === "7D"
-                              ? "bg-foreground text-background"
-                              : "text-muted-foreground hover:bg-accent"
-                          }`}
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                    {[
-                      { label: "Total Traces", value: "12,847", sub: "+2.4K today" },
-                      { label: "Avg Latency", value: "1.23s", sub: "p99: 3.41s" },
-                      { label: "Pass Rate", value: "94.2%", sub: "1,201 evaluated" },
-                      { label: "Est. Cost", value: "$127.50", sub: "~$18/day" },
-                    ].map((s) => (
-                      <div key={s.label} className="rounded-xl border p-4">
-                        <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-                          {s.label}
-                        </p>
-                        <p className="mt-1.5 text-2xl font-bold tabular-nums">{s.value}</p>
-                        <p className="mt-1 text-[10px] text-muted-foreground/60">{s.sub}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Mini chart bars */}
-                  <div className="rounded-xl border p-4">
-                    <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-3">
-                      Requests (7 days)
-                    </p>
-                    <div className="flex items-end gap-1 h-16">
-                      {[35, 42, 58, 45, 67, 55, 72, 48, 63, 80, 70, 56, 45, 62, 78, 85, 60, 42, 55, 70, 65, 50, 48, 72, 88, 76, 65, 58].map((h, i) => (
-                        <div
-                          key={i}
-                          className="flex-1 rounded-sm bg-foreground/10 transition-colors hover:bg-foreground/20"
-                          style={{ height: `${h}%` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Features */}
-          <section className="border-t">
-            <div className="mx-auto max-w-6xl px-6 py-24">
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-                Everything you need
-              </p>
-              <h2 className="text-2xl font-bold tracking-tight mb-12">
-                From first trace to production
-              </h2>
-              <div className="grid gap-px md:grid-cols-3 rounded-2xl border overflow-hidden bg-border">
-                {[
-                  {
-                    num: "01",
-                    title: "Collect",
-                    desc: "OTel-based trace ingestion. Add 3 lines to your agent — traces flow to your dashboard automatically.",
-                  },
-                  {
-                    num: "02",
-                    title: "Evaluate",
-                    desc: "Automated quality checks with LLM-as-judge and rule-based evaluations. Hallucination, relevance, safety.",
-                  },
-                  {
-                    num: "03",
-                    title: "Test",
-                    desc: "Chat with local agents through the browser. WebSocket relay — no public URL or deployment required.",
-                  },
-                ].map((f) => (
-                  <div key={f.num} className="bg-card p-8">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
-                      {f.num}
-                    </span>
-                    <h3 className="mt-3 text-base font-semibold">{f.title}</h3>
-                    <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                      {f.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Code snippet */}
-          <section className="border-t bg-card">
-            <div className="mx-auto max-w-6xl px-6 py-24">
-              <div className="grid md:grid-cols-2 gap-12 items-center">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">
-                    Start in 2 minutes
-                  </h2>
-                  <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm">
-                    Install the SDK, set two environment variables, and your agent traces appear in the dashboard.
-                  </p>
-                  <button
-                    onClick={() => setShowAuth(true)}
-                    className="mt-6 text-sm font-medium transition-colors hover:text-muted-foreground"
-                  >
-                    Get your API key →
-                  </button>
-                </div>
-                <div className="rounded-xl bg-[#0f0f17] p-6 font-mono text-[13px] text-[#c8ccd4] overflow-x-auto leading-relaxed">
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-                    <span className="ml-3 text-[10px] text-[#555]">agent.py</span>
-                  </div>
-                  <code>
-                    <span className="text-[#c792ea]">import</span> os{"\n"}
-                    <span className="text-[#c792ea]">from</span> openinference.instrumentation.openai{" "}
-                    <span className="text-[#c792ea]">import</span> OpenAIInstrumentor{"\n"}
-                    {"\n"}
-                    os.environ[<span className="text-[#c3e88d]">&quot;PHOENIX_API_KEY&quot;</span>] ={" "}
-                    <span className="text-[#c3e88d]">&quot;pt_your_key&quot;</span>{"\n"}
-                    os.environ[<span className="text-[#c3e88d]">&quot;PHOENIX_COLLECTOR_ENDPOINT&quot;</span>] ={" "}
-                    <span className="text-[#c3e88d]">&quot;https://app.com/collect&quot;</span>{"\n"}
-                    {"\n"}
-                    OpenAIInstrumentor().instrument(){" "}
-                    <span className="text-[#546e7a]"># traces flow automatically</span>
-                  </code>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* CTA */}
-          <section className="border-t">
-            <div className="mx-auto max-w-6xl px-6 py-24 text-center">
-              <h2 className="text-3xl font-bold tracking-tight">
-                Ready to monitor your agents?
-              </h2>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Free to start. No credit card required.
-              </p>
-              <button
-                onClick={() => setShowAuth(true)}
-                className="mt-8 rounded-lg bg-foreground px-8 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90"
-              >
-                Get started free →
-              </button>
-            </div>
-          </section>
-
-          {/* Footer */}
-          <footer className="border-t">
-            <div className="mx-auto max-w-6xl px-6 py-6 flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground/50">My Own Phoenix</span>
-              <a href="/docs" target="_blank" className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors">
-                API Documentation
-              </a>
-            </div>
-          </footer>
-        </div>
-
-        <style jsx>{`
-          @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-      </>
-    );
+  // Logged in → go to projects
+  if (!loading && user) {
+    router.replace("/projects");
+    return null;
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingState />
-      </div>
-    );
-  }
+  // Loading → blank
+  if (loading) return null;
 
-  const myProjects = projects.filter((p) => p.role === "owner");
-  const sharedProjects = projects.filter((p) => p.role !== "owner");
-
+  // Not logged in → Landing page
   return (
     <>
-      {/* Create Project Modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} className="w-[420px]">
-        <ModalHeader onClose={() => setShowCreate(false)}>Create Project</ModalHeader>
-        <ModalBody>
-          <form
-            onSubmit={(e) => { e.preventDefault(); handleCreate(); }}
-            className="space-y-4"
-          >
-            <div>
-              <label className="text-sm font-medium">Project Name</label>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="my-legal-rag"
-                autoFocus
-                className="mt-1"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!newName.trim() || creating}>
-                {creating ? "Creating..." : "Create"}
-              </Button>
-            </div>
-          </form>
-        </ModalBody>
-      </Modal>
-
-      <JoinProjectModal open={showJoin} onClose={() => { setShowJoin(false); loadProjects(); }} />
-
-      {/* Main content */}
+      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
       <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <div className="border-b bg-card">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <h1 className="text-sm font-bold tracking-tight">My Own Phoenix</h1>
-          <div className="flex items-center gap-3">
-            <a href="/settings" className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-              <Settings className="h-3.5 w-3.5" />
-              Settings
-            </a>
-            <span className="text-xs text-muted-foreground">{user.email}</span>
-            <button
-              onClick={() => signOut(auth)}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Sign out
-            </button>
+        {/* Nav */}
+        <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
+            <span className="text-sm font-bold tracking-tight">My Own Phoenix</span>
+            <div className="flex items-center gap-4">
+              <a href="/docs" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                Docs
+              </a>
+              <button
+                onClick={() => setShowAuth(true)}
+                className="rounded-lg bg-foreground px-4 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80"
+              >
+                Sign in
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        </nav>
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        {projects.length === 0 ? (
-          <div className="flex h-[60vh] flex-col items-center justify-center text-center">
-            <EmptyState
-              icon={FolderOpen}
-              title="Welcome to My Own Phoenix"
-              description="Create a project or join an existing one to start monitoring your AI agents."
-            />
-            <Button className="mt-6" onClick={() => setShowCreate(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Project
-            </Button>
-            <Button variant="outline" className="mt-6 ml-2" onClick={() => setShowJoin(true)}>
-              Join with Code
-            </Button>
+        {/* Hero */}
+        <section className="mx-auto max-w-6xl px-6 pt-32 pb-8">
+          <div className="max-w-3xl animate-[fadeUp_0.6s_ease-out_both]">
+            <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              LLM Observability Platform
+            </p>
+            <h1 className="text-5xl font-bold tracking-tight leading-[1.1]">
+              Monitor, Evaluate &
+              <br />
+              <span className="text-muted-foreground/30">Test Your AI Agents</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-base text-muted-foreground leading-relaxed">
+              Real-time trace collection, automated evaluations, and integrated agent
+              testing with WebSocket relay — no deployment required.
+            </p>
+            <div className="mt-10 flex items-center gap-5">
+              <button
+                onClick={() => setShowAuth(true)}
+                className="group rounded-lg bg-foreground px-7 py-3 text-sm font-medium text-background transition-all hover:opacity-90"
+              >
+                Get started free
+                <span className="ml-2 inline-block transition-transform group-hover:translate-x-0.5">→</span>
+              </button>
+              <a href="/docs" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Read the docs
+              </a>
+            </div>
           </div>
-        ) : (
-          <>
-            <div className="mb-8 flex items-center justify-between">
-              <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => setShowJoin(true)}>Join</Button>
-                <Button size="sm" onClick={() => setShowCreate(true)}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  New Project
-                </Button>
+        </section>
+
+        {/* Dashboard preview */}
+        <section className="mx-auto max-w-6xl px-6 pb-24 animate-[fadeUp_0.6s_ease-out_0.2s_both]">
+          <div className="rounded-2xl border bg-card shadow-lg shadow-black/[0.03] overflow-hidden">
+            <div className="flex min-h-[340px]">
+              <div className="w-52 border-r p-5 hidden md:flex flex-col">
+                <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">Navigate</p>
+                <div className="space-y-0.5">
+                  {["Chat", "Playground", "Dashboard", "Requests", "Evaluations", "Datasets"].map((item, i) => (
+                    <div key={item} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${i === 2 ? "bg-accent font-semibold" : "text-muted-foreground"}`}>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-1 p-6 bg-background">
+                <div className="mb-5 flex items-center justify-between">
+                  <span className="text-sm font-semibold">Dashboard</span>
+                  <div className="flex rounded-lg border overflow-hidden">
+                    {["24H", "7D", "1M", "3M"].map((t) => (
+                      <span key={t} className={`px-3 py-1.5 text-[10px] font-medium border-r last:border-r-0 ${t === "7D" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-accent"}`}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                  {[
+                    { label: "Total Traces", value: "12,847", sub: "+2.4K today" },
+                    { label: "Avg Latency", value: "1.23s", sub: "p99: 3.41s" },
+                    { label: "Pass Rate", value: "94.2%", sub: "1,201 evaluated" },
+                    { label: "Est. Cost", value: "$127.50", sub: "~$18/day" },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-xl border p-4">
+                      <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{s.label}</p>
+                      <p className="mt-1.5 text-2xl font-bold tabular-nums">{s.value}</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground/60">{s.sub}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-xl border p-4">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-3">Requests (7 days)</p>
+                  <div className="flex items-end gap-1 h-16">
+                    {[35, 42, 58, 45, 67, 55, 72, 48, 63, 80, 70, 56, 45, 62, 78, 85, 60, 42, 55, 70, 65, 50, 48, 72, 88, 76, 65, 58].map((h, i) => (
+                      <div key={i} className="flex-1 rounded-sm bg-foreground/10 transition-colors hover:bg-foreground/20" style={{ height: `${h}%` }} />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+        </section>
 
-            {myProjects.length > 0 && (
-              <section className="mb-8">
-                <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  My Projects
-                </h2>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {myProjects.map((p) => (
-                    <ProjectCard key={p.id} {...p} />
-                  ))}
+        {/* Features */}
+        <section className="border-t">
+          <div className="mx-auto max-w-6xl px-6 py-24">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">Everything you need</p>
+            <h2 className="text-2xl font-bold tracking-tight mb-12">From first trace to production</h2>
+            <div className="grid gap-px md:grid-cols-3 rounded-2xl border overflow-hidden bg-border">
+              {[
+                { num: "01", title: "Collect", desc: "OTel-based trace ingestion. Add 3 lines to your agent — traces flow to your dashboard automatically." },
+                { num: "02", title: "Evaluate", desc: "Automated quality checks with LLM-as-judge and rule-based evaluations. Hallucination, relevance, safety." },
+                { num: "03", title: "Test", desc: "Chat with local agents through the browser. WebSocket relay — no public URL or deployment required." },
+              ].map((f) => (
+                <div key={f.num} className="bg-card p-8">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">{f.num}</span>
+                  <h3 className="mt-3 text-base font-semibold">{f.title}</h3>
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
                 </div>
-              </section>
-            )}
+              ))}
+            </div>
+          </div>
+        </section>
 
-            {sharedProjects.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Shared with me
-                </h2>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {sharedProjects.map((p) => (
-                    <ProjectCard key={p.id} {...p} />
-                  ))}
+        {/* Code snippet */}
+        <section className="border-t bg-card">
+          <div className="mx-auto max-w-6xl px-6 py-24">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Start in 2 minutes</h2>
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm">
+                  Install the SDK, set two environment variables, and your agent traces appear in the dashboard.
+                </p>
+                <button onClick={() => setShowAuth(true)} className="mt-6 text-sm font-medium transition-colors hover:text-muted-foreground">
+                  Get your API key →
+                </button>
+              </div>
+              <div className="rounded-xl bg-[#0f0f17] p-6 font-mono text-[13px] text-[#c8ccd4] overflow-x-auto leading-relaxed">
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+                  <span className="ml-3 text-[10px] text-[#555]">agent.py</span>
                 </div>
-              </section>
-            )}
-          </>
-        )}
+                <code>
+                  <span className="text-[#c792ea]">import</span> os{"\n"}
+                  <span className="text-[#c792ea]">from</span> openinference.instrumentation.openai{" "}
+                  <span className="text-[#c792ea]">import</span> OpenAIInstrumentor{"\n"}
+                  {"\n"}
+                  os.environ[<span className="text-[#c3e88d]">&quot;PHOENIX_API_KEY&quot;</span>] ={" "}
+                  <span className="text-[#c3e88d]">&quot;pt_your_key&quot;</span>{"\n"}
+                  os.environ[<span className="text-[#c3e88d]">&quot;PHOENIX_COLLECTOR_ENDPOINT&quot;</span>] ={" "}
+                  <span className="text-[#c3e88d]">&quot;https://phoenix.rheon.kr/api/collect&quot;</span>{"\n"}
+                  {"\n"}
+                  OpenAIInstrumentor().instrument(){" "}
+                  <span className="text-[#546e7a]"># traces flow automatically</span>
+                </code>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="border-t">
+          <div className="mx-auto max-w-6xl px-6 py-24 text-center">
+            <h2 className="text-3xl font-bold tracking-tight">Ready to monitor your agents?</h2>
+            <p className="mt-3 text-sm text-muted-foreground">Free to start. No credit card required.</p>
+            <button onClick={() => setShowAuth(true)} className="mt-8 rounded-lg bg-foreground px-8 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90">
+              Get started free →
+            </button>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="border-t">
+          <div className="mx-auto max-w-6xl px-6 py-6 flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground/50">My Own Phoenix</span>
+            <a href="/docs" className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors">Documentation</a>
+          </div>
+        </footer>
       </div>
-      </div>
+
+      <style jsx>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </>
   );
 }

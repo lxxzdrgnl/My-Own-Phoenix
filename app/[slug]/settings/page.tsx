@@ -41,16 +41,64 @@ export default function ProjectSettingsPage() {
 
       {activeTab === "members" && <MembersTab />}
       {activeTab === "api-keys" && (
-        <p className="text-sm text-muted-foreground">API key management coming soon.</p>
+        <div className="space-y-6">
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Trace API Key</h3>
+            <div className="rounded-lg border px-5 py-4">
+              <p className="text-xs text-muted-foreground mb-3">
+                Use this key to send traces from your agent to this project.
+                Set it as the <code className="rounded bg-muted px-1.5 py-0.5 font-mono">PHOENIX_API_KEY</code> environment variable.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Trace keys are generated when the project is created and shown once.
+                If you need a new key, regenerate it below.
+              </p>
+            </div>
+          </section>
+        </div>
       )}
       {activeTab === "agent" && (
-        <p className="text-sm text-muted-foreground">Agent configuration coming soon.</p>
+        <div className="space-y-6">
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Agent Connection</h3>
+            <div className="rounded-lg border px-5 py-4">
+              <p className="text-xs text-muted-foreground mb-3">
+                Connect your local agent using the phoenix-connector CLI.
+              </p>
+              <div className="rounded-lg bg-muted/50 p-3 font-mono text-xs text-muted-foreground">
+                phoenix-connector --key=pc_... --agent=http://localhost:2024 --project={name}
+              </div>
+            </div>
+          </section>
+        </div>
       )}
       {activeTab === "eval" && (
-        <p className="text-sm text-muted-foreground">Eval worker configuration coming soon.</p>
+        <div className="space-y-6">
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Eval Worker</h3>
+            <div className="rounded-lg border px-5 py-4">
+              <p className="text-xs text-muted-foreground">
+                The eval worker runs automated evaluations on new traces.
+                Configure it in Global Settings.
+              </p>
+            </div>
+          </section>
+        </div>
       )}
       {activeTab === "danger" && (
-        <p className="text-sm text-muted-foreground">Project deletion coming soon.</p>
+        <div className="space-y-6">
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-destructive mb-3">Delete Project</h3>
+            <div className="rounded-lg border border-destructive/20 px-5 py-4">
+              <p className="text-xs text-muted-foreground mb-3">
+                Permanently delete this project and all its data. This action cannot be undone.
+              </p>
+              <button className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:bg-destructive/90">
+                Delete Project
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );

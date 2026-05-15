@@ -39,13 +39,13 @@ export default function DocsPage() {
     <div className="flex h-screen">
       {/* Sidebar */}
       <div className="w-56 shrink-0 border-r bg-card p-5 flex flex-col">
-        <a
-          href="/"
+        <button
+          onClick={() => window.history.back()}
           className="mb-6 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3 w-3" />
-          Home
-        </a>
+          Back
+        </button>
         <h2 className="mb-1 text-sm font-bold tracking-tight">My Own Phoenix</h2>
         <p className="mb-4 text-[10px] text-muted-foreground">Documentation</p>
         <nav className="space-y-0.5">

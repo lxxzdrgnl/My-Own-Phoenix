@@ -4,12 +4,8 @@ import { requireAuth } from "@/lib/auth-server";
 import { apiError, ErrorCode } from "@/lib/api-error";
 import { randomBytes, createHash } from "crypto";
 
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) + "-" + randomBytes(4).toString("hex");
+function generateSlug(): string {
+  return randomBytes(8).toString("base64url").toLowerCase().slice(0, 12);
 }
 
 function generateKey(prefix: string): string {
@@ -52,7 +48,7 @@ export async function POST(req: NextRequest) {
     return apiError(req, ErrorCode.BAD_REQUEST, "Project name is required");
   }
 
-  const slug = generateSlug(name.trim());
+  const slug = generateSlug();
   const traceKey = generateKey("pt");
   const traceKeyHash = hashKey(traceKey);
 
@@ -73,6 +69,31 @@ export async function POST(req: NextRequest) {
     slug: project.slug,
     traceKey, // shown once only
   }, { status: 201 });
+}
+
+// PUT /api/projects — rename project
+export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
+  const { projectId, name } = await req.json();
+  if (!projectId || !name?.trim()) {
+    return apiError(req, ErrorCode.BAD_REQUEST, "projectId and name are required");
+  }
+
+  const member = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId: auth } },
+  });
+  if (!member || member.role !== "owner") {
+    return apiError(req, ErrorCode.FORBIDDEN, "Only the project owner can rename");
+  }
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { name: name.trim() },
+  });
+
+  return NextResponse.json({ ok: true });
 }
 
 // DELETE /api/projects — delete a project (owner only)

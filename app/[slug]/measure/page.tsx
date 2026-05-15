@@ -5,5 +5,5 @@ import { ProjectView } from "@/app/projects/[name]/project-view";
 
 export default function MeasurePage() {
   const { phoenixProject } = useProject();
-  return <ProjectView projectName={phoenixProject} defaultTab="measure" />;
+  return <ProjectView projectName={phoenixProject} defaultTab="measure" hideTabBar />;
 }
