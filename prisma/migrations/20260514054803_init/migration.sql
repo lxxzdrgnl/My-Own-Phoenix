@@ -286,9 +286,6 @@ CREATE UNIQUE INDEX "AgentTemplate_userId_name_key" ON "AgentTemplate"("userId",
 CREATE UNIQUE INDEX "AppSettings_key_userId_key" ON "AppSettings"("key", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "LlmProvider_userId_provider_key" ON "LlmProvider"("userId", "provider");
-
--- CreateIndex
 CREATE INDEX "DatasetRow_datasetId_rowIndex_idx" ON "DatasetRow"("datasetId", "rowIndex");
 
 -- CreateIndex
