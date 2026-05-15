@@ -12,10 +12,16 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
   });
   if (!member) return apiError(req, ErrorCode.FORBIDDEN, "Not a project member");
 
-  const providers = await prisma.llmProvider.findMany({
-    where: { projectId },
-    select: { id: true, provider: true, isActive: true },
-  });
+  let providers;
+  try {
+    providers = await prisma.llmProvider.findMany({
+      where: { projectId: projectId },
+      select: { id: true, provider: true, isActive: true },
+    });
+  } catch (e) {
+    console.error("[providers GET] findMany failed:", e);
+    return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, `DB query failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
 
   return NextResponse.json({ providers });
 });
@@ -36,12 +42,23 @@ export const POST = authedHandler(async (req: NextRequest, uid: string, { params
     return apiError(req, ErrorCode.BAD_REQUEST, "provider and apiKey required");
   }
 
-  const encrypted = encrypt(apiKey);
+  let encrypted: string;
+  try {
+    encrypted = encrypt(apiKey);
+  } catch (e) {
+    console.error("[providers] encrypt failed:", e);
+    return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, `Encryption failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
 
-  // Check duplicate
-  const existing = await prisma.llmProvider.findFirst({
-    where: { projectId: projectId, provider: provider },
-  });
+  let existing;
+  try {
+    existing = await prisma.llmProvider.findFirst({
+      where: { projectId: projectId, provider: provider },
+    });
+  } catch (e) {
+    console.error("[providers] findFirst failed:", e);
+    return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, `DB query failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
   if (existing) {
     await prisma.llmProvider.update({
       where: { id: existing.id },
