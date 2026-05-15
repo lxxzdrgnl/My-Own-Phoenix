@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
+import { requireThreadOwner } from "@/lib/api-helpers";
 
 export const GET = authedHandler(async (
   req: NextRequest,
@@ -8,6 +9,9 @@ export const GET = authedHandler(async (
   { params }: { params: Promise<{ id: string }> },
 ) => {
   const { id } = await params;
+
+  const thread = await requireThreadOwner(req, id, uid);
+  if (thread instanceof NextResponse) return thread;
 
   const rawMessages = await prisma.message.findMany({
     where: { threadId: id },
@@ -33,6 +37,10 @@ export const POST = authedHandler(async (
   { params }: { params: Promise<{ id: string }> },
 ) => {
   const { id } = await params;
+
+  const thread = await requireThreadOwner(req, id, uid);
+  if (thread instanceof NextResponse) return thread;
+
   const { role, content } = await req.json();
 
   const err = validateFields([

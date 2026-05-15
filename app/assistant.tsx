@@ -69,7 +69,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   const refreshThreads = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await apiFetch(`/api/user-threads?userId=${user.uid}&project=${encodeURIComponent(project)}`);
+      const res = await apiFetch(`/api/user-threads?project=${encodeURIComponent(project)}`);
       if (res.ok) {
         const data = await res.json();
         setThreads(data.threads ?? []);
@@ -123,7 +123,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
           const res = await apiFetch("/api/user-threads", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: user.uid, langGraphThreadId: threadIdRef.current, title, project }),
+            body: JSON.stringify({ langGraphThreadId: threadIdRef.current, title, project }),
           });
           const data = await res.json();
           if (data.thread?.id) {

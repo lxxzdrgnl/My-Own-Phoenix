@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error("[pii-guard]", e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "unknown error" },
+      { error: "PII guard processing failed" },
       { status: 500 },
     );
   }

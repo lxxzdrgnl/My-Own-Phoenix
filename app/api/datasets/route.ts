@@ -50,16 +50,34 @@ export const PUT = authedHandler(async (request: NextRequest) => {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
   }
 
+  const ALLOWED_FIELDS: Record<string, string> = {
+    name: "name",
+    projectId: '"projectId"',
+    queryCol: '"queryCol"',
+    contextCol: '"contextCol"',
+    evalNames: '"evalNames"',
+    evalOverrides: '"evalOverrides"',
+    headers: "headers",
+  };
+
+  const JSON_FIELDS = new Set(["evalNames", "evalOverrides", "headers"]);
+
   const setParts: string[] = [`"updatedAt" = CURRENT_TIMESTAMP`];
   const values: unknown[] = [];
 
-  if (data.name !== undefined) { setParts.push(`name = ?`); values.push(data.name); }
-  if (data.projectId !== undefined) { setParts.push(`"projectId" = ?`); values.push(data.projectId || null); }
-  if (data.queryCol !== undefined) { setParts.push(`"queryCol" = ?`); values.push(data.queryCol); }
-  if (data.contextCol !== undefined) { setParts.push(`"contextCol" = ?`); values.push(data.contextCol); }
-  if (data.evalNames !== undefined) { setParts.push(`"evalNames" = ?`); values.push(JSON.stringify(data.evalNames)); }
-  if (data.evalOverrides !== undefined) { setParts.push(`"evalOverrides" = ?`); values.push(JSON.stringify(data.evalOverrides)); }
-  if (data.headers !== undefined) { setParts.push(`headers = ?`); values.push(JSON.stringify(data.headers)); }
+  for (const [key, val] of Object.entries(data)) {
+    if (key === "rows") continue;
+    const col = ALLOWED_FIELDS[key];
+    if (!col) continue;
+    setParts.push(`${col} = $${values.length + 1}`);
+    if (JSON_FIELDS.has(key)) {
+      values.push(JSON.stringify(val));
+    } else if (key === "projectId") {
+      values.push(val || null);
+    } else {
+      values.push(val);
+    }
+  }
 
   if (data.rows !== undefined && Array.isArray(data.rows)) {
     const rowsArr: Record<string, string>[] = data.rows;
@@ -73,14 +91,14 @@ export const PUT = authedHandler(async (request: NextRequest) => {
     const countResult = await prisma.$queryRaw<[{ c: number }]>`
       SELECT COUNT(*) as c FROM "DatasetRow" WHERE "datasetId" = ${id}
     `;
-    setParts.push(`"rowCount" = ?`);
+    setParts.push(`"rowCount" = $${values.length + 1}`);
     values.push(Number(countResult[0]?.c ?? 0));
   }
 
   if (setParts.length > 1) {
     values.push(id);
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Dataset" SET ${setParts.join(", ")} WHERE id = ?`,
+    await prisma.$queryRawUnsafe(
+      `UPDATE "Dataset" SET ${setParts.join(", ")} WHERE id = $${values.length}`,
       ...values
     );
   }
