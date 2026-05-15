@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useProject } from "@/lib/project-context";
 import { MembersTab } from "./members-tab";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Trash2, Plus, CheckCircle, Loader2 } from "lucide-react";
 
 const TABS = [
   { id: "members", label: "Members" },
@@ -13,6 +16,124 @@ const TABS = [
   { id: "eval", label: "Eval" },
   { id: "danger", label: "Danger Zone" },
 ];
+
+const PROVIDERS = [
+  { id: "openai", label: "OpenAI", placeholder: "sk-..." },
+  { id: "anthropic", label: "Anthropic", placeholder: "sk-ant-..." },
+  { id: "google", label: "Google", placeholder: "AIza..." },
+  { id: "xai", label: "xAI", placeholder: "xai-..." },
+];
+
+function ApiKeysTab() {
+  const { id: projectId } = useProject();
+  const [keys, setKeys] = useState<{ id: string; provider: string; isActive: boolean }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState<string | null>(null);
+  const [newKey, setNewKey] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await apiFetch(`/api/projects/${projectId}/providers`);
+      if (res.ok) {
+        const data = await res.json();
+        setKeys(data.providers || []);
+      }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, [projectId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async (provider: string) => {
+    if (!newKey.trim()) return;
+    setSaving(true);
+    try {
+      await apiFetch(`/api/projects/${projectId}/providers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, apiKey: newKey.trim() }),
+      });
+      setAdding(null);
+      setNewKey("");
+      load();
+    } catch (e) { console.error(e); }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remove this API key?")) return;
+    await apiFetch(`/api/projects/${projectId}/providers/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Trace API Key</h3>
+        <div className="rounded-lg border px-5 py-4">
+          <p className="text-xs text-muted-foreground">
+            Set <code className="rounded bg-muted px-1.5 py-0.5 font-mono">PHOENIX_API_KEY</code> in your agent to send traces to this project.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">LLM Provider Keys</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          API keys used for evaluations and playground in this project.
+        </p>
+        <div className="space-y-2">
+          {PROVIDERS.map((p) => {
+            const existing = keys.find((k) => k.provider === p.id);
+            return (
+              <div key={p.id} className="flex items-center gap-3 rounded-lg border px-4 py-3">
+                <div className="w-20">
+                  <p className="text-sm font-medium">{p.label}</p>
+                </div>
+                {existing ? (
+                  <>
+                    <div className="flex-1 flex items-center gap-2">
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                      <span className="text-xs text-muted-foreground">Configured</span>
+                    </div>
+                    <button onClick={() => handleDelete(existing.id)} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                ) : adding === p.id ? (
+                  <div className="flex-1 flex items-center gap-2">
+                    <Input
+                      value={newKey}
+                      onChange={(e) => setNewKey(e.target.value)}
+                      placeholder={p.placeholder}
+                      autoFocus
+                      className="h-8 text-xs font-mono"
+                    />
+                    <Button size="sm" onClick={() => handleAdd(p.id)} disabled={saving || !newKey.trim()}>
+                      {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAdding(null); setNewKey(""); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex-1">
+                    <Button size="sm" variant="outline" onClick={() => setAdding(p.id)}>
+                      <Plus className="mr-1 h-3 w-3" /> Add Key
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
 
 export default function ProjectSettingsPage() {
   const { name } = useProject();
@@ -41,23 +162,7 @@ export default function ProjectSettingsPage() {
       </div>
 
       {activeTab === "members" && <MembersTab />}
-      {activeTab === "api-keys" && (
-        <div className="space-y-6">
-          <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Trace API Key</h3>
-            <div className="rounded-lg border px-5 py-4">
-              <p className="text-xs text-muted-foreground mb-3">
-                Use this key to send traces from your agent to this project.
-                Set it as the <code className="rounded bg-muted px-1.5 py-0.5 font-mono">PHOENIX_API_KEY</code> environment variable.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Trace keys are generated when the project is created and shown once.
-                If you need a new key, regenerate it below.
-              </p>
-            </div>
-          </section>
-        </div>
-      )}
+      {activeTab === "api-keys" && <ApiKeysTab />}
       {activeTab === "agent" && <AgentTab />}
       {activeTab === "eval" && (
         <div className="space-y-6">

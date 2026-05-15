@@ -4,8 +4,8 @@ import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
-export const POST = authedHandler(async (req: NextRequest) => {
-  const { messages, model, temperature, promptLabel } = await req.json();
+export const POST = authedHandler(async (req: NextRequest, uid: string) => {
+  const { messages, model, temperature, promptLabel, projectId } = await req.json();
   const usedModel = model || "gpt-4o-mini";
 
   const startTime = new Date().toISOString();
@@ -14,6 +14,8 @@ export const POST = authedHandler(async (req: NextRequest) => {
     model: usedModel,
     messages,
     temperature: temperature ?? 0.7,
+    userId: uid,
+    projectId,
   }).catch((e) => {
     throw apiError(req, ErrorCode.LLM_ERROR, e instanceof Error ? e.message : "LLM call failed");
   });

@@ -30,11 +30,20 @@ export function getProviderForModel(modelId: string): string {
   return "openai";
 }
 
-async function getApiKey(provider: string): Promise<string> {
-  const record = await prisma.llmProvider.findFirst({ where: { provider, isActive: true } });
-  if (!record || !record.isActive) {
-    throw new Error(`No active API key for provider "${provider}". Add one in Settings > Providers.`);
+async function getApiKey(provider: string, opts?: { userId?: string; projectId?: string }): Promise<string> {
+  // 1. Project-level key first
+  if (opts?.projectId) {
+    const projectKey = await prisma.llmProvider.findFirst({ where: { provider, projectId: opts.projectId, isActive: true } });
+    if (projectKey) return decrypt(projectKey.apiKey);
   }
+  // 2. User-level key fallback
+  if (opts?.userId) {
+    const userKey = await prisma.llmProvider.findFirst({ where: { provider, userId: opts.userId, isActive: true } });
+    if (userKey) return decrypt(userKey.apiKey);
+  }
+  // 3. Any active key (legacy fallback)
+  const record = await prisma.llmProvider.findFirst({ where: { provider, isActive: true } });
+  if (!record) throw new Error(`No active API key for provider "${provider}". Add one in Settings > Providers.`);
   return decrypt(record.apiKey);
 }
 
@@ -153,9 +162,9 @@ async function callGoogle(apiKey: string, req: LlmRequest): Promise<LlmResponse>
   };
 }
 
-export async function callLlm(req: LlmRequest): Promise<LlmResponse> {
+export async function callLlm(req: LlmRequest & { userId?: string; projectId?: string }): Promise<LlmResponse> {
   const provider = getProviderForModel(req.model);
-  const apiKey = await getApiKey(provider);
+  const apiKey = await getApiKey(provider, { userId: req.userId, projectId: req.projectId });
 
   switch (provider) {
     case "openai":
@@ -171,9 +180,12 @@ export async function callLlm(req: LlmRequest): Promise<LlmResponse> {
   }
 }
 
-export async function getActiveProviders(): Promise<string[]> {
+export async function getActiveProviders(opts?: { userId?: string; projectId?: string }): Promise<string[]> {
+  const where: any = { isActive: true };
+  if (opts?.projectId) where.projectId = opts.projectId;
+  else if (opts?.userId) where.userId = opts.userId;
   const providers = await prisma.llmProvider.findMany({
-    where: { isActive: true },
+    where,
     select: { provider: true },
   });
   return providers.map((p) => p.provider);

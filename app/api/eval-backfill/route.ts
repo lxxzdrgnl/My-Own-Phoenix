@@ -41,13 +41,14 @@ async function phoenixUploadAnnotation(spanId: string, name: string, kind: strin
   });
 }
 
-async function llmEval(messages: { role: string; content: string }[], model: string): Promise<Record<string, unknown>> {
+async function llmEval(messages: { role: string; content: string }[], model: string, opts?: { userId?: string; projectId?: string }): Promise<Record<string, unknown>> {
   try {
     const result = await callLlm({
       model,
       messages,
       temperature: 0,
       responseFormat: "json",
+      ...opts,
     });
     return JSON.parse(result.content || "{}");
   } catch {
@@ -66,7 +67,7 @@ function splitPromptForSystem(template: string): { system: string | null; user: 
 
 // ── POST /api/eval-backfill ──
 
-export const POST = authedHandler(async (req: NextRequest) => {
+export const POST = authedHandler(async (req: NextRequest, uid: string) => {
   const { projectId, evalName, startDate, endDate } = (await req.json()) as {
     projectId: string;
     evalName: string;
@@ -163,7 +164,7 @@ export const POST = authedHandler(async (req: NextRequest) => {
       if (system) messages.push({ role: "system", content: system });
       messages.push({ role: "user", content: user });
 
-      const r = await llmEval(messages, evalPrompt.model ?? "gpt-4o-mini");
+      const r = await llmEval(messages, evalPrompt.model ?? "gpt-4o-mini", { userId: uid, projectId });
       if (r && r.label) {
         const label = String(r.label);
         let score: number;

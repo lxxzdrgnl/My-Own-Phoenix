@@ -63,6 +63,22 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Copy owner's API keys to the new project
+  const ownerKeys = await prisma.llmProvider.findMany({
+    where: { userId: auth, isActive: true, projectId: null },
+  });
+  if (ownerKeys.length > 0) {
+    await prisma.llmProvider.createMany({
+      data: ownerKeys.map((k) => ({
+        provider: k.provider,
+        apiKey: k.apiKey,
+        isActive: true,
+        userId: auth,
+        projectId: project.id,
+      })),
+    });
+  }
+
   return NextResponse.json({
     id: project.id,
     name: project.name,

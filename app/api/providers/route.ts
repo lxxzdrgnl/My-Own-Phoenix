@@ -33,8 +33,8 @@ export const POST = authedHandler(async (req, uid) => {
   ]);
   if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
-  const existing = await prisma.llmProvider.findUnique({
-    where: { userId_provider: { userId: uid, provider: body.provider } },
+  const existing = await prisma.llmProvider.findFirst({
+    where: { userId: uid, provider: body.provider, projectId: null },
   });
   if (existing) {
     return apiError(req, ErrorCode.PROVIDER_DUPLICATE, `Provider "${body.provider}" already registered. Use PUT to update.`);
