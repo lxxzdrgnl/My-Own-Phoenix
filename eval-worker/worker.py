@@ -34,6 +34,8 @@ logger = logging.getLogger("eval_worker")
 POLL_INTERVAL = int(os.getenv("EVAL_POLL_INTERVAL", "15"))
 PHOENIX_URL = os.getenv("PHOENIX_URL", "http://localhost:6006").rstrip("/")
 DASHBOARD_URL = os.getenv("DASHBOARD_URL", "http://localhost:3000").rstrip("/")
+INTERNAL_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+DASHBOARD_HEADERS = {"X-Internal-Token": INTERNAL_TOKEN} if INTERNAL_TOKEN else {}
 MAX_CACHE = 5000
 MAX_LLM_EVALS_PER_TRACE = int(os.getenv("EVAL_MAX_LLM_PER_TRACE", "5"))
 LOOKBACK_MINUTES = int(os.getenv("EVAL_LOOKBACK_MINUTES", "5"))
@@ -58,7 +60,7 @@ def _sync_dashboard_settings() -> None:
     if now - _settings_loaded_at < 60:
         return
     try:
-        resp = httpx.get(f"{DASHBOARD_URL}/api/settings", timeout=5)
+        resp = httpx.get(f"{DASHBOARD_URL}/api/settings", headers=DASHBOARD_HEADERS, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             if "evalPollInterval" in data:
@@ -77,7 +79,7 @@ def _sync_dashboard_settings() -> None:
 def fetch_provider_key(provider: str) -> str:
     """Fetch decrypted API key from dashboard."""
     try:
-        resp = httpx.get(f"{DASHBOARD_URL}/api/providers?decrypt=true", timeout=10)
+        resp = httpx.get(f"{DASHBOARD_URL}/api/providers?decrypt=true", headers=DASHBOARD_HEADERS, timeout=10)
         for p in resp.json().get("providers", []):
             if p["provider"] == provider and p.get("isActive", False):
                 return p["apiKey"]
@@ -180,7 +182,7 @@ def _load_eval_defs(project: str = "") -> dict[str, EvalDef]:
         url = f"{DASHBOARD_URL}/api/eval-prompts"
         if project:
             url += f"?projectId={project}"
-        resp = httpx.get(url, timeout=5)
+        resp = httpx.get(url, headers=DASHBOARD_HEADERS, timeout=5)
         if resp.status_code == 200:
             defs = {}
             for p in resp.json().get("prompts", []):
@@ -211,7 +213,7 @@ def _load_project_config(project: str) -> dict[str, bool]:
     if project in _project_configs and now - _project_configs_loaded_at.get(project, 0) < 60:
         return _project_configs[project]
     try:
-        resp = httpx.get(f"{DASHBOARD_URL}/api/eval-config?projectId={project}", timeout=5)
+        resp = httpx.get(f"{DASHBOARD_URL}/api/eval-config?projectId={project}", headers=DASHBOARD_HEADERS, timeout=5)
         if resp.status_code == 200:
             configs = resp.json().get("configs", [])
             result = {c["evalName"]: c["enabled"] for c in configs}

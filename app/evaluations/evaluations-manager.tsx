@@ -11,7 +11,7 @@ import { EvalEditor } from "./eval-editor";
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function EvaluationsManager() {
+export function EvaluationsManager({ fixedProject }: { fixedProject?: string } = {}) {
   // Data
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalPrompts, setGlobalPrompts] = useState<EvalPrompt[]>([]);
@@ -37,12 +37,17 @@ export function EvaluationsManager() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const ps = await fetchProjects();
-      setProjects(ps);
-      if (ps.length > 0 && !selectedProject) {
-        const saved = localStorage.getItem("last_eval_project");
-        const initial = saved && ps.some((p) => p.name === saved) ? saved : ps[0].name;
-        setSelectedProjectState(initial);
+      if (fixedProject) {
+        setProjects([{ id: fixedProject, name: fixedProject }]);
+        if (!selectedProject) setSelectedProjectState(fixedProject);
+      } else {
+        const ps = await fetchProjects();
+        setProjects(ps);
+        if (ps.length > 0 && !selectedProject) {
+          const saved = localStorage.getItem("last_eval_project");
+          const initial = saved && ps.some((p) => p.name === saved) ? saved : ps[0].name;
+          setSelectedProjectState(initial);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -118,23 +123,25 @@ export function EvaluationsManager() {
 
   return (
     <div className="flex min-h-0 flex-1">
-      {/* ── Left: Project list ── */}
-      <Sidebar>
-        <div className="px-3 pt-3 pb-1">
-          <SidebarHeader>Projects</SidebarHeader>
-        </div>
-        <div className="flex-1 overflow-y-auto px-2">
-          {projects.map((p) => (
-            <SidebarItem
-              key={p.name}
-              active={selectedProject === p.name}
-              onClick={() => { setSelectedProject(p.name); setSelectedEval(null); setCreating(false); }}
-            >
-              {p.name}
-            </SidebarItem>
-          ))}
-        </div>
-      </Sidebar>
+      {/* ── Left: Project list (hidden when fixedProject is set) ── */}
+      {!fixedProject && (
+        <Sidebar>
+          <div className="px-3 pt-3 pb-1">
+            <SidebarHeader>Projects</SidebarHeader>
+          </div>
+          <div className="flex-1 overflow-y-auto px-2">
+            {projects.map((p) => (
+              <SidebarItem
+                key={p.name}
+                active={selectedProject === p.name}
+                onClick={() => { setSelectedProject(p.name); setSelectedEval(null); setCreating(false); }}
+              >
+                {p.name}
+              </SidebarItem>
+            ))}
+          </div>
+        </Sidebar>
+      )}
 
       {/* ── Center: Eval list ── */}
       <EvalList

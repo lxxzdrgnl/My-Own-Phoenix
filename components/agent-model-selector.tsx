@@ -6,19 +6,22 @@ import { ChevronDown, ChevronRight, Search, Bot } from "lucide-react";
 import { ProviderIcon } from "@/components/provider-icon";
 import { LLM_PROVIDERS } from "@/lib/model-registry";
 
-interface AgentOption {
-  id: string;
-  name: string;
-  description?: string;
+
+interface ConnectedAgent {
+  userId: string;
+  userName: string;
   agentType: string;
+  status: string;
 }
 
 export function AgentModelSelector({
   value,
   onChange,
+  projectId,
 }: {
   value: string;
   onChange: (id: string) => void;
+  projectId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -28,7 +31,7 @@ export function AgentModelSelector({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [activeProviders, setActiveProviders] = useState<Set<string>>(new Set());
-  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [connectedAgents, setConnectedAgents] = useState<ConnectedAgent[]>([]);
 
   useEffect(() => {
     apiFetch("/api/providers")
@@ -42,33 +45,20 @@ export function AgentModelSelector({
       })
       .catch(() => {});
 
-    apiFetch("/api/agent-config")
-      .then((r) => r.json())
-      .then((data) => {
-        // Deduplicate by template name — same agent template used in multiple projects should show once
-        const seen = new Set<string>();
-        const deduped: AgentOption[] = [];
-        for (const c of data.configs ?? []) {
-          const key = c.templateId || c.id;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          deduped.push({
-            id: c.id,
-            name: c.template?.name || c.alias?.trim() || c.project,
-            description: c.template?.description || c.project,
-            agentType: c.agentType,
-          });
-        }
-        setAgents(deduped);
-      })
-      .catch(() => {});
+    // Fetch connected relay agents
+    if (projectId) {
+      apiFetch(`/api/connectors?projectId=${projectId}`)
+        .then((r) => r.json())
+        .then((data) => setConnectedAgents((data.connectors || []).filter((c: any) => c.status === "online")))
+        .catch(() => {});
+    }
   }, []);
 
   const displayLabel = (() => {
-    if (value.startsWith("agent:")) {
-      const agentId = value.replace("agent:", "");
-      const agent = agents.find((a) => a.id === agentId);
-      return agent ? agent.name : value;
+    if (value.startsWith("relay:")) {
+      const userId = value.replace("relay:", "");
+      const ca = connectedAgents.find((a) => a.userId === userId);
+      return ca ? `${ca.userName} (connected)` : value;
     }
     if (value.startsWith("llm:")) {
       return value.replace("llm:", "");
@@ -76,7 +66,7 @@ export function AgentModelSelector({
     return value || "Select...";
   })();
 
-  const isAgent = value.startsWith("agent:");
+  const isAgent = value.startsWith("relay:");
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -131,66 +121,42 @@ export function AgentModelSelector({
           </div>
 
           <div className="max-h-72 overflow-y-auto py-1">
-            {/* Agents section */}
-            {agents.length > 0 &&
-              (() => {
-                const filtered = isSearching
-                  ? agents.filter(
-                      (a) =>
-                        a.name.toLowerCase().includes(q) ||
-                        a.description?.toLowerCase().includes(q),
-                    )
-                  : agents;
-                if (filtered.length === 0) return null;
-
-                const isExpanded = isSearching || expandedSection === "agents";
-
-                return (
-                  <div>
+            {/* Connected agents (via relay) */}
+            {connectedAgents.length > 0 && (() => {
+              const filtered = isSearching
+                ? connectedAgents.filter((a) => a.userName.toLowerCase().includes(q))
+                : connectedAgents;
+              if (filtered.length === 0) return null;
+              const isExpanded = isSearching || expandedSection === "connected";
+              return (
+                <div>
+                  <button
+                    onClick={() => setExpandedSection(isExpanded && !isSearching ? null : "connected")}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted"
+                  >
+                    <ChevronRight className={`h-3 w-3 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="text-sm font-medium">Connected</span>
+                    <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/50">{filtered.length}</span>
+                  </button>
+                  {isExpanded && filtered.map((a) => (
                     <button
-                      onClick={() =>
-                        setExpandedSection(isExpanded && !isSearching ? null : "agents")
-                      }
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted"
+                      key={a.userId}
+                      onClick={() => { onChange(`relay:${a.userId}`); setOpen(false); setSearch(""); }}
+                      className={`flex w-full items-center gap-2 py-1.5 pl-10 pr-3 text-left text-sm transition-colors ${
+                        value === `relay:${a.userId}` ? "bg-accent font-medium" : "hover:bg-muted/60 text-muted-foreground"
+                      }`}
                     >
-                      <ChevronRight
-                        className={`h-3 w-3 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                      />
-                      <Bot className="h-3.5 w-3.5 shrink-0" />
-                      <span className="text-sm font-medium">Agents</span>
-                      <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/50">
-                        {filtered.length}
-                      </span>
+                      <span>{a.userName}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground/50">{a.agentType}</span>
                     </button>
-                    {isExpanded &&
-                      filtered.map((a) => (
-                        <button
-                          key={a.id}
-                          onClick={() => {
-                            onChange(`agent:${a.id}`);
-                            setOpen(false);
-                            setSearch("");
-                          }}
-                          className={`flex w-full items-center gap-2 py-1.5 pl-10 pr-3 text-left text-sm transition-colors ${
-                            value === `agent:${a.id}`
-                              ? "bg-foreground/8 font-medium"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate">{a.name}</p>
-                            <p className="truncate text-[10px] text-muted-foreground/50">
-                              {a.agentType}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                  </div>
-                );
-              })()}
+                  ))}
+                </div>
+              );
+            })()}
 
-            {/* Divider between agents and providers */}
-            {agents.length > 0 && <div className="my-1 border-t" />}
+            {/* Divider */}
+            {connectedAgents.length > 0 && <div className="my-1 border-t" />}
 
             {/* LLM Providers */}
             {LLM_PROVIDERS.map((provider) => {

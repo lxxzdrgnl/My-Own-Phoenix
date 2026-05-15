@@ -207,6 +207,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
                 yield { content: [{ type: "text" as const, text: fullContent }] };
               }
             }
+          } catch { /* skip malformed JSON line */ }
         }
       }
 

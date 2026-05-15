@@ -15,6 +15,7 @@ import {
   Database,
   ShieldAlert,
   Shield,
+  ClipboardCheck,
   Settings2,
   Settings,
   LogOut,

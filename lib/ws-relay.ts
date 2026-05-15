@@ -176,16 +176,7 @@ export function createRelayServer() {
       }
     });
 
-    // Heartbeat every 30s
-    const heartbeat = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "ping" }));
-      } else {
-        clearInterval(heartbeat);
-      }
-    }, 30000);
-
-    ws.on("close", () => clearInterval(heartbeat));
+    // Heartbeat disabled — Python websockets 15 handles keepalive internally
   });
 
   return wss;

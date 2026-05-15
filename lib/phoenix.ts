@@ -279,6 +279,11 @@ export async function fetchTraces(
         } catch { /* plain-text input — not JSON, fallback to other extractors */ }
       }
 
+      // 3. Plain text input (not JSON, not "Query:" format) — use as-is
+      if (!query && input && !input.startsWith("{") && !input.startsWith("[")) {
+        query = input.trim();
+      }
+
       if (!query) query = root.attributes?.["metadata.prompt_label"] || root.name || "(unknown)";
 
       // ── Extract context ──

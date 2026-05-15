@@ -37,9 +37,9 @@ function filterKey(pid: string) {
   return `pg_filter_${pid}`;
 }
 
-export function Playground() {
+export function Playground({ fixedProject }: { fixedProject?: string } = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectIdState] = useState("");
+  const [projectId, setProjectIdState] = useState(fixedProject || "");
   const setProjectId = (id: string) => {
     setProjectIdState(id);
     localStorage.setItem("last_playground_project", id);
@@ -158,6 +158,11 @@ export function Playground() {
   // ── Data loading ─────────────────────────────────────────────
   const loadProjects = useCallback(async () => {
     try {
+      if (fixedProject) {
+        setProjects([{ id: fixedProject, name: fixedProject }]);
+        if (!projectId) setProjectIdState(fixedProject);
+        loadFilters(fixedProject);
+      } else {
       const ps = await fetchProjects();
       setProjects(ps);
       if (ps.length > 0 && !projectId) {
@@ -167,6 +172,7 @@ export function Playground() {
         setProjectIdState(initial);
         localStorage.setItem("last_playground_project", initial);
         loadFilters(initial);
+      }
       }
     } catch (e) {
       console.error(e);
@@ -223,6 +229,7 @@ export function Playground() {
           {/* Header */}
           <div className="relative z-10 border-b px-3 py-3">
             <div className="flex items-center gap-2">
+              {!fixedProject && (
               <select
                 value={projectId}
                 onChange={(e) => {
@@ -238,6 +245,7 @@ export function Playground() {
                   </option>
                 ))}
               </select>
+              )}
               <button
                 onClick={loadTraces}
                 disabled={loading}
