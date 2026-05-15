@@ -9,13 +9,13 @@ export const GET = authedHandler(async (request: NextRequest) => {
   let datasets: Array<Record<string, unknown>>;
   if (projectId) {
     datasets = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-      SELECT id, name, fileName, headers, queryCol, contextCol, rowCount, createdAt, updatedAt
-      FROM Dataset WHERE projectId = ${projectId} ORDER BY updatedAt DESC
+      SELECT id, name, "fileName", headers, "queryCol", "contextCol", "rowCount", "createdAt", "updatedAt"
+      FROM "Dataset" WHERE "projectId" = ${projectId} ORDER BY "updatedAt" DESC
     `;
   } else {
     datasets = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-      SELECT id, name, fileName, headers, queryCol, contextCol, rowCount, createdAt, updatedAt
-      FROM Dataset ORDER BY updatedAt DESC
+      SELECT id, name, "fileName", headers, "queryCol", "contextCol", "rowCount", "createdAt", "updatedAt"
+      FROM "Dataset" ORDER BY "updatedAt" DESC
     `;
   }
   return NextResponse.json({ datasets });
@@ -50,37 +50,37 @@ export const PUT = authedHandler(async (request: NextRequest) => {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
   }
 
-  const setParts: string[] = [`updatedAt = CURRENT_TIMESTAMP`];
+  const setParts: string[] = [`"updatedAt" = CURRENT_TIMESTAMP`];
   const values: unknown[] = [];
 
   if (data.name !== undefined) { setParts.push(`name = ?`); values.push(data.name); }
-  if (data.projectId !== undefined) { setParts.push(`projectId = ?`); values.push(data.projectId || null); }
-  if (data.queryCol !== undefined) { setParts.push(`queryCol = ?`); values.push(data.queryCol); }
-  if (data.contextCol !== undefined) { setParts.push(`contextCol = ?`); values.push(data.contextCol); }
-  if (data.evalNames !== undefined) { setParts.push(`evalNames = ?`); values.push(JSON.stringify(data.evalNames)); }
-  if (data.evalOverrides !== undefined) { setParts.push(`evalOverrides = ?`); values.push(JSON.stringify(data.evalOverrides)); }
+  if (data.projectId !== undefined) { setParts.push(`"projectId" = ?`); values.push(data.projectId || null); }
+  if (data.queryCol !== undefined) { setParts.push(`"queryCol" = ?`); values.push(data.queryCol); }
+  if (data.contextCol !== undefined) { setParts.push(`"contextCol" = ?`); values.push(data.contextCol); }
+  if (data.evalNames !== undefined) { setParts.push(`"evalNames" = ?`); values.push(JSON.stringify(data.evalNames)); }
+  if (data.evalOverrides !== undefined) { setParts.push(`"evalOverrides" = ?`); values.push(JSON.stringify(data.evalOverrides)); }
   if (data.headers !== undefined) { setParts.push(`headers = ?`); values.push(JSON.stringify(data.headers)); }
 
   if (data.rows !== undefined && Array.isArray(data.rows)) {
     const rowsArr: Record<string, string>[] = data.rows;
     const maxResult = await prisma.$queryRaw<[{ m: number | null }]>`
-      SELECT MAX(rowIndex) as m FROM DatasetRow WHERE datasetId = ${id}
+      SELECT MAX("rowIndex") as m FROM "DatasetRow" WHERE "datasetId" = ${id}
     `;
     const nextIndex = (maxResult[0]?.m ?? -1) + 1;
 
     await batchInsertRows(id, rowsArr, nextIndex);
 
     const countResult = await prisma.$queryRaw<[{ c: number }]>`
-      SELECT COUNT(*) as c FROM DatasetRow WHERE datasetId = ${id}
+      SELECT COUNT(*) as c FROM "DatasetRow" WHERE "datasetId" = ${id}
     `;
-    setParts.push(`rowCount = ?`);
+    setParts.push(`"rowCount" = ?`);
     values.push(Number(countResult[0]?.c ?? 0));
   }
 
   if (setParts.length > 1) {
     values.push(id);
     await prisma.$executeRawUnsafe(
-      `UPDATE Dataset SET ${setParts.join(", ")} WHERE id = ?`,
+      `UPDATE "Dataset" SET ${setParts.join(", ")} WHERE id = ?`,
       ...values
     );
   }
@@ -93,9 +93,9 @@ export const DELETE = authedHandler(async (request: NextRequest) => {
   if (!id) {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
   }
-  await prisma.$executeRaw`DELETE FROM DatasetRunResult WHERE runId IN (SELECT id FROM DatasetRun WHERE datasetId = ${id})`;
-  await prisma.$executeRaw`DELETE FROM DatasetRun WHERE datasetId = ${id}`;
-  await prisma.$executeRaw`DELETE FROM DatasetRow WHERE datasetId = ${id}`;
-  await prisma.$executeRaw`DELETE FROM Dataset WHERE id = ${id}`;
+  await prisma.$executeRaw`DELETE FROM "DatasetRunResult" WHERE "runId" IN (SELECT id FROM "DatasetRun" WHERE "datasetId" = ${id})`;
+  await prisma.$executeRaw`DELETE FROM "DatasetRun" WHERE "datasetId" = ${id}`;
+  await prisma.$executeRaw`DELETE FROM "DatasetRow" WHERE "datasetId" = ${id}`;
+  await prisma.$executeRaw`DELETE FROM "Dataset" WHERE id = ${id}`;
   return NextResponse.json({ ok: true });
 });

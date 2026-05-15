@@ -51,18 +51,22 @@ export function MembersTab() {
 
   const load = useCallback(async () => {
     try {
-      const [membersRes, requestsRes, codesRes] = await Promise.all([
-        apiFetch(`/api/projects/${projectId}/members`).then(r => r.json()),
-        isOwner ? apiFetch(`/api/projects/${projectId}/join-requests`).then(r => r.json()).catch(() => ({ requests: [] })) : Promise.resolve({ requests: [] }),
-        isOwner ? apiFetch(`/api/projects/${projectId}/invite-codes`).then(r => r.json()).catch(() => ({ codes: [] })) : Promise.resolve({ codes: [] }),
-      ]);
+      const membersRes = await apiFetch(`/api/projects/${projectId}/members`).then(r => r.json());
       setMembers(membersRes.members || []);
-      setCurrentRole(membersRes.currentRole || "");
-      setRequests(requestsRes.requests || []);
-      setCodes(codesRes.codes || []);
+      const role = membersRes.currentRole || "";
+      setCurrentRole(role);
+
+      if (role === "owner") {
+        const [requestsRes, codesRes] = await Promise.all([
+          apiFetch(`/api/projects/${projectId}/join-requests`).then(r => r.json()).catch(() => ({ requests: [] })),
+          apiFetch(`/api/projects/${projectId}/invite-codes`).then(r => r.json()).catch(() => ({ codes: [] })),
+        ]);
+        setRequests(requestsRes.requests || []);
+        setCodes(codesRes.codes || []);
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, [projectId, isOwner]);
+  }, [projectId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -110,20 +114,28 @@ export function MembersTab() {
   };
 
   const handleGenerate = async () => {
-    const res = await apiFetch(`/api/projects/${projectId}/invite-codes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role: genRole,
-        maxUses: parseInt(genMaxUses) || 0,
-        expiresInDays: parseInt(genExpiry) || null,
-      }),
-    });
-    if (res.ok) {
-      const { code } = await res.json();
-      copyCode(code.code);
-      setShowGenerate(false);
-      load();
+    try {
+      const res = await apiFetch(`/api/projects/${projectId}/invite-codes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: genRole,
+          maxUses: 0,
+          expiresInDays: genExpiry ? parseInt(genExpiry) : null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        copyCode(data.code.code);
+        setShowGenerate(false);
+        load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed: ${err.message || res.status}`);
+      }
+    } catch (e) {
+      console.error("Generate failed:", e);
+      alert("Network error");
     }
   };
 
@@ -248,11 +260,7 @@ export function MembersTab() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium">Max uses</label>
-                  <Input value={genMaxUses} onChange={(e) => setGenMaxUses(e.target.value)} className="mt-1 h-8 text-xs" placeholder="0 = unlimited" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium">Expires (days)</label>
+                  <label className="text-xs font-medium">Expires</label>
                   <select value={genExpiry} onChange={(e) => setGenExpiry(e.target.value)} className="mt-1 block w-full rounded-md border bg-background px-2 py-1.5 text-xs">
                     <option value="1">1 day</option>
                     <option value="7">7 days</option>
@@ -262,12 +270,12 @@ export function MembersTab() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleGenerate}>Generate & Copy</Button>
-                <Button size="sm" variant="outline" onClick={() => setShowGenerate(false)}>Cancel</Button>
+                <Button type="button" size="sm" onClick={handleGenerate}>Generate & Copy</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(false)}>Cancel</Button>
               </div>
             </div>
           ) : (
-            <Button size="sm" variant="outline" onClick={() => setShowGenerate(true)}>
+            <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(true)}>
               <Plus className="mr-1.5 h-3 w-3" /> Generate Code
             </Button>
           )}

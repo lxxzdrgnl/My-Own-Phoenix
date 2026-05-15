@@ -21,11 +21,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
   }
 
-  const codes = await prisma.projectInviteCode.findMany({
-    where: { projectId },
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json({ codes });
+  try {
+    const codes = await prisma.projectInviteCode.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json({ codes });
+  } catch (e) {
+    console.error("Failed to list invite codes:", e);
+    return NextResponse.json({ message: String(e) }, { status: 500 });
+  }
 }
 
 // POST — generate invite code (owner only)
@@ -44,18 +49,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { role = "editor", maxUses = 0, expiresInDays } = await req.json();
   const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 86400000) : null;
 
-  const code = await prisma.projectInviteCode.create({
-    data: {
-      projectId,
-      code: generateCode(),
-      role,
-      maxUses,
-      expiresAt,
-      createdBy: auth,
-    },
-  });
+  try {
+    const code = await prisma.projectInviteCode.create({
+      data: {
+        projectId,
+        code: generateCode(),
+        role,
+        maxUses,
+        expiresAt,
+        createdBy: auth,
+      },
+    });
 
-  return NextResponse.json({ code }, { status: 201 });
+    return NextResponse.json({ code }, { status: 201 });
+  } catch (e) {
+    console.error("Failed to create invite code:", e);
+    return NextResponse.json({ message: String(e) }, { status: 500 });
+  }
 }
 
 // DELETE — delete invite code (owner only)

@@ -2,7 +2,7 @@
 
 import { apiFetch } from "@/lib/api-client";
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useProject } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
 import {
   WidgetGrid,
@@ -68,8 +68,7 @@ const DEFAULT_LAYOUTS: LayoutItem[] = [
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const params = useParams<{ slug: string }>();
-  const project = params.slug ?? "default";
+  const { phoenixProject: project } = useProject();
 
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [layouts, setLayouts] = useState<LayoutItem[]>(DEFAULT_LAYOUTS);

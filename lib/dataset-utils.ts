@@ -17,7 +17,7 @@ export async function batchInsertRows(
       const rowId = `dr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${startIndex + i + j}`;
       const data = JSON.stringify(chunk[j]);
       await prisma.$executeRaw`
-        INSERT INTO DatasetRow (id, datasetId, rowIndex, data)
+        INSERT INTO "DatasetRow" (id, "datasetId", "rowIndex", data)
         VALUES (${rowId}, ${datasetId}, ${startIndex + i + j}, ${data})
       `;
     }
@@ -38,7 +38,7 @@ export async function batchInsertRunResults(
     const evals = JSON.stringify(r.evals ?? {});
     const capture = JSON.stringify(r.capture ?? {});
     await prisma.$executeRaw`
-      INSERT INTO DatasetRunResult (id, runId, rowIdx, response, query, evals, capture)
+      INSERT INTO "DatasetRunResult" (id, "runId", "rowIdx", response, query, evals, capture)
       VALUES (${id}, ${runId}, ${r.rowIdx}, ${response}, ${query}, ${evals}, ${capture})
     `;
   }
@@ -49,10 +49,10 @@ export async function batchInsertRunResults(
  */
 export async function updateDatasetRowCount(datasetId: string): Promise<void> {
   const result = await prisma.$queryRaw<[{ c: number }]>`
-    SELECT COUNT(*) as c FROM DatasetRow WHERE datasetId = ${datasetId}
+    SELECT COUNT(*) as c FROM "DatasetRow" WHERE "datasetId" = ${datasetId}
   `;
   const count = Number(result[0]?.c ?? 0);
   await prisma.$executeRaw`
-    UPDATE Dataset SET rowCount = ${count}, updatedAt = CURRENT_TIMESTAMP WHERE id = ${datasetId}
+    UPDATE "Dataset" SET "rowCount" = ${count}, "updatedAt" = CURRENT_TIMESTAMP WHERE id = ${datasetId}
   `;
 }

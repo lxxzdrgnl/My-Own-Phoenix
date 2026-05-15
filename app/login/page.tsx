@@ -21,8 +21,10 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.error("Login failed:", err);
+    } catch (err: any) {
+      if (err?.code !== "auth/cancelled-popup-request") {
+        console.error("Login failed:", err);
+      }
     }
   };
 

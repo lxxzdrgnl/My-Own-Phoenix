@@ -6,13 +6,13 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
   const { runId } = await params;
 
   const runRows = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT id, datasetId, evalNames FROM DatasetRun WHERE id = ${runId}
+    SELECT id, "datasetId", "evalNames" FROM "DatasetRun" WHERE id = ${runId}
   `;
   if (!runRows.length) return apiError(req, ErrorCode.RESOURCE_NOT_FOUND, "Run not found");
   const run = runRows[0];
 
   const dsRows = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT id, name, headers FROM Dataset WHERE id = ${run.datasetId}
+    SELECT id, name, headers FROM "Dataset" WHERE id = ${run.datasetId}
   `;
   if (!dsRows.length) return apiError(req, ErrorCode.DATASET_NOT_FOUND, "Dataset not found");
   const dataset = dsRows[0];
@@ -21,13 +21,13 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
 
   // Read rows from DatasetRow table
   const datasetRows = await prisma.$queryRaw<Array<{ rowIndex: number; data: string }>>`
-    SELECT rowIndex, data FROM DatasetRow WHERE datasetId = ${run.datasetId} ORDER BY rowIndex ASC
+    SELECT "rowIndex", data FROM "DatasetRow" WHERE "datasetId" = ${run.datasetId} ORDER BY "rowIndex" ASC
   `;
   const rows: Record<string, string>[] = datasetRows.map(r => JSON.parse(r.data));
 
   // Read results from DatasetRunResult table
   const resultRows = await prisma.$queryRaw<Array<{ rowIdx: number; response: string; evals: string }>>`
-    SELECT rowIdx, response, evals FROM DatasetRunResult WHERE runId = ${runId} ORDER BY rowIdx ASC
+    SELECT "rowIdx", response, evals FROM "DatasetRunResult" WHERE "runId" = ${runId} ORDER BY "rowIdx" ASC
   `;
   const rowResults = resultRows.map(r => ({
     rowIdx: r.rowIdx,

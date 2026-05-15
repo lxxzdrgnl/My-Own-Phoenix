@@ -8,16 +8,16 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
   const { runId } = await params;
 
   const runRows = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT id, datasetId, agentSource, evalNames, status, createdAt
-    FROM DatasetRun WHERE id = ${runId}
+    SELECT id, "datasetId", "agentSource", "evalNames", status, "createdAt"
+    FROM "DatasetRun" WHERE id = ${runId}
   `;
   if (!runRows.length) return apiError(req, ErrorCode.RESOURCE_NOT_FOUND, "Run not found");
   const run = runRows[0];
 
   // Read results from DatasetRunResult table
   const results = await prisma.$queryRaw<Array<{ rowIdx: number; response: string; query: string; evals: string; capture: string }>>`
-    SELECT rowIdx, response, query, evals, capture FROM DatasetRunResult
-    WHERE runId = ${runId} ORDER BY rowIdx ASC
+    SELECT "rowIdx", response, query, evals, capture FROM "DatasetRunResult"
+    WHERE "runId" = ${runId} ORDER BY "rowIdx" ASC
   `;
 
   const rowResults = results.map(r => ({
@@ -42,18 +42,18 @@ export const PUT = authedHandler(async (req: NextRequest, uid: string, { params 
 
   // Update run metadata
   if (body.agentSource !== undefined) {
-    await prisma.$executeRaw`UPDATE DatasetRun SET agentSource = ${body.agentSource} WHERE id = ${runId}`;
+    await prisma.$executeRaw`UPDATE "DatasetRun" SET "agentSource" = ${body.agentSource} WHERE id = ${runId}`;
   }
   if (body.status !== undefined) {
-    await prisma.$executeRaw`UPDATE DatasetRun SET status = ${body.status} WHERE id = ${runId}`;
+    await prisma.$executeRaw`UPDATE "DatasetRun" SET status = ${body.status} WHERE id = ${runId}`;
   }
   if (body.evalNames !== undefined) {
-    await prisma.$executeRaw`UPDATE DatasetRun SET evalNames = ${JSON.stringify(body.evalNames)} WHERE id = ${runId}`;
+    await prisma.$executeRaw`UPDATE "DatasetRun" SET "evalNames" = ${JSON.stringify(body.evalNames)} WHERE id = ${runId}`;
   }
 
   // Upsert row results into DatasetRunResult
   if (body.rowResults !== undefined && Array.isArray(body.rowResults)) {
-    await prisma.$executeRaw`DELETE FROM DatasetRunResult WHERE runId = ${runId}`;
+    await prisma.$executeRaw`DELETE FROM "DatasetRunResult" WHERE "runId" = ${runId}`;
     await batchInsertRunResults(runId, body.rowResults);
   }
 
@@ -63,7 +63,7 @@ export const PUT = authedHandler(async (req: NextRequest, uid: string, { params 
 export const DELETE = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ runId: string }> }) => {
   const { runId } = await params;
 
-  await prisma.$executeRaw`DELETE FROM DatasetRunResult WHERE runId = ${runId}`;
-  await prisma.$executeRaw`DELETE FROM DatasetRun WHERE id = ${runId}`;
+  await prisma.$executeRaw`DELETE FROM "DatasetRunResult" WHERE "runId" = ${runId}`;
+  await prisma.$executeRaw`DELETE FROM "DatasetRun" WHERE id = ${runId}`;
   return NextResponse.json({ ok: true });
 });

@@ -7,9 +7,9 @@ export const GET = authedHandler(async (request: NextRequest) => {
   if (!datasetId) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { datasetId: "datasetId is required" });
 
   const runs = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT id, agentSource, evalNames, status, createdAt
-    FROM DatasetRun WHERE datasetId = ${datasetId}
-    ORDER BY createdAt DESC
+    SELECT id, "agentSource", "evalNames", status, "createdAt"
+    FROM "DatasetRun" WHERE "datasetId" = ${datasetId}
+    ORDER BY "createdAt" DESC
   `;
   return NextResponse.json({ runs });
 });

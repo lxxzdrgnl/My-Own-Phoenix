@@ -6,6 +6,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env.DATABASE_URL || "postgresql://phoenix:phoenix_dev@localhost:5432/phoenix",
+    url: process.env.DATABASE_URL || "postgresql://phoenix:phoenix_dev@localhost:5434/phoenix",
   },
 });

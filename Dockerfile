@@ -34,4 +34,4 @@ COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["npm", "run", "dev"]

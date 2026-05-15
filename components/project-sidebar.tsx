@@ -42,13 +42,13 @@ const NAV_GROUPS = [
     items: [
       { href: "dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "overview", label: "Requests", icon: List },
+      { href: "evaluations", label: "Evaluations", icon: SlidersHorizontal },
+      { href: "measure", label: "Measure", icon: Gauge },
     ],
   },
   {
     label: "Quality",
     items: [
-      { href: "evaluations", label: "Evaluations", icon: SlidersHorizontal },
-      { href: "measure", label: "Measure", icon: Gauge },
       { href: "datasets", label: "Datasets", icon: Database },
       { href: "risks", label: "Risks", icon: ShieldAlert },
     ],
@@ -106,9 +106,10 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
         ))}
       </div>
 
-      {/* Bottom: Settings + User */}
+      {/* Bottom */}
       <div className="mt-auto space-y-1 px-3">
-        <div className="border-t pt-3 space-y-0.5">
+        {/* Project Settings — above the line */}
+        <div className="space-y-0.5 pb-2">
           <Link
             href={`/${slug}/settings`}
             className={cn(
@@ -121,6 +122,9 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
             <Settings2 className="h-4 w-4" />
             Project Settings
           </Link>
+        </div>
+        {/* Docs + Global Settings — below the line */}
+        <div className="border-t pt-2 space-y-0.5">
           <Link
             href="/docs"
             className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted-foreground/50 transition-colors hover:bg-accent hover:text-muted-foreground"
@@ -148,7 +152,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
                 )}
               </div>
               <button
-                onClick={() => signOut(auth)}
+                onClick={() => signOut(auth).then(() => window.location.href = "/")}
                 className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 title="Sign out"
               >

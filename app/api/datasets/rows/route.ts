@@ -13,8 +13,8 @@ export const GET = authedHandler(async (request: NextRequest) => {
   const all = request.nextUrl.searchParams.get("all") === "1";
 
   const dsMeta = await prisma.$queryRaw<Array<Record<string, string>>>`
-    SELECT headers, queryCol, contextCol, evalNames, evalOverrides, rowCount
-    FROM Dataset WHERE id = ${id}
+    SELECT headers, "queryCol", "contextCol", "evalNames", "evalOverrides", "rowCount"
+    FROM "Dataset" WHERE id = ${id}
   `;
   if (!dsMeta.length) return apiError(request, ErrorCode.DATASET_NOT_FOUND, "Dataset not found");
   const d = dsMeta[0];
@@ -22,18 +22,18 @@ export const GET = authedHandler(async (request: NextRequest) => {
   let datasetRows: Array<{ rowIndex: number; data: string }>;
   if (all) {
     datasetRows = await prisma.$queryRaw<Array<{ rowIndex: number; data: string }>>`
-      SELECT rowIndex, data FROM DatasetRow WHERE datasetId = ${id} ORDER BY rowIndex ASC
+      SELECT "rowIndex", data FROM "DatasetRow" WHERE "datasetId" = ${id} ORDER BY "rowIndex" ASC
     `;
   } else {
     const offset = page * pageSize;
     datasetRows = await prisma.$queryRaw<Array<{ rowIndex: number; data: string }>>`
-      SELECT rowIndex, data FROM DatasetRow WHERE datasetId = ${id}
-      ORDER BY rowIndex ASC LIMIT ${pageSize} OFFSET ${offset}
+      SELECT "rowIndex", data FROM "DatasetRow" WHERE "datasetId" = ${id}
+      ORDER BY "rowIndex" ASC LIMIT ${pageSize} OFFSET ${offset}
     `;
   }
 
   const totalResult = await prisma.$queryRaw<[{ c: number }]>`
-    SELECT COUNT(*) as c FROM DatasetRow WHERE datasetId = ${id}
+    SELECT COUNT(*) as c FROM "DatasetRow" WHERE "datasetId" = ${id}
   `;
   const total = Number(totalResult[0]?.c ?? 0);
 
@@ -66,7 +66,7 @@ export const PUT = authedHandler(async (request: NextRequest) => {
 
   const dataStr = JSON.stringify(data);
   await prisma.$executeRaw`
-    UPDATE DatasetRow SET data = ${dataStr} WHERE datasetId = ${id} AND rowIndex = ${rowIndex}
+    UPDATE "DatasetRow" SET data = ${dataStr} WHERE "datasetId" = ${id} AND "rowIndex" = ${rowIndex}
   `;
   return NextResponse.json({ ok: true });
 });
@@ -82,15 +82,15 @@ export const DELETE = authedHandler(async (request: NextRequest) => {
 
   // Delete specified rows using parameterized queries
   for (const idx of indices) {
-    await prisma.$executeRaw`DELETE FROM DatasetRow WHERE datasetId = ${id} AND rowIndex = ${idx}`;
+    await prisma.$executeRaw`DELETE FROM "DatasetRow" WHERE "datasetId" = ${id} AND "rowIndex" = ${idx}`;
   }
 
   // Reindex
   await prisma.$executeRaw`
-    UPDATE DatasetRow SET rowIndex = (
-      SELECT COUNT(*) FROM DatasetRow AS dr2
-      WHERE dr2.datasetId = DatasetRow.datasetId AND dr2.rowIndex < DatasetRow.rowIndex
-    ) WHERE datasetId = ${id}
+    UPDATE "DatasetRow" SET "rowIndex" = (
+      SELECT COUNT(*) FROM "DatasetRow" AS dr2
+      WHERE dr2."datasetId" = "DatasetRow"."datasetId" AND dr2."rowIndex" < "DatasetRow"."rowIndex"
+    ) WHERE "datasetId" = ${id}
   `;
 
   await updateDatasetRowCount(id);
@@ -106,7 +106,7 @@ export const POST = authedHandler(async (request: NextRequest) => {
   });
 
   const maxResult = await prisma.$queryRaw<[{ m: number | null }]>`
-    SELECT MAX(rowIndex) as m FROM DatasetRow WHERE datasetId = ${id}
+    SELECT MAX("rowIndex") as m FROM "DatasetRow" WHERE "datasetId" = ${id}
   `;
   const nextIndex = (maxResult[0]?.m ?? -1) + 1;
 

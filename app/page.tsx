@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,13 @@ export default function Home() {
   const router = useRouter();
   const [showAuth, setShowAuth] = useState(false);
 
-  // Logged in → go to projects
-  if (!loading && user) {
-    router.replace("/projects");
-    return null;
-  }
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/projects");
+    }
+  }, [loading, user, router]);
 
-  // Loading → blank
-  if (loading) return null;
+  if (loading || user) return null;
 
   // Not logged in → Landing page
   return (
