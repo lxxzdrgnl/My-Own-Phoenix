@@ -17,7 +17,7 @@ import { useState, useRef, useCallback } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { AuthModal } from "@/components/auth-modal";
+import { AuthModal } from "@/components/modals/auth-modal";
 
 const links = [
   { href: "/", label: "Chat", icon: MessageSquare, public: true },

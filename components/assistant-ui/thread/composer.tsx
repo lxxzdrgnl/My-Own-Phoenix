@@ -4,7 +4,7 @@ import { AssistantIf, ComposerPrimitive } from "@assistant-ui/react";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
 import { type FC, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { AuthModal } from "@/components/auth-modal";
+import { AuthModal } from "@/components/modals/auth-modal";
 import {
   ComposerAddAttachment,
   ComposerAttachments,

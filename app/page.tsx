@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { AuthModal } from "@/components/auth-modal";
+import { AuthModal } from "@/components/modals/auth-modal";
 
 export default function Home() {
   const { user, loading } = useAuth();

@@ -24,10 +24,10 @@ import {
 
 import { Sidebar } from "@/components/ui/sidebar";
 import { AnnotationBadges } from "@/components/annotation-badge";
-import { AddToDatasetModal } from "@/components/add-to-dataset-modal";
-import { PromptEditModal } from "@/components/prompt-edit-modal";
-import { PromptsModal } from "@/components/prompts-modal";
-import { AnnotationForm } from "@/components/annotation-form";
+import { AddToDatasetModal } from "@/components/modals/add-to-dataset-modal";
+import { PromptEditModal } from "@/components/modals/prompt-edit-modal";
+import { PromptsModal } from "@/components/modals/prompts-modal";
+import { AnnotationForm } from "@/components/modals/annotation-form";
 import { usePlaygroundColumns, VersionOption } from "./hooks/use-playground-columns";
 import { PromptColumn } from "./prompt-column";
 import { FilterDropdown } from "./filter-dropdown";

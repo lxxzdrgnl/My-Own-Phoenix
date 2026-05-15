@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api-client";
 import { LoadingState } from "@/components/ui/empty-state";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AuthModal } from "@/components/auth-modal";
+import { AuthModal } from "@/components/modals/auth-modal";
 
 interface ProjectGuardProps {
   projectId: string;

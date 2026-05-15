@@ -5,8 +5,8 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CSVImportModal } from "@/components/csv-import-modal";
-import { EvalSelectorModal, type EvalOverrides } from "@/components/eval-selector-modal";
+import { CSVImportModal } from "@/components/modals/csv-import-modal";
+import { EvalSelectorModal, type EvalOverrides } from "@/components/modals/eval-selector-modal";
 import { cn } from "@/lib/utils";
 import {
   Upload, FileSpreadsheet, Plus, Trash2,

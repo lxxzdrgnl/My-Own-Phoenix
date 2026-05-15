@@ -24,7 +24,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { Nav } from "@/components/nav";
-import { PromptFormModal, PromptFormInitial } from "@/components/prompts-modal";
+import { PromptFormModal, PromptFormInitial } from "@/components/modals/prompts-modal";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 
 interface VersionWithTags extends PromptVersion {

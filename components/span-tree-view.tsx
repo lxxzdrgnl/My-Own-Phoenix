@@ -4,7 +4,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useState } from "react";
 import { type RawSpan, type TraceTree, type Annotation } from "@/lib/phoenix";
 import { AnnotationBadges } from "@/components/annotation-badge";
-import { AnnotationForm } from "@/components/annotation-form";
+import { AnnotationForm } from "@/components/modals/annotation-form";
 import { cn } from "@/lib/utils";
 import {
   ChevronRight,

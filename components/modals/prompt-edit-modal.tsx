@@ -1,7 +1,7 @@
 "use client";
 
 import { normalizeContent, PromptVersion } from "@/lib/phoenix";
-import { PromptFormModal } from "@/components/prompts-modal";
+import { PromptFormModal } from "./prompts-modal";
 
 interface Props {
   promptName: string;
