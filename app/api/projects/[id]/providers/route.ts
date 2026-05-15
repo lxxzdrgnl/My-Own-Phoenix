@@ -40,7 +40,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string, { params
 
   // Check duplicate
   const existing = await prisma.llmProvider.findFirst({
-    where: { projectId, provider },
+    where: { projectId: projectId, provider: provider },
   });
   if (existing) {
     await prisma.llmProvider.update({
@@ -51,7 +51,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string, { params
   }
 
   await prisma.llmProvider.create({
-    data: { provider, apiKey: encrypted, isActive: true, userId: uid, projectId },
+    data: { provider: provider, apiKey: encrypted, isActive: true, userId: uid, projectId: projectId },
   });
 
   return NextResponse.json({ ok: true }, { status: 201 });
