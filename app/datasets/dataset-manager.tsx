@@ -9,18 +9,18 @@ import { CSVImportModal } from "@/components/modals/csv-import-modal";
 import { EvalSelectorModal, type EvalOverrides } from "@/components/modals/eval-selector-modal";
 import { cn } from "@/lib/utils";
 import {
-  Upload, FileSpreadsheet, Plus, Trash2,
-  Database, Download, Pencil, Check, X, Settings2,
+  Upload, Trash2,
+  Database, Pencil, Check, X,
   List, FlaskConical,
 } from "lucide-react";
-import { LoadingState, EmptyState } from "@/components/ui/empty-state";
-import { Sidebar, SidebarHeader, SidebarItemDiv } from "@/components/ui/sidebar";
-import { formatDate } from "@/lib/date-utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { useDatasetGeneration } from "./hooks/use-dataset-generation";
 import { useDatasetEvaluation } from "./hooks/use-dataset-evaluation";
 import { DatasetConfigPanel } from "./dataset-config-panel";
 import { DatasetResults } from "./dataset-results";
+import { DatasetSidebar } from "./dataset-sidebar";
+import { DatasetToolbar } from "./dataset-toolbar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,8 +52,6 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   const [datasets, setDatasets] = useState<DatasetMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
 
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<DatasetRow[]>([]);
@@ -179,15 +177,14 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
     } catch (e) { console.error(e); }
   }
 
-  async function handleCreate() {
-    if (!newName.trim()) return;
+  async function handleCreate(name: string) {
+    if (!name.trim()) return;
     try {
       const res = await apiFetch("/api/datasets", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
+        body: JSON.stringify({ name: name.trim() }),
       });
       const data = await res.json();
-      setNewName(""); setCreating(false);
       await loadDatasets();
       if (data.dataset?.id) selectDataset(data.dataset.id);
     } catch (e) { console.error(e); }
@@ -283,60 +280,14 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
     <div className="flex min-h-0 flex-1 overflow-hidden">
 
       {/* ── Left sidebar ── */}
-      <Sidebar>
-        <div className="flex items-center justify-between px-3 pt-3 pb-1">
-          <SidebarHeader>Datasets</SidebarHeader>
-          <button
-            onClick={() => setCreating(true)}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="New dataset"
-          >
-            <Plus className="size-3" />
-            Dataset
-          </button>
-        </div>
-
-        {creating && (
-          <div className="mx-2 mb-2 flex gap-1">
-            <Input
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreating(false); }}
-              placeholder="Dataset name..."
-              className="h-7 text-xs"
-              autoFocus
-            />
-            <Button size="sm" onClick={handleCreate} disabled={!newName.trim()} className="h-7 px-2 text-xs">OK</Button>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-2">
-          {loading && <LoadingState className="py-6" />}
-          {datasets.map(d => (
-            <SidebarItemDiv
-              key={d.id}
-              active={selectedId === d.id}
-              onClick={() => selectDataset(d.id)}
-            >
-              <FileSpreadsheet className="size-3.5 shrink-0 text-muted-foreground" />
-              <div className="min-w-0 flex-1">
-                <p className={cn("truncate text-sm", selectedId === d.id ? "text-foreground" : "")}>{d.name}</p>
-                <p className="text-[10px] text-muted-foreground">{d.rowCount} prompts</p>
-              </div>
-              <button
-                onClick={e => { e.stopPropagation(); handleDelete(d.id); }}
-                className="rounded p-0.5 opacity-0 hover:bg-muted group-hover:opacity-100"
-              >
-                <Trash2 className="size-3 text-muted-foreground" />
-              </button>
-            </SidebarItemDiv>
-          ))}
-          {datasets.length === 0 && !loading && (
-            <EmptyState icon={Database} title="No datasets yet" className="py-8" />
-          )}
-        </div>
-
-      </Sidebar>
+      <DatasetSidebar
+        datasets={datasets}
+        selectedId={selectedId}
+        onSelect={selectDataset}
+        onCreate={handleCreate}
+        onDelete={handleDelete}
+        loading={loading}
+      />
 
       {/* ── Right panel ── */}
       <div
@@ -360,29 +311,16 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
           <div className="flex h-full flex-col">
 
             {/* ── Top bar ── */}
-            <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
-              <div>
-                <h1 className="text-xl font-semibold tracking-tight">{selected?.name}</h1>
-                <p className="text-[10px] text-muted-foreground">{totalRows.toLocaleString()} prompts · {headers.length} columns</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {currentRunId && (
-                  <Button size="sm" variant="outline" onClick={() => window.open(`/api/datasets/runs/${currentRunId}/export`, "_blank")} className="h-7 gap-1.5 text-xs">
-                    <Download className="size-3" /> Export
-                  </Button>
-                )}
-                <Button size="sm" variant="outline" onClick={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })} className="h-7 gap-1.5 text-xs">
-                  <Upload className="size-3" /> Import
-                </Button>
-                <button
-                  onClick={() => setConfigOpen(!configOpen)}
-                  title="Configure"
-                  className={cn("rounded-md border p-1.5 transition-colors hover:bg-accent", configOpen && "bg-accent")}
-                >
-                  <Settings2 className="size-3.5" />
-                </button>
-              </div>
-            </div>
+            <DatasetToolbar
+              datasetName={selected?.name ?? ""}
+              totalRows={totalRows}
+              headerCount={headers.length}
+              currentRunId={currentRunId}
+              configOpen={configOpen}
+              onToggleConfig={() => setConfigOpen(!configOpen)}
+              onImport={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })}
+              onExport={() => currentRunId && window.open(`/api/datasets/runs/${currentRunId}/export`, "_blank")}
+            />
 
             {/* ── Config panel ── */}
             {configOpen && (
