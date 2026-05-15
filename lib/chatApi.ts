@@ -1,4 +1,4 @@
-import { Client, ThreadState } from "@langchain/langgraph-sdk";
+import { Client } from "@langchain/langgraph-sdk";
 import {
   LangChainMessage,
   LangGraphCommand,
@@ -17,13 +17,6 @@ const createClient = (endpoint?: string) => {
 export const createThread = async (endpoint?: string) => {
   const client = createClient(endpoint);
   return client.threads.create();
-};
-
-export const getThreadState = async (
-  threadId: string,
-): Promise<ThreadState<{ messages: LangChainMessage[] }>> => {
-  const client = createClient();
-  return client.threads.getState(threadId);
 };
 
 export const sendMessage = async (params: {

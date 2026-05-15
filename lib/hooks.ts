@@ -4,29 +4,6 @@ import { useState, useCallback, useEffect } from "react";
 import { apiFetch } from "@/lib/api-client";
 
 /**
- * Hook for fetching data from an API endpoint.
- * Handles loading state and auto-fetches on mount.
- */
-export function useApiFetch<T>(url: string, extract?: (data: any) => T) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch(url);
-      const json = await res.json();
-      setData(extract ? extract(json) : json);
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  }, [url]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return { data, loading, reload: load };
-}
-
-/**
  * Hook for settings-style forms with load/save/dirty tracking.
  */
 export function useSettingsForm<T extends Record<string, string>>(defaults: T) {

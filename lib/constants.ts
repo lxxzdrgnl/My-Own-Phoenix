@@ -16,10 +16,6 @@ export const AGENT_TYPES = [
   { value: "rest", label: "REST SSE" },
 ] as const;
 
-// Default URLs
-export const DEFAULT_PHOENIX_URL = "http://localhost:6006";
-export const DEFAULT_LANGGRAPH_ENDPOINT = "http://localhost:2024";
-
 // Chat starter questions
 export interface ChatSuggestion {
   title: string;

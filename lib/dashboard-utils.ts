@@ -114,9 +114,6 @@ export function isAnnotationPass(a: AnnotationData): boolean {
 /** Default annotation display order */
 export const ANNOTATION_ORDER = ["rag_relevance", "qa_correctness", "hallucination", "banned_word", "citation", "tool_calling", "user_feedback"];
 
-/** Default fail color */
-export const FAIL_COLOR_DEFAULT = "oklch(0.55 0.12 15)";
-
 // ─── Chart option builders ───
 
 const C = "column" as const;
@@ -145,10 +142,6 @@ export function makePieData(entries: { name: string; y: number; positive?: boole
 /** Shorthand: wrap Highcharts options with no title */
 export function chartOpts(opts: Highcharts.Options): Highcharts.Options {
   return { title: { text: undefined }, ...opts };
-}
-
-export function pieOpts(name: string, entries: { name: string; y: number; positive?: boolean }[]): Highcharts.Options {
-  return chartOpts({ chart: { type: "pie" }, series: [{ type: P, name, data: makePieData(entries) }] });
 }
 
 export function dailyTrendOpts<T extends { time: string }>(

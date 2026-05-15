@@ -179,14 +179,3 @@ export async function callLlm(req: LlmRequest & { userId?: string; projectId?: s
       throw new Error(`Unsupported provider: ${provider}`);
   }
 }
-
-export async function getActiveProviders(opts?: { userId?: string; projectId?: string }): Promise<string[]> {
-  const where: any = { isActive: true };
-  if (opts?.projectId) where.projectId = opts.projectId;
-  else if (opts?.userId) where.userId = opts.userId;
-  const providers = await prisma.llmProvider.findMany({
-    where,
-    select: { provider: true },
-  });
-  return providers.map((p) => p.provider);
-}
