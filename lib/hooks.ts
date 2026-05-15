@@ -74,3 +74,6 @@ export function useSettingsForm<T extends Record<string, string>>(defaults: T) {
 
   return { settings, loading, saving, saved, dirty, update, save };
 }
+
+export { useFormSubmit } from "./hooks/use-form-submit";
+export { useResourceList } from "./hooks/use-resource-list";
