@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-server";
-import { apiError, ErrorCode } from "@/lib/api-error";
+import { apiError, ErrorCode, authedHandler } from "@/lib/api-error";
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; providerId: string }> }) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
+export const DELETE = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string; providerId: string }> }) => {
   const { id: projectId, providerId } = await params;
 
   const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: auth } },
+    where: { projectId_userId: { projectId, userId: uid } },
   });
   if (!member || !["owner", "editor"].includes(member.role)) {
     return apiError(req, ErrorCode.FORBIDDEN, "Editor access required");
@@ -17,4 +14,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   await prisma.llmProvider.delete({ where: { id: providerId } });
   return NextResponse.json({ ok: true });
-}
+});

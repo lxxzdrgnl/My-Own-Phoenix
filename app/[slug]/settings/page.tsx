@@ -58,8 +58,10 @@ function ApiKeysTab() {
         body: JSON.stringify({ provider, apiKey: newKey.trim() }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(`Failed to save key: ${err.message || res.status}`);
+        const text = await res.text();
+        let msg = `${res.status}`;
+        try { msg = JSON.parse(text).message || msg; } catch { msg = text || msg; }
+        alert(`Failed to save key: ${msg}`);
       } else {
         setAdding(null);
         setNewKey("");
