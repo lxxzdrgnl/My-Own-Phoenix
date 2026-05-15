@@ -14,7 +14,6 @@ const TABS = [
   { id: "members", label: "Members" },
   { id: "api-keys", label: "API Keys" },
   { id: "agent", label: "Agent" },
-  { id: "eval", label: "Eval" },
   { id: "danger", label: "Danger Zone" },
 ];
 
@@ -165,20 +164,7 @@ export default function ProjectSettingsPage() {
       {activeTab === "members" && <MembersTab />}
       {activeTab === "api-keys" && <ApiKeysTab />}
       {activeTab === "agent" && <AgentTab />}
-      {activeTab === "eval" && (
-        <div className="space-y-6">
-          <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Eval Worker</h3>
-            <div className="rounded-lg border px-5 py-4">
-              <p className="text-xs text-muted-foreground">
-                The eval worker runs automated evaluations on new traces.
-                Configure it in Global Settings.
-              </p>
-            </div>
-          </section>
-        </div>
-      )}
-      {activeTab === "danger" && <DangerTab />}
+{activeTab === "danger" && <DangerTab />}
     </div>
   );
 }
