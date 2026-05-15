@@ -28,7 +28,7 @@ jobs:
             # Clean up stale containers and rebuild
             cd ~/servers
             docker compose rm -f phoenix-dashboard 2>/dev/null || true
-            docker compose build --no-cache phoenix-dashboard
+            docker compose build phoenix-dashboard
             docker compose up -d --force-recreate --no-deps phoenix-dashboard
 
             # Restart eval-worker

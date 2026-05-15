@@ -2,7 +2,7 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN NODE_OPTIONS="--max-old-space-size=512" npm ci && npm cache clean --force
 
 # ── Stage 2: Build ──
 FROM node:22-alpine AS builder
