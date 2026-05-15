@@ -37,7 +37,7 @@ interface RowResult {
   evals: Record<string, { label: string; score: number; explanation: string }>;
 }
 interface AgentConfigOption {
-  id: string; project: string; alias: string | null;
+  id: string; projectName: string; alias: string | null;
   agentType: string; endpoint: string; assistantId: string;
   template?: { name: string; description?: string } | null;
 }

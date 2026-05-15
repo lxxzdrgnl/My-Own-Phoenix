@@ -11,7 +11,7 @@ export const GET = authedHandler(async (req: NextRequest) => {
     return NextResponse.json({ configs });
   }
 
-  const config = await prisma.agentConfig.findUnique({ where: { project }, include: { template: true } });
+  const config = await prisma.agentConfig.findUnique({ where: { projectName: project }, include: { template: true } });
   return NextResponse.json({ config: config ?? null });
 });
 
@@ -31,7 +31,7 @@ export const PUT = authedHandler(async (req: NextRequest) => {
   }
 
   const config = await prisma.agentConfig.upsert({
-    where: { project },
+    where: { projectName: project },
     update: {
       ...(alias !== undefined && { alias: alias || null }),
       ...(templateId !== undefined && { templateId: templateId || null }),
@@ -40,7 +40,7 @@ export const PUT = authedHandler(async (req: NextRequest) => {
       ...(assistantId !== undefined && { assistantId }),
     },
     create: {
-      project,
+      projectName: project,
       alias: alias || null,
       templateId: templateId || null,
       agentType: agentType ?? "langgraph",
@@ -58,6 +58,6 @@ export const DELETE = authedHandler(async (req: NextRequest) => {
     return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { project: "project query param required" });
   }
 
-  await prisma.agentConfig.deleteMany({ where: { project } });
+  await prisma.agentConfig.deleteMany({ where: { projectName: project } });
   return NextResponse.json({ success: true });
 });

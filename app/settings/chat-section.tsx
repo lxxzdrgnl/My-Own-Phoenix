@@ -13,7 +13,7 @@ import { ChatSuggestion, MAX_CHAT_SUGGESTIONS, parseChatSuggestions } from "@/li
 
 interface AgentConfig {
   id: string;
-  project: string;
+  projectName: string;
   alias: string | null;
   agentType: string;
   endpoint: string;
@@ -99,14 +99,14 @@ export function ChatSection() {
                   templates={templates}
                   expanded={expandedId === c.id}
                   onToggle={() => setExpandedId(expandedId === c.id ? null : c.id)}
-                  onDisconnect={() => handleDisconnect(c.project)}
+                  onDisconnect={() => handleDisconnect(c.projectName)}
                   onUpdated={() => load()}
                 />
               ))}
 
               {showAddForm ? (
                 <AddProjectForm
-                  existingProjects={configs.map((c) => c.project)}
+                  existingProjects={configs.map((c) => c.projectName)}
                   templates={templates}
                   onCancel={() => setShowAddForm(false)}
                   onSaved={() => { setShowAddForm(false); load(); }}
@@ -161,9 +161,9 @@ function ProjectCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold">{c.alias || c.project}</p>
+            <p className="text-sm font-semibold">{c.alias || c.projectName}</p>
             {c.alias && (
-              <span className="text-[11px] text-muted-foreground/50">{c.project}</span>
+              <span className="text-[11px] text-muted-foreground/50">{c.projectName}</span>
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground/60">
@@ -232,7 +232,7 @@ function ExpandedPanel({
       </div>
       <div className="px-4 pb-4 pt-3">
         {tab === "config" && <ConfigTab config={config} templates={templates} onSaved={onSaved} onDisconnect={onDisconnect} />}
-        {tab === "questions" && <QuestionsTab project={config.project} />}
+        {tab === "questions" && <QuestionsTab project={config.projectName} />}
       </div>
     </div>
   );
@@ -268,7 +268,7 @@ function ConfigTab({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          project: config.project,
+          project: config.projectName,
           alias: alias.trim() || null,
           templateId: selectedTemplateId,
           agentType: selectedTemplate?.agentType ?? "langgraph",
@@ -288,7 +288,7 @@ function ConfigTab({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <FormLabel>Display Name</FormLabel>
-          <Input placeholder={config.project} value={alias} onChange={(e) => { setAlias(e.target.value); setSaved(false); }} className="text-xs" />
+          <Input placeholder={config.projectName} value={alias} onChange={(e) => { setAlias(e.target.value); setSaved(false); }} className="text-xs" />
         </div>
         <div>
           <FormLabel>Agent Template</FormLabel>

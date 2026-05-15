@@ -9,7 +9,7 @@ interface RowResult {
   latencyMs?: number;
 }
 interface AgentConfigOption {
-  id: string; project: string; alias: string | null;
+  id: string; projectName: string; alias: string | null;
   agentType: string; endpoint: string; assistantId: string;
   template?: { name: string; description?: string } | null;
 }
@@ -96,7 +96,7 @@ export function useDatasetGeneration({
           const { thread_id } = isRest ? await createThreadRest() : await createThread(config.endpoint);
           const msgs = [{ type: "human" as const, content: query }];
           if (isRest) {
-            for await (const event of sendMessageRest({ endpoint: config.endpoint, threadId: thread_id, messages: msgs, project: config.project })) {
+            for await (const event of sendMessageRest({ endpoint: config.endpoint, threadId: thread_id, messages: msgs, project: config.projectName })) {
               if ((event.event as string) === "messages/partial") {
                 const d = event.data as any;
                 if (Array.isArray(d)) { const last = d[d.length - 1]; if (last?.content) response = typeof last.content === "string" ? last.content : last.content.map((p: any) => p.text ?? "").join(""); }
@@ -105,7 +105,7 @@ export function useDatasetGeneration({
               }
             }
           } else {
-            const generator = await sendMessage({ threadId: thread_id, messages: msgs, project: config.project, endpoint: config.endpoint, assistantId: config.assistantId });
+            const generator = await sendMessage({ threadId: thread_id, messages: msgs, project: config.projectName, endpoint: config.endpoint, assistantId: config.assistantId });
             for await (const event of generator) {
               if ((event.event as string) === "messages/partial") {
                 const d = event.data as any;

@@ -121,12 +121,12 @@ export const POST = authedHandler(async (request: NextRequest) => {
   // Find message → thread → project, then upload to Phoenix
   const message = await prisma.message.findUnique({
     where: { id: messageId },
-    include: { thread: { select: { project: true } } },
+    include: { thread: { select: { projectName: true } } },
   });
 
-  if (message?.thread?.project) {
+  if (message?.thread?.projectName) {
     const spanId = await findSpanForMessage(
-      message.thread.project,
+      message.thread.projectName,
       message.content,
       message.createdAt,
     );
@@ -153,7 +153,7 @@ export const DELETE = authedHandler(async (request: NextRequest) => {
   // Get message info before deleting feedback
   const message = await prisma.message.findUnique({
     where: { id: messageId },
-    include: { thread: { select: { project: true } } },
+    include: { thread: { select: { projectName: true } } },
   });
 
   await prisma.messageFeedback.delete({
@@ -161,9 +161,9 @@ export const DELETE = authedHandler(async (request: NextRequest) => {
   });
 
   // Overwrite Phoenix annotation with neutral state (cancelled)
-  if (message?.thread?.project) {
+  if (message?.thread?.projectName) {
     const spanId = await findSpanForMessage(
-      message.thread.project,
+      message.thread.projectName,
       message.content,
       message.createdAt,
     );

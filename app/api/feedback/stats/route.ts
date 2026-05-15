@@ -17,11 +17,11 @@ export const GET = authedHandler(async (request: NextRequest) => {
   }
 
   const totalResponses = await prisma.message.count({
-    where: { role: "assistant", thread: { project } },
+    where: { role: "assistant", thread: { projectName: project } },
   });
 
   const allFeedback = await prisma.messageFeedback.findMany({
-    where: { message: { role: "assistant", thread: { project } } },
+    where: { message: { role: "assistant", thread: { projectName: project } } },
     select: { value: true },
   });
 

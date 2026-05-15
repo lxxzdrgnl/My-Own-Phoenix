@@ -10,7 +10,7 @@ export const GET = authedHandler(async (req: NextRequest) => {
   }
 
   const record = await prisma.dashboardLayout.findUnique({
-    where: { userId_project: { userId, project } },
+    where: { userId_projectName: { userId, projectName: project } },
   });
 
   return NextResponse.json({ layout: record?.layout ?? null });
@@ -28,9 +28,9 @@ export const PUT = authedHandler(async (req: NextRequest) => {
   const proj = project ?? "default";
 
   const record = await prisma.dashboardLayout.upsert({
-    where: { userId_project: { userId, project: proj } },
+    where: { userId_projectName: { userId, projectName: proj } },
     update: { layout },
-    create: { userId, project: proj, layout },
+    create: { userId, projectName: proj, layout },
   });
 
   return NextResponse.json({ layout: record.layout });
