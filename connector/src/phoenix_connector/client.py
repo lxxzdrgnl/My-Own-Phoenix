@@ -10,7 +10,7 @@ async def run_connector(key, agent_url, project, agent_type, assistant_id, saas_
 
     while True:
         try:
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, close_timeout=None, ping_interval=None, ping_timeout=None) as ws:
                 # Send auth frame
                 await ws.send(json.dumps({
                     "type": "auth",

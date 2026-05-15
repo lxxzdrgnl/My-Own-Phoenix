@@ -27,3 +27,4 @@ prisma/dev.db-journal
 
 # claude
 CLAUDE.md
+postgres_data/

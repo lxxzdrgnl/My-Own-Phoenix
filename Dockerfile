@@ -30,6 +30,8 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/server.ts ./server.ts
+COPY --from=builder /app/lib/ws-relay.ts ./lib/ws-relay.ts
 COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000

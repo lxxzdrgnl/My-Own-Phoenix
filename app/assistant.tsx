@@ -3,28 +3,19 @@ import { apiFetch } from "@/lib/api-client";
 
 import {
   AssistantRuntimeProvider,
-  SimpleImageAttachmentAdapter,
-  SimpleTextAttachmentAdapter,
-  CompositeAttachmentAdapter,
+  useLocalRuntime,
+  type ChatModelAdapter,
 } from "@assistant-ui/react";
-import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
-import { useRef, useState, useCallback, useEffect } from "react";
-import { PanelLeftClose, PanelLeft, X, Plus, LogOut, Settings } from "lucide-react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { PanelLeftClose, PanelLeft, X, Plus, LogOut } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-
-import { createThread, sendMessage, createThreadRest, sendMessageRest } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
 
 import { useAuth } from "@/lib/auth-context";
 import { ProjectSelector } from "@/components/project-selector";
-import { AgentConfigModal } from "@/components/agent-config-modal";
 import { Sidebar, SidebarItemDiv } from "@/components/ui/sidebar";
 
-const attachmentAdapter = new CompositeAttachmentAdapter([
-  new SimpleImageAttachmentAdapter(),
-  new SimpleTextAttachmentAdapter(),
-]);
 
 interface DbThread {
   id: string;
@@ -45,12 +36,18 @@ interface AssistantProps {
   projects?: { id: string; name: string }[];
   onProjectChange?: (project: string) => void;
   onProjectAdd?: (name: string) => void;
+  relayUserId?: string | null;
+  relayProjectId?: string | null;
 }
 
-export function Assistant({ project = "default", projects = [], onProjectChange, onProjectAdd }: AssistantProps) {
+export function Assistant({ project = "default", projects = [], onProjectChange, onProjectAdd, relayUserId, relayProjectId }: AssistantProps) {
   const { user } = useAuth();
   const threadIdRef = useRef<string | null>(null);
   const activeDbIdRef = useRef<string | null>(null);
+  const relayUserIdRef = useRef(relayUserId);
+  const relayProjectIdRef = useRef(relayProjectId);
+  relayUserIdRef.current = relayUserId;
+  relayProjectIdRef.current = relayProjectId;
 
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -63,9 +60,6 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   const historySentRef = useRef(false);
   const [runtimeKey, setRuntimeKey] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
-  const [agentConfig, setAgentConfig] = useState<{ endpoint: string; assistantId: string; agentType: string } | null>(null);
-  const [agentConfigLoaded, setAgentConfigLoaded] = useState(false);
-  const [agentConfigOpen, setAgentConfigOpen] = useState(false);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -91,20 +85,6 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
     }
   }, [user, refreshThreads]);
 
-  useEffect(() => {
-    setAgentConfigLoaded(false);
-    apiFetch(`/api/agent-config?project=${encodeURIComponent(project)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.config) {
-          setAgentConfig({ endpoint: data.config.endpoint, assistantId: data.config.assistantId, agentType: data.config.agentType ?? "langgraph" });
-        } else {
-          setAgentConfig(null);
-        }
-      })
-      .catch(() => setAgentConfig(null))
-      .finally(() => setAgentConfigLoaded(true));
-  }, [project]);
 
   // Reset chat state when project changes
   const prevProjectRef = useRef(project);
@@ -125,125 +105,119 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
     } catch (e) { console.error(e); }
   }, []);
 
-  const runtime = useLangGraphRuntime({
-    adapters: {
-      attachments: attachmentAdapter,
-    },
-    stream: async function* (messages, { command }) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const chatAdapter: ChatModelAdapter = useMemo(() => ({
+    async *run({ messages, abortSignal }) {
+
       if (!user) {
-        yield { event: "messages/partial", data: [{ type: "ai", content: "Please sign in to use the chat." }] };
+        yield { content: [{ type: "text" as const, text: "Please sign in to use the chat." }] };
         return;
       }
 
-      const isRest = agentConfig?.agentType === "rest";
-
+      // Create thread on first message
       if (!threadIdRef.current) {
-        const { thread_id } = isRest
-          ? await createThreadRest()
-          : await createThread(agentConfig?.endpoint);
-        threadIdRef.current = thread_id;
-
-        if (user) {
-          const firstMessage = messages[messages.length - 1];
-          const rawText =
-            typeof firstMessage?.content === "string"
-              ? firstMessage.content
-              : Array.isArray(firstMessage?.content)
-                ? firstMessage.content
-                    .filter((p: unknown) => (p as { type: string }).type === "text")
-                    .map((p: unknown) => (p as { text: string }).text)
-                    .join(" ")
-                : "New Chat";
-          const title = rawText.slice(0, 30) || "New Chat";
-
-          try {
-            const res = await apiFetch("/api/user-threads", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId: user.uid,
-                langGraphThreadId: thread_id,
-                title,
-                project,
-              }),
-            });
-            const data = await res.json();
-            const saved: DbThread = data.thread;
-            if (saved?.id) {
-              activeDbIdRef.current = saved.id;
-              setActiveThreadDbId(saved.id);
-              setThreads((prev) => [saved, ...prev]);
-            }
-          } catch (e) { console.error(e); }
-        }
+        threadIdRef.current = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const lastMsg = messages[messages.length - 1];
+        const title = (typeof lastMsg?.content === "string" ? lastMsg.content : "New Chat").slice(0, 30);
+        try {
+          const res = await apiFetch("/api/user-threads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user.uid, langGraphThreadId: threadIdRef.current, title, project }),
+          });
+          const data = await res.json();
+          if (data.thread?.id) {
+            activeDbIdRef.current = data.thread.id;
+            setActiveThreadDbId(data.thread.id);
+            setThreads((prev) => [data.thread, ...prev]);
+          }
+        } catch (e) { console.error(e); }
       }
 
-      // Save user message to Prisma
+      // Save user message
       const lastMsg = messages[messages.length - 1];
-      const userText =
-        typeof lastMsg?.content === "string"
-          ? lastMsg.content
-          : Array.isArray(lastMsg?.content)
-            ? lastMsg.content
-                .filter((p: unknown) => (p as { type: string }).type === "text")
-                .map((p: unknown) => (p as { text: string }).text)
-                .join(" ")
-            : "";
-      if (activeDbIdRef.current && userText) {
-        saveMessage(activeDbIdRef.current, "user", userText);
-      }
+      const userText = typeof lastMsg?.content === "string" ? lastMsg.content : "";
+      if (activeDbIdRef.current && userText) saveMessage(activeDbIdRef.current, "user", userText);
 
-      // Send history + new message to LangGraph for context (only on first message)
-      const historyMessages = historySentRef.current
-        ? []
-        : history.map((m) => ({
-            type: m.role === "user" ? ("human" as const) : ("ai" as const),
-            content: m.content,
-          }));
-      const allMessages = [...historyMessages, ...messages.slice(-1)];
+      // Build message list with history
+      const historyMsgs = historySentRef.current ? [] : history.map((m) => ({ role: m.role, content: m.content }));
+      // Extract text from ContentPart[] or string
+      const getTextContent = (content: any): string => {
+        if (typeof content === "string") return content;
+        if (Array.isArray(content)) {
+          return content
+            .filter((p: any) => p.type === "text")
+            .map((p: any) => p.text)
+            .join(" ");
+        }
+        return "";
+      };
+      const allMsgs = [
+        ...historyMsgs,
+        ...messages.slice(-1).map((m) => ({ role: "user" as const, content: getTextContent(m.content) })),
+      ];
       historySentRef.current = true;
 
-      const generator = isRest
-        ? sendMessageRest({
-            endpoint: agentConfig?.endpoint ?? "",
-            threadId: threadIdRef.current,
-            messages: allMessages,
-            project,
-          })
-        : await sendMessage({
-            threadId: threadIdRef.current,
-            messages: allMessages,
-            command,
-            project,
-            endpoint: agentConfig?.endpoint,
-            assistantId: agentConfig?.assistantId,
-          });
-
-      let assistantResponse = "";
-      for await (const event of generator) {
-        const e = event.event as string;
-        if (e !== "messages/partial") continue;
-
-        // Capture the latest assistant response
-        const data = event.data as any;
-        if (Array.isArray(data)) {
-          const lastAiMsg = data[data.length - 1];
-          if (lastAiMsg?.content) {
-            assistantResponse = typeof lastAiMsg.content === "string"
-              ? lastAiMsg.content
-              : JSON.stringify(lastAiMsg.content);
-          }
-        }
-
-        yield event;
+      // Send via relay
+      if (!relayUserIdRef.current || !relayProjectIdRef.current) {
+        yield { content: [{ type: "text" as const, text: "No agent connected. Connect an agent in Project Settings." }] };
+        return;
       }
 
-      // Save assistant response to Prisma
-      if (activeDbIdRef.current && assistantResponse) {
-        saveMessage(activeDbIdRef.current, "assistant", assistantResponse);
+      const relayRes = await apiFetch("/api/chat-relay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: relayProjectIdRef.current,
+          targetUserId: relayUserIdRef.current,
+          messages: allMsgs,
+          threadId: threadIdRef.current,
+        }),
+        signal: abortSignal,
+      });
+
+      if (!relayRes.ok) {
+        const err = await relayRes.json().catch(() => ({ error: "Agent not connected" }));
+        yield { content: [{ type: "text" as const, text: `Error: ${err.error || err.message || "Failed"}` }] };
+        return;
+      }
+
+      // Stream SSE response
+      const reader = relayRes.body?.getReader();
+      if (!reader) return;
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fullContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6);
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.event === "messages/partial" && Array.isArray(parsed.data)) {
+              const last = parsed.data[parsed.data.length - 1];
+              if (last?.content) {
+                fullContent = typeof last.content === "string" ? last.content : JSON.stringify(last.content);
+                yield { content: [{ type: "text" as const, text: fullContent }] };
+              }
+            }
+        }
+      }
+
+      // Save assistant response
+      if (activeDbIdRef.current && fullContent) {
+        saveMessage(activeDbIdRef.current, "assistant", fullContent);
       }
     },
-  });
+  }), []);
+
+  const runtime = useLocalRuntime(chatAdapter);
 
   const handleSelectThread = useCallback(async (thread: DbThread) => {
     setIsFadingOut(true);
@@ -301,7 +275,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   );
 
   return (
-    <AssistantRuntimeProvider key={`${project}-${runtimeKey}-${agentConfigLoaded}`} runtime={runtime}>
+    <AssistantRuntimeProvider key={`${project}-${runtimeKey}`} runtime={runtime}>
       <div className="flex h-full flex-col">
         <div className="flex flex-1 min-h-0">
           {/* Sidebar */}
@@ -328,13 +302,6 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
                   />
                 </div>
                 )}
-                <button
-                  onClick={() => setAgentConfigOpen(true)}
-                  className="shrink-0 rounded p-1.5 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                  title="Agent Settings"
-                >
-                  <Settings className="h-4 w-4" />
-                </button>
               </div>
               <div className="px-2 py-2">
                 <button
@@ -386,12 +353,15 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
           )}
 
           {user && !sidebarOpen && (
-            <button
-              onClick={() => { setSidebarOpen(true); localStorage.setItem("sidebar_open", "true"); }}
-              className="absolute top-14 left-2 z-10 rounded-md p-1.5 hover:bg-muted transition-colors"
-            >
-              <PanelLeft className="h-4 w-4" />
-            </button>
+            <div className="shrink-0 border-r p-2">
+              <button
+                onClick={() => { setSidebarOpen(true); localStorage.setItem("sidebar_open", "true"); }}
+                className="rounded-md p-1.5 hover:bg-muted transition-colors"
+                title="Show chat history"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
+            </div>
           )}
 
           {/* Main chat area */}
@@ -400,12 +370,6 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
           </div>
         </div>
       </div>
-      <AgentConfigModal
-        open={agentConfigOpen}
-        onClose={() => setAgentConfigOpen(false)}
-        project={project}
-        onSaved={(cfg) => setAgentConfig(cfg ? { ...cfg, agentType: cfg.agentType ?? "langgraph" } : null)}
-      />
     </AssistantRuntimeProvider>
   );
 }

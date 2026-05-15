@@ -172,6 +172,40 @@
   overflow: hidden;
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Docs staggered reveal — each direct child fades in with delay */
+.docs-stagger > div > * {
+  opacity: 0;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+.docs-stagger > div > *:nth-child(1) { animation-delay: 0s; }
+.docs-stagger > div > *:nth-child(2) { animation-delay: 0.04s; }
+.docs-stagger > div > *:nth-child(3) { animation-delay: 0.08s; }
+.docs-stagger > div > h1 { animation-delay: 0s; }
+.docs-stagger > div > p:first-of-type { animation-delay: 0.03s; }
+.docs-stagger > div > div > * {
+  opacity: 0;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+.docs-stagger > div > div > *:nth-child(1) { animation-delay: 0.06s; }
+.docs-stagger > div > div > *:nth-child(2) { animation-delay: 0.1s; }
+.docs-stagger > div > div > *:nth-child(3) { animation-delay: 0.14s; }
+.docs-stagger > div > div > *:nth-child(4) { animation-delay: 0.18s; }
+.docs-stagger > div > div > *:nth-child(5) { animation-delay: 0.22s; }
+.docs-stagger > div > div > *:nth-child(6) { animation-delay: 0.26s; }
+.docs-stagger > div > div > *:nth-child(7) { animation-delay: 0.3s; }
+.docs-stagger > div > div > *:nth-child(8) { animation-delay: 0.34s; }
+.docs-stagger > div > div > *:nth-child(n+9) { animation-delay: 0.38s; }
+
 /* Allow widget dropdown menus to overflow grid items */
 .react-grid-item {
   overflow: visible !important;

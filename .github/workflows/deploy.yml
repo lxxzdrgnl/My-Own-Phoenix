@@ -34,5 +34,5 @@ jobs:
 
             # Health check (wait for startup + migration)
             sleep 20
-            curl -sf http://localhost:3100/api/health || exit 1
+            curl -sf http://localhost:3000/api/health || curl -sf http://localhost:3100/api/health || exit 1
             echo "Deploy successful"

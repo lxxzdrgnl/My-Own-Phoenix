@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,12 +14,14 @@ import {
   Gauge,
   Database,
   ShieldAlert,
+  Shield,
   Settings2,
   Settings,
   LogOut,
   FileText,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
-import { Sidebar, SidebarHeader } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { signOut } from "firebase/auth";
@@ -50,28 +53,116 @@ const NAV_GROUPS = [
     label: "Quality",
     items: [
       { href: "datasets", label: "Datasets", icon: Database },
+      { href: "pii-guard", label: "PII Guard", icon: Shield },
       { href: "risks", label: "Risks", icon: ShieldAlert },
     ],
   },
 ];
+
+const LS_KEY = "sidebar_collapsed";
 
 export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const segments = pathname.split("/").filter(Boolean);
   const currentPage = segments.length > 1 ? segments[1] : "chat";
+  const [collapsed, setCollapsed] = useState(false);
 
-  return (
-    <Sidebar className="py-4 bg-card">
-      {/* Back + Project name */}
-      <div className="px-4 mb-5">
-        <Link
-          href="/projects"
-          className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+  useEffect(() => {
+    setCollapsed(localStorage.getItem(LS_KEY) === "true");
+  }, []);
+
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(LS_KEY, String(next));
+  };
+
+  // Collapsed: icon-only sidebar
+  if (collapsed) {
+    return (
+      <div className="flex w-14 shrink-0 flex-col items-center border-r bg-card py-4">
+        {/* Toggle */}
+        <button
+          onClick={toggle}
+          className="mb-4 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          title="Expand sidebar"
         >
-          <ArrowLeft className="h-3 w-3" />
-          Projects
-        </Link>
+          <PanelLeft className="h-4 w-4" />
+        </button>
+
+        {/* Nav icons */}
+        <div className="flex-1 space-y-1">
+          {NAV_GROUPS.flatMap((g) => g.items).map(({ href, label, icon: Icon }) => {
+            const active = currentPage === href;
+            return (
+              <Link
+                key={href}
+                href={`/${slug}/${href}`}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                  active
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+                title={label}
+              >
+                <Icon className="h-4 w-4" />
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Bottom icons */}
+        <div className="space-y-1">
+          <Link
+            href={`/${slug}/settings`}
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+              currentPage === "settings"
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            )}
+            title="Project Settings"
+          >
+            <Settings2 className="h-4 w-4" />
+          </Link>
+
+          {user && (
+            <button
+              onClick={() => signOut(auth).then(() => window.location.href = "/")}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Expanded: full sidebar
+  return (
+    <div className="flex w-60 shrink-0 flex-col border-r bg-card py-4">
+      {/* Header */}
+      <div className="px-4 mb-5">
+        <div className="flex items-center justify-between mb-3">
+          <Link
+            href="/projects"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            Projects
+          </Link>
+          <button
+            onClick={toggle}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            title="Collapse sidebar"
+          >
+            <PanelLeftClose className="h-3.5 w-3.5" />
+          </button>
+        </div>
         <h2 className="text-sm font-semibold truncate">{projectName}</h2>
       </div>
 
@@ -79,9 +170,9 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
       <div className="flex-1 space-y-5 px-3">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
-            <div className="px-2 mb-1.5">
-              <SidebarHeader>{group.label}</SidebarHeader>
-            </div>
+            <p className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              {group.label}
+            </p>
             <div className="space-y-0.5">
               {group.items.map(({ href, label, icon: Icon }) => {
                 const active = currentPage === href;
@@ -108,7 +199,6 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
 
       {/* Bottom */}
       <div className="mt-auto space-y-1 px-3">
-        {/* Project Settings — above the line */}
         <div className="space-y-0.5 pb-2">
           <Link
             href={`/${slug}/settings`}
@@ -123,7 +213,6 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
             Project Settings
           </Link>
         </div>
-        {/* Docs + Global Settings — below the line */}
         <div className="border-t pt-2 space-y-0.5">
           <Link
             href="/docs"
@@ -141,7 +230,6 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
           </Link>
         </div>
 
-        {/* User */}
         {user && (
           <div className="border-t pt-3">
             <div className="flex items-center justify-between px-2.5 py-1">
@@ -162,6 +250,6 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
           </div>
         )}
       </div>
-    </Sidebar>
+    </div>
   );
 }

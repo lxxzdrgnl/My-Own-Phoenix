@@ -54,6 +54,7 @@ async def forward_rest(agent_url, messages, thread_id):
     """Forward via REST SSE endpoint."""
     async with httpx.AsyncClient(timeout=120) as client:
         full_content = ""
+        got_complete = False
         async with client.stream(
             "POST",
             f"{agent_url}/chat",
@@ -68,6 +69,19 @@ async def forward_rest(agent_url, messages, thread_id):
                     continue
                 try:
                     parsed = json.loads(raw)
+                    if not isinstance(parsed, dict):
+                        continue
+                    # If already in LangGraph format, pass through and track content
+                    if "event" in parsed:
+                        yield parsed
+                        # Track content for messages/complete
+                        if parsed.get("event") == "messages/partial" and isinstance(parsed.get("data"), list):
+                            last = parsed["data"][-1] if parsed["data"] else None
+                            if last and isinstance(last, dict) and last.get("content"):
+                                full_content = last["content"]
+                        if parsed.get("event") == "messages/complete":
+                            got_complete = True
+                        continue
                     chunk = parsed.get("content", "") or parsed.get("delta", "") or ""
                     if chunk:
                         full_content += chunk
@@ -83,7 +97,7 @@ async def forward_rest(agent_url, messages, thread_id):
                             "data": [{"type": "ai", "content": full_content}],
                         }
 
-        if full_content:
+        if full_content and not got_complete:
             yield {
                 "event": "messages/complete",
                 "data": [{"type": "ai", "content": full_content}],

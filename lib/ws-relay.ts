@@ -4,10 +4,18 @@ import { IncomingMessage } from "http";
 import { Socket } from "net";
 
 // In-memory connection pool: key = `${projectId}:${userId}`
-const connections = new Map<
-  string,
-  { ws: WebSocket; agentType: string; assistantId: string; connectedAt: Date }
->();
+// Use globalThis so the Map is shared between custom server and Next.js API routes
+const globalForRelay = globalThis as unknown as {
+  __wsRelayConnections?: Map<string, { ws: WebSocket; agentType: string; assistantId: string; connectedAt: Date }>;
+  __wsRelayPendingRequests?: Map<string, (msg: any) => void>;
+};
+if (!globalForRelay.__wsRelayConnections) {
+  globalForRelay.__wsRelayConnections = new Map();
+}
+if (!globalForRelay.__wsRelayPendingRequests) {
+  globalForRelay.__wsRelayPendingRequests = new Map();
+}
+const connections = globalForRelay.__wsRelayConnections;
 
 function hashKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
@@ -15,26 +23,28 @@ function hashKey(key: string): string {
 
 // Dynamic import for prisma (ESM/CJS compatibility)
 async function getPrisma() {
-  const { prisma } = await import("@/lib/prisma");
+  const { prisma } = await import("./prisma");
   return prisma;
 }
 
 // Pending request handlers for chat relay
-const pendingRequests = new Map<string, (msg: any) => void>();
+const pendingRequests = globalForRelay.__wsRelayPendingRequests!;
 
 export function createRelayServer() {
   const wss = new WebSocketServer({ noServer: true });
 
   wss.on("connection", async (ws: WebSocket) => {
+    console.log("[ws-relay] New connection received");
     let authenticated = false;
     let connectionKey = "";
 
-    // Auth timeout: 5 seconds
+    // Auth timeout: 30 seconds (Prisma cold start can be slow)
     const authTimeout = setTimeout(() => {
       if (!authenticated) {
+        console.log("[ws-relay] Auth timeout — closing");
         ws.close(4001, "Auth timeout");
       }
-    }, 5000);
+    }, 30000);
 
     ws.on("message", async (raw: Buffer) => {
       try {
@@ -51,6 +61,7 @@ export function createRelayServer() {
           }
 
           try {
+            const startTime = Date.now();
             const prisma = await getPrisma();
             const keyHash = hashKey(key);
             const user = await prisma.user.findFirst({
@@ -102,7 +113,8 @@ export function createRelayServer() {
               return;
             }
 
-            // Success — register connection
+            // Success — send auth_ok FIRST, then update DB (non-blocking)
+            console.log(`[ws-relay] Auth queries took ${Date.now() - startTime}ms, ws.readyState=${ws.readyState}`);
             authenticated = true;
             connectionKey = `${projectRecord.id}:${user.id}`;
             connections.set(connectionKey, {
@@ -112,42 +124,19 @@ export function createRelayServer() {
               connectedAt: new Date(),
             });
 
-            // Update ConnectorSession
-            await prisma.connectorSession.upsert({
-              where: {
-                userId_projectId: {
-                  userId: user.id,
-                  projectId: projectRecord.id,
-                },
-              },
-              update: {
-                status: "online",
-                agentType: agentType || "langgraph",
-                assistantId: assistantId || "agent",
-                connectedAt: new Date(),
-                lastPingAt: new Date(),
-              },
-              create: {
-                userId: user.id,
-                projectId: projectRecord.id,
-                agentType: agentType || "langgraph",
-                assistantId: assistantId || "agent",
-                status: "online",
-              },
-            });
+            ws.send(JSON.stringify({ type: "auth_ok", project: projectRecord.name }));
+            console.log(`[ws-relay] Connector authenticated: user=${user.email} project=${projectRecord.name}`);
 
-            ws.send(
-              JSON.stringify({
-                type: "auth_ok",
-                project: projectRecord.name,
-              })
-            );
-            console.log(
-              `[ws-relay] Connector authenticated: user=${user.email} project=${projectRecord.name}`
-            );
-          } catch (e) {
-            console.error("[ws-relay] Auth error:", e);
-            ws.close(4002, "Server error");
+            // Update ConnectorSession in background (don't block the connection)
+            prisma.connectorSession.upsert({
+              where: { userId_projectId: { userId: user.id, projectId: projectRecord.id } },
+              update: { status: "online", agentType: agentType || "langgraph", assistantId: assistantId || "agent", connectedAt: new Date(), lastPingAt: new Date() },
+              create: { userId: user.id, projectId: projectRecord.id, agentType: agentType || "langgraph", assistantId: assistantId || "agent", status: "online" },
+            }).catch((e: any) => console.error("[ws-relay] DB upsert error:", e?.message));
+          } catch (e: any) {
+            console.error("[ws-relay] Auth error:", e?.message || e);
+            console.error("[ws-relay] Stack:", e?.stack);
+            try { ws.close(4002, "Server error"); } catch {}
           }
           return;
         }

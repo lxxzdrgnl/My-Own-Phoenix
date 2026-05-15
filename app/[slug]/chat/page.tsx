@@ -6,7 +6,7 @@ import { Assistant } from "@/app/assistant";
 import { AgentSelector } from "@/components/agent-selector";
 
 export default function ChatPage() {
-  const { phoenixProject } = useProject();
+  const { id: projectId, phoenixProject } = useProject();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
 
   return (
@@ -17,7 +17,11 @@ export default function ChatPage() {
         </div>
       </div>
       <div className="flex-1 min-h-0">
-        <Assistant project={phoenixProject} />
+        <Assistant
+          project={phoenixProject}
+          relayUserId={selectedAgent}
+          relayProjectId={projectId}
+        />
       </div>
     </div>
   );
