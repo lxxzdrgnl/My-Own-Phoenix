@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Settings2, Key, Bot, ArrowLeft } from "lucide-react";
+import { Settings2, Key, FlaskConical, ArrowLeft } from "lucide-react";
 import { Sidebar } from "@/components/ui/sidebar";
 import { GeneralSection } from "./general-section";
 import { ProvidersSection } from "./providers-section";
-import { AgentsSection } from "./agents-section";
+import { EvalTemplatesSection } from "./eval-templates-section";
 import { ChatSection } from "./chat-section";
 
 interface TabDef {
@@ -28,7 +28,7 @@ const TAB_GROUPS: { label: string; tabs: TabDef[] }[] = [
   {
     label: "Templates",
     tabs: [
-      { id: "agents", label: "Agent Templates", icon: Bot, desc: "Reusable agent configs" },
+      { id: "eval-templates", label: "Evaluations", icon: FlaskConical, desc: "Global eval templates" },
     ],
   },
 ];
@@ -102,11 +102,14 @@ export function SettingsPage() {
       </Sidebar>
 
       <div className="flex-1 overflow-y-auto bg-background">
-        <div className="mx-auto max-w-2xl px-8 py-8">
-          {activeTab === "general" && <GeneralSection />}
-          {activeTab === "providers" && <ProvidersSection />}
-          {activeTab === "agents" && <AgentsSection />}
-        </div>
+        {activeTab === "eval-templates" ? (
+          <EvalTemplatesSection />
+        ) : (
+          <div className="mx-auto max-w-2xl px-8 py-8">
+            {activeTab === "general" && <GeneralSection />}
+            {activeTab === "providers" && <ProvidersSection />}
+          </div>
+        )}
       </div>
     </div>
   );

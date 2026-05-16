@@ -2,6 +2,7 @@
 import { apiFetch } from "@/lib/api-client";
 
 import { useState } from "react";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { type RawSpan, type TraceTree, type Annotation } from "@/lib/phoenix";
 import { AnnotationBadges } from "@/components/annotation-badge";
 import { AnnotationForm } from "@/components/modals/annotation-form";
@@ -484,9 +485,16 @@ export function SpanTreeView({
   projectName?: string;
   onRefresh?: () => void;
 }) {
+  const confirm = useConfirm();
+
   async function handleDeleteAnnotation(spanId: string, annotationName: string) {
     if (!projectName) return;
-    if (!confirm(`Delete "${annotationName}" annotation?`)) return;
+    const ok = await confirm({
+      title: "Delete annotation",
+      description: `The "${annotationName}" annotation will be permanently removed.`,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     try {
       await apiFetch(`/api/v1/projects/${encodeURIComponent(projectName)}/span_annotations`, {
         method: "DELETE",

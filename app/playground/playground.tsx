@@ -32,12 +32,14 @@ import { usePlaygroundColumns, VersionOption } from "./hooks/use-playground-colu
 import { PromptColumn } from "./prompt-column";
 import { FilterDropdown } from "./filter-dropdown";
 import { TraceList } from "./trace-list";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 function filterKey(pid: string) {
   return `pg_filter_${pid}`;
 }
 
 export function Playground({ fixedProject, dbProjectId }: { fixedProject?: string; dbProjectId?: string } = {}) {
+  const confirm = useConfirm();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectIdState] = useState(fixedProject || "");
   const setProjectId = (id: string) => {
@@ -137,7 +139,12 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
 
   async function handleDeleteSelected() {
     if (deleteSelection.size === 0) return;
-    if (!confirm(`Delete ${deleteSelection.size} trace(s)?`)) return;
+    const ok = await confirm({
+      title: "Delete traces",
+      description: `${deleteSelection.size} trace(s) will be permanently deleted.`,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     setDeleting(true);
     for (const traceId of deleteSelection) {
       try {

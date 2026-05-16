@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormLabel, FormError } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface VersionWithTags extends PromptVersion {
   tags: PromptTag[];
@@ -54,6 +55,7 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [innerModal, setInnerModal] = useState<null | "create" | "edit">(null);
   const [editTarget, setEditTarget] = useState<PromptFormInitial | null>(null);
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,7 +83,12 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
   }, [open, load]);
 
   async function handleDelete(name: string) {
-    if (!confirm(`Delete prompt "${name}" and all its versions?`)) return;
+    const ok = await confirm({
+      title: "Delete prompt",
+      description: `This will permanently delete "${name}" and all its versions.`,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     try {
       await deletePrompt(name);
       await load();
@@ -194,7 +201,12 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
                             <button
                               onClick={async (e) => {
                                 e.stopPropagation();
-                                if (!confirm(`Delete tag "${tag.name}"?`)) return;
+                                const ok = await confirm({
+                                  title: "Delete tag",
+                                  description: `Remove the "${tag.name}" tag from this version.`,
+                                  confirmText: "Delete",
+                                });
+                                if (!ok) return;
                                 try {
                                   await deletePromptVersionTag(v.id, tag.name);
                                   await load();

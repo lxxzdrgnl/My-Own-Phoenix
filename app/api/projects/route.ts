@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { seedProjectEvals } from "@/lib/eval-seed";
 import { randomBytes, createHash } from "crypto";
 
 function generateSlug(): string {
@@ -72,6 +73,9 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
       })),
     });
   }
+
+  // Seed built-in eval templates for the new project
+  await seedProjectEvals(project.id);
 
   return NextResponse.json({
     id: project.id,

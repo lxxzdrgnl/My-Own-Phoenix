@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, CheckCircle, Loader2, AlertTriangle, ArrowRightLeft } from "lucide-react";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const TABS = [
   { id: "members", label: "Members" },
@@ -26,6 +27,7 @@ const PROVIDERS = [
 
 function ApiKeysTab() {
   const { id: projectId } = useProject();
+  const confirm = useConfirm();
   const [keys, setKeys] = useState<{ id: string; provider: string; isActive: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<string | null>(null);
@@ -71,7 +73,12 @@ function ApiKeysTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Remove this API key?")) return;
+    const ok = await confirm({
+      title: "Remove API key",
+      description: "This API key will be permanently removed from this project.",
+      confirmText: "Remove",
+    });
+    if (!ok) return;
     await apiFetch(`/api/projects/${projectId}/providers/${id}`, { method: "DELETE" });
     load();
   };

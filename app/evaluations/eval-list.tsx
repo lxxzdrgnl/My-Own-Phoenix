@@ -36,6 +36,7 @@ interface EvalListProps {
   onSelectEval: (name: string) => void;
   onToggleEval: (name: string) => void;
   onStartCreating: () => void;
+  globalMode?: boolean;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ export function EvalList({
   onSelectEval,
   onToggleEval,
   onStartCreating,
+  globalMode,
 }: EvalListProps) {
   const builtInEvals = globalPrompts.filter((p) => !p.isCustom);
   const customEvals = globalPrompts.filter((p) => p.isCustom);
@@ -65,21 +67,23 @@ export function EvalList({
     const t = prompt.evalType;
     return (
       <SidebarItemDiv active={selectedEval === prompt.name}>
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleEval(prompt.name); }}
-          className={cn(
-            "flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
-            enabled ? "border-foreground bg-foreground" : "border-muted-foreground/30",
-          )}
-        >
-          {enabled && <Check className="size-2.5 text-background" />}
-        </button>
+        {!globalMode && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleEval(prompt.name); }}
+            className={cn(
+              "flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
+              enabled ? "border-foreground bg-foreground" : "border-muted-foreground/30",
+            )}
+          >
+            {enabled && <Check className="size-2.5 text-background" />}
+          </button>
+        )}
         <button
           onClick={() => onSelectEval(prompt.name)}
           className="flex flex-1 items-center gap-1.5 text-left min-w-0"
         >
           <div className="flex-1 min-w-0">
-            <p className={cn("text-sm truncate", !enabled && "text-muted-foreground line-through")}>{prompt.name}</p>
+            <p className={cn("text-sm truncate", !globalMode && !enabled && "text-muted-foreground line-through")}>{prompt.name}</p>
             {showDescription && prompt.description && (
               <p className="text-[10px] text-muted-foreground truncate">{prompt.description}</p>
             )}
@@ -107,12 +111,17 @@ export function EvalList({
   return (
     <Sidebar>
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
-        <SidebarHeader>Active Evaluations</SidebarHeader>
+        <SidebarHeader>{globalMode ? "Evaluation Templates" : "Active Evaluations"}</SidebarHeader>
       </div>
 
       {selectedProject ? (
         <div className="flex-1 overflow-y-auto">
           {/* Built-in */}
+          {globalMode && builtInEvals.length > 0 && (
+            <div className="px-3 pt-1 pb-1">
+              <SidebarHeader>Default Evaluations</SidebarHeader>
+            </div>
+          )}
           <div className="px-2 pt-1">
             {builtInEvals.map((p) => (
               <EvalRow key={p.name} prompt={p} showDescription />
@@ -123,18 +132,18 @@ export function EvalList({
           {customEvals.length > 0 && (
             <>
               <div className="px-3 pt-3 pb-1">
-                <SidebarHeader>Custom</SidebarHeader>
+                <SidebarHeader>{globalMode ? "Custom Templates" : "Custom"}</SidebarHeader>
               </div>
               <div className="px-2">
                 {customEvals.map((p) => (
-                  <EvalRow key={p.name} prompt={p} />
+                  <EvalRow key={p.name} prompt={p} showDescription />
                 ))}
               </div>
             </>
           )}
 
           {/* Add new */}
-          <div className="px-3 py-3">
+          <div className="px-3 py-3 space-y-1.5">
             <Button
               size="sm"
               variant="outline"

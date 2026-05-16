@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormLabel, FormError } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { ChatSuggestion, MAX_CHAT_SUGGESTIONS, parseChatSuggestions } from "@/lib/constants";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface AgentConfig {
   id: string;
@@ -37,6 +38,7 @@ export function ChatSection() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,7 +56,12 @@ export function ChatSection() {
   useEffect(() => { load(); }, [load]);
 
   async function handleDisconnect(project: string) {
-    if (!confirm(`Disconnect agent from project "${project}"?`)) return;
+    const ok = await confirm({
+      title: "Disconnect agent",
+      description: `The agent will be disconnected from project "${project}".`,
+      confirmText: "Disconnect",
+    });
+    if (!ok) return;
     await apiFetch(`/api/agent-config?project=${encodeURIComponent(project)}`, { method: "DELETE" });
     await load();
   }

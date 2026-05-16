@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { FormLabel, FormError } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { AGENT_TYPES } from "@/lib/constants";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface AgentEntry {
   id: string;
@@ -29,6 +30,7 @@ export function AgentsSection() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<AgentEntry | null>(null);
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,7 +45,12 @@ export function AgentsSection() {
   useEffect(() => { load(); }, [load]);
 
   async function handleDelete(agent: AgentEntry) {
-    if (!confirm(`Delete agent "${agent.name}" and disconnect all projects using it?`)) return;
+    const ok = await confirm({
+      title: "Delete agent",
+      description: `"${agent.name}" will be deleted and all projects using it will be disconnected.`,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     await apiFetch(`/api/agent-templates?id=${agent.id}`, { method: "DELETE" });
     await load();
   }

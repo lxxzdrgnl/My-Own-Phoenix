@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Plus, ChevronRight, Check, RotateCcw } from "lucide-react";
 import { PromptBuilder } from "@/components/prompt-builder";
 import { RuleBuilder, DEFAULT_RULE_CONFIG, type RuleConfig } from "@/components/rule-builder";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ interface EvalSelectorModalProps {
 }
 
 export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, evalOverrides, onConfirm }: EvalSelectorModalProps) {
+  const confirmDialog = useConfirm();
   const [evals, setEvals] = useState<EvalItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<EvalOverrides>({});
@@ -92,9 +94,14 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
 
   // Get effective template/ruleConfig for the active eval based on scope
 
-  function selectEval(name: string) {
+  async function selectEval(name: string) {
     if (dirty) {
-      if (!confirm("Discard unsaved changes?")) return;
+      const ok = await confirmDialog({
+        title: "Discard changes",
+        description: "You have unsaved changes that will be lost.",
+        confirmText: "Discard",
+      });
+      if (!ok) return;
     }
     const ev = evals.find((e) => e.name === name);
     if (!ev) return;

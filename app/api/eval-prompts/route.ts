@@ -6,19 +6,70 @@ import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 export const GET = authedHandler(async (request: NextRequest) => {
   await ensureBuiltInEvals();
   const projectId = request.nextUrl.searchParams.get("projectId");
+  const includeGlobalTemplates = request.nextUrl.searchParams.get("includeGlobalTemplates") === "true";
 
-  // Return global (built-in) prompts + project-specific custom prompts
+  if (projectId) {
+    // Project mode: only this project's evals (already seeded on creation)
+    const prompts = await prisma.evalPrompt.findMany({
+      where: { projectId },
+      orderBy: { name: "asc" },
+    });
+    return NextResponse.json({ prompts });
+  }
+
+  // Global mode: all global evals (built-in + optionally custom templates)
+  const conditions: any[] = [
+    { isCustom: false, OR: [{ projectId: null }, { projectId: "" }] },
+  ];
+  if (includeGlobalTemplates) {
+    conditions.push({ isCustom: true, OR: [{ projectId: null }, { projectId: "" }] });
+  }
+
   const prompts = await prisma.evalPrompt.findMany({
-    where: {
-      OR: [
-        { projectId: null },
-        { projectId: "" },
-        ...(projectId ? [{ projectId }] : []),
-      ],
-    },
+    where: { OR: conditions },
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ prompts });
+});
+
+// POST — import global template(s) into a project
+export const POST = authedHandler(async (request: NextRequest) => {
+  const { names, projectId } = await request.json() as { names: string[]; projectId: string };
+  if (!projectId || !names?.length) {
+    return apiError(request, ErrorCode.BAD_REQUEST, "projectId and names[] are required");
+  }
+
+  // Find global templates by name
+  const globals = await prisma.evalPrompt.findMany({
+    where: { name: { in: names }, OR: [{ projectId: null }, { projectId: "" }] },
+  });
+
+  const importedNames: string[] = [];
+  for (const g of globals) {
+    let finalName = g.name;
+    let suffix = 2;
+    while (await prisma.evalPrompt.findFirst({ where: { name: finalName, projectId } })) {
+      finalName = `${g.name}_${suffix}`;
+      suffix++;
+    }
+
+    await prisma.evalPrompt.create({
+      data: {
+        name: finalName,
+        projectId,
+        evalType: g.evalType,
+        outputMode: g.outputMode,
+        template: g.template,
+        ruleConfig: g.ruleConfig,
+        badgeLabel: g.badgeLabel,
+        isCustom: true,
+        model: g.model,
+      },
+    });
+    importedNames.push(finalName);
+  }
+
+  return NextResponse.json({ imported: importedNames.length, names: importedNames });
 });
 
 export const PUT = authedHandler(async (request: NextRequest) => {

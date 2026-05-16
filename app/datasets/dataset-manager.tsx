@@ -14,6 +14,7 @@ import {
   List, FlaskConical,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 import { useDatasetGeneration } from "./hooks/use-dataset-generation";
 import { useDatasetEvaluation } from "./hooks/use-dataset-evaluation";
@@ -49,6 +50,7 @@ interface EvalOption {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function DatasetManager({ projectId }: { projectId?: string } = {}) {
+  const confirm = useConfirm();
   const [datasets, setDatasets] = useState<DatasetMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -214,7 +216,12 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this dataset?")) return;
+    const ok = await confirm({
+      title: "Delete dataset",
+      description: "This dataset and all its data will be permanently deleted.",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     await apiFetch("/api/datasets", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     if (selectedId === id) { setSelectedId(null); setRows([]); setHeaders([]); }
     loadDatasets();
@@ -253,7 +260,12 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   }
 
   async function handleDeleteRow(index: number) {
-    if (!confirm("Delete this prompt?")) return;
+    const ok = await confirm({
+      title: "Delete prompt",
+      description: "This prompt row will be permanently removed from the dataset.",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     const row = rows[index];
     const rowIndex = (row as any)._rowIndex ?? index;
     if (editingRowIndex === index) setEditingRowIndex(null);
@@ -409,7 +421,12 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                           <span>{selectedRowIndices.size.toLocaleString()} selected</span>
                           <button
                             onClick={async () => {
-                              if (!confirm(`Delete ${selectedRowIndices.size} selected prompts?`)) return;
+                              const ok = await confirm({
+                                title: "Delete selected prompts",
+                                description: `${selectedRowIndices.size} selected prompt(s) will be permanently deleted.`,
+                                confirmText: "Delete",
+                              });
+                              if (!ok) return;
                               if (selectedId) {
                                 await apiFetch("/api/datasets/rows", {
                                   method: "DELETE", headers: { "Content-Type": "application/json" },

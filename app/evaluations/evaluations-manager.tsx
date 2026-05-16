@@ -11,7 +11,7 @@ import { EvalEditor } from "./eval-editor";
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function EvaluationsManager({ fixedProject, projectId }: { fixedProject?: string; projectId?: string } = {}) {
+export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fixedProject?: string; projectId?: string; globalMode?: boolean } = {}) {
   // Data
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalPrompts, setGlobalPrompts] = useState<EvalPrompt[]>([]);
@@ -37,7 +37,11 @@ export function EvaluationsManager({ fixedProject, projectId }: { fixedProject?:
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      if (fixedProject) {
+      if (globalMode) {
+        // Global mode: no project, show global templates only
+        setProjects([]);
+        setSelectedProjectState("__global__");
+      } else if (fixedProject) {
         setProjects([{ id: fixedProject, name: fixedProject }]);
         if (!selectedProject) setSelectedProjectState(fixedProject);
       } else {
@@ -58,12 +62,21 @@ export function EvaluationsManager({ fixedProject, projectId }: { fixedProject?:
 
   const loadProjectConfig = useCallback(async (pid: string) => {
     try {
-      const [configRes, promptsRes] = await Promise.all([
-        apiFetch(`/api/eval-config?projectId=${encodeURIComponent(pid)}`).then((r) => r.json()),
-        apiFetch(`/api/eval-prompts?projectId=${encodeURIComponent(pid)}`).then((r) => r.json()),
-      ]);
-      setProjectConfigs(configRes.configs ?? []);
-      setGlobalPrompts(promptsRes.prompts ?? []);
+      if (pid === "__global__") {
+        // Global mode: load all global evals (built-in + custom templates)
+        const promptsRes = await apiFetch("/api/eval-prompts?includeGlobalTemplates=true").then((r) => r.json());
+        setProjectConfigs([]);
+        setGlobalPrompts(promptsRes.prompts ?? []);
+      } else {
+        // Use DB projectId if available, otherwise fall back to Phoenix project name
+        const dbId = projectId || pid;
+        const [configRes, promptsRes] = await Promise.all([
+          apiFetch(`/api/eval-config?projectId=${encodeURIComponent(pid)}`).then((r) => r.json()),
+          apiFetch(`/api/eval-prompts?projectId=${encodeURIComponent(dbId)}`).then((r) => r.json()),
+        ]);
+        setProjectConfigs(configRes.configs ?? []);
+        setGlobalPrompts(promptsRes.prompts ?? []);
+      }
     } catch (e) { console.error(e); }
   }, []);
 
@@ -123,8 +136,8 @@ export function EvaluationsManager({ fixedProject, projectId }: { fixedProject?:
 
   return (
     <div className="flex min-h-0 flex-1">
-      {/* ── Left: Project list (hidden when fixedProject is set) ── */}
-      {!fixedProject && (
+      {/* ── Left: Project list (hidden when fixedProject or globalMode is set) ── */}
+      {!fixedProject && !globalMode && (
         <Sidebar>
           <div className="px-3 pt-3 pb-1">
             <SidebarHeader>Projects</SidebarHeader>
@@ -152,6 +165,7 @@ export function EvaluationsManager({ fixedProject, projectId }: { fixedProject?:
         onSelectEval={(name) => { setSelectedEval(name); setCreating(false); }}
         onToggleEval={toggleEval}
         onStartCreating={() => { setCreating(true); setSelectedEval(null); }}
+        globalMode={globalMode}
       />
 
       {/* ── Right: Editor panel ── */}
@@ -166,6 +180,7 @@ export function EvaluationsManager({ fixedProject, projectId }: { fixedProject?:
           projectConfigs={projectConfigs}
           defaultEvalModel={defaultEvalModel}
           projectId={projectId}
+          globalMode={globalMode}
           onCreated={handleCreated}
           onCancelCreate={() => setCreating(false)}
           onDeleted={handleDeleted}

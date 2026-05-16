@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Users, Copy, Trash2, Check, X, Plus, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface Member {
   id: string;
@@ -36,6 +37,7 @@ interface InviteCode {
 
 export function MembersTab() {
   const { id: projectId } = useProject();
+  const confirm = useConfirm();
   const [members, setMembers] = useState<Member[]>([]);
   const [currentRole, setCurrentRole] = useState("");
   const [requests, setRequests] = useState<JoinRequest[]>([]);
@@ -86,7 +88,12 @@ export function MembersTab() {
   };
 
   const handleRemove = async (userId: string) => {
-    if (!confirm("Remove this member?")) return;
+    const ok = await confirm({
+      title: "Remove member",
+      description: "This member will lose access to the project.",
+      confirmText: "Remove",
+    });
+    if (!ok) return;
     await apiFetch(`/api/projects/${projectId}/members`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },

@@ -7,15 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
-  Trash2,
   RotateCcw,
-  X,
   FlaskConical,
+  FileText,
+  PenLine,
+  ArrowLeft,
 } from "lucide-react";
 import { RuleBuilder, DEFAULT_RULE_CONFIG, type RuleConfig } from "@/components/rule-builder";
 import { PromptBuilder } from "@/components/prompt-builder";
 import { refreshBadgeLabels } from "@/components/annotation-badge";
 import { ModelSelector } from "@/components/model-selector";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { NEW_EVAL_TEMPLATE } from "./eval-constants";
 import { EvalTestPanel } from "./eval-test-panel";
 import { EvalBackfillPanel } from "./eval-backfill-panel";
@@ -33,6 +35,7 @@ interface EvalEditorProps {
   projectConfigs: ProjectEvalConfig[];
   defaultEvalModel: string;
   projectId?: string;
+  globalMode?: boolean;
   onCreated: (name: string, evalType: string, template: string, ruleConfig: RuleConfig, model: string) => void;
   onCancelCreate: () => void;
   onDeleted: () => void;
@@ -47,6 +50,7 @@ export function EvalEditor({
   creating,
   projects,
   projectId,
+  globalMode,
   globalPrompts,
   projectConfigs,
   defaultEvalModel,
@@ -55,10 +59,15 @@ export function EvalEditor({
   onDeleted,
   onProjectConfigReload,
 }: EvalEditorProps) {
+  const confirm = useConfirm();
+
   // New eval form state
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<string>("llm_prompt");
   const [newEvalModel, setNewEvalModel] = useState(defaultEvalModel);
+  const [createMode, setCreateMode] = useState<"custom" | "template" | null>(null);
+  const [templates, setTemplates] = useState<EvalPrompt[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Editor state (for selected eval) — initialized from props when selectedEval changes
   const [editTemplate, setEditTemplate] = useState("");
@@ -66,7 +75,7 @@ export function EvalEditor({
   const [editRuleConfig, setEditRuleConfig] = useState<RuleConfig>(DEFAULT_RULE_CONFIG);
   const [editBadgeLabel, setEditBadgeLabel] = useState("");
   const [editModel, setEditModel] = useState(defaultEvalModel);
-  const [isProjectOverride, setIsProjectOverride] = useState(false);
+
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -94,10 +103,8 @@ export function EvalEditor({
 
     if (projectConfig?.template) {
       setEditTemplate(projectConfig.template);
-      setIsProjectOverride(true);
     } else {
       setEditTemplate(globalCustom?.template ?? "");
-      setIsProjectOverride(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEval]);
@@ -107,11 +114,13 @@ export function EvalEditor({
 
   // ── Save ──
 
-  async function handleSaveGlobal() {
-    if (!selectedEval) return;
+
+  async function handleSaveProject() {
+    if (!selectedEval || !selectedProject) return;
     setSaving(true);
     const isCustom = !globalPrompts.some((p) => p.name === selectedEval && !p.isCustom);
     try {
+      // Save global prompt data (type, model, badge, rule config)
       await apiFetch("/api/eval-prompts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -127,6 +136,18 @@ export function EvalEditor({
           isCustom,
         }),
       });
+      // Save project-scoped template override (skip in globalMode)
+      if (!globalMode) {
+        await apiFetch("/api/eval-config", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: selectedProject,
+            evalName: selectedEval,
+            template: editTemplate,
+          }),
+        });
+      }
       setDirty(false);
       onProjectConfigReload();
       refreshBadgeLabels();
@@ -134,45 +155,6 @@ export function EvalEditor({
     setSaving(false);
   }
 
-  async function handleSaveProject() {
-    if (!selectedEval || !selectedProject) return;
-    setSaving(true);
-    try {
-      await apiFetch("/api/eval-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: selectedProject,
-          evalName: selectedEval,
-          template: editTemplate,
-        }),
-      });
-      setDirty(false);
-      setIsProjectOverride(true);
-      onProjectConfigReload();
-    } catch (e) { console.error(e); }
-    setSaving(false);
-  }
-
-  async function handleClearOverride() {
-    if (!selectedEval || !selectedProject) return;
-    try {
-      await apiFetch("/api/eval-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: selectedProject,
-          evalName: selectedEval,
-          template: null,
-        }),
-      });
-      setIsProjectOverride(false);
-      onProjectConfigReload();
-      const globalCustom = globalPrompts.find((p) => p.name === selectedEval);
-      setEditTemplate(globalCustom?.template ?? "");
-      setDirty(false);
-    } catch (e) { console.error(e); }
-  }
 
   async function handleResetDefault() {
     if (!selectedEval) return;
@@ -185,11 +167,19 @@ export function EvalEditor({
 
   async function handleDelete() {
     if (!selectedEval || !selectedProject) return;
-    if (!confirm(`Delete "${selectedEval}"?`)) return;
+    const ok = await confirm({
+      title: `Delete "${selectedEval}"`,
+      description: "This will remove the evaluation configuration from this project.",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
 
-    const deleteAnnotations = confirm(
-      "Also delete existing annotations from Phoenix?\n\nOK = Delete annotations too\nCancel = Keep annotations, only remove eval config",
-    );
+    const deleteAnnotations = await confirm({
+      title: "Delete annotations?",
+      description: "Also delete existing annotations from Phoenix? Choose Cancel to keep annotations and only remove the eval config.",
+      confirmText: "Delete annotations",
+      variant: "destructive",
+    });
 
     try {
       await apiFetch(`/api/eval-prompts?name=${encodeURIComponent(selectedEval)}`, { method: "DELETE" });
@@ -225,11 +215,13 @@ export function EvalEditor({
           isCustom: true,
         }),
       });
-      await apiFetch("/api/eval-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: selectedProject, evalName: name, enabled: true }),
-      });
+      if (!globalMode) {
+        await apiFetch("/api/eval-config", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: selectedProject, evalName: name, enabled: true }),
+        });
+      }
       const createdTemplate = newType === "llm_prompt" ? NEW_EVAL_TEMPLATE : "";
       const createdRuleConfig: RuleConfig = DEFAULT_RULE_CONFIG;
       setNewName("");
@@ -239,7 +231,42 @@ export function EvalEditor({
     } catch (e) { console.error(e); }
   }
 
+  // ── Load global templates when switching to template mode ──
+  useEffect(() => {
+    if (createMode === "template" && creating && templates.length === 0) {
+      setLoadingTemplates(true);
+      apiFetch("/api/eval-prompts?includeGlobalTemplates=true")
+        .then((r) => r.json())
+        .then((data) => {
+          setTemplates(
+            (data.prompts || []).filter(
+              (p: EvalPrompt) => p.isCustom && !(p as any).projectId
+            )
+          );
+        })
+        .catch(console.error)
+        .finally(() => setLoadingTemplates(false));
+    }
+  }, [createMode, creating, templates.length, globalPrompts]);
+
+  async function handleImportTemplate(templateName: string) {
+    if (!projectId) return;
+    try {
+      const res = await apiFetch("/api/eval-prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ names: [templateName], projectId }),
+      });
+      const data = await res.json();
+      const createdName = data.names?.[0] || templateName;
+      onCreated(createdName, "llm_prompt", "", DEFAULT_RULE_CONFIG, defaultEvalModel);
+    } catch (e) { console.error(e); }
+  }
+
   // ── Render: Create form ──
+
+  // When globalMode, skip mode selection and go directly to custom form
+  const effectiveCreateMode = globalMode ? "custom" : createMode;
 
   if (creating && !selectedEval) {
     return (
@@ -247,7 +274,90 @@ export function EvalEditor({
         <h1 className="text-xl font-semibold tracking-tight mb-1">New Evaluation</h1>
         <p className="text-sm text-muted-foreground mb-6">Create a custom evaluation to run on your agent traces.</p>
 
+        {/* Step 1: Mode selection (only for project-level, not globalMode) */}
+        {effectiveCreateMode === null && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setCreateMode("template")}
+                className="rounded-lg border p-6 text-left transition-colors hover:bg-accent/50"
+              >
+                <FileText className="size-5 mb-3 text-muted-foreground" />
+                <p className="text-sm font-semibold">From Template</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Import from global templates already defined in settings.
+                </p>
+              </button>
+              <button
+                onClick={() => setCreateMode("custom")}
+                className="rounded-lg border p-6 text-left transition-colors hover:bg-accent/50"
+              >
+                <PenLine className="size-5 mb-3 text-muted-foreground" />
+                <p className="text-sm font-semibold">Custom</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Create a new evaluation from scratch.
+                </p>
+              </button>
+            </div>
+            <Button variant="ghost" onClick={onCancelCreate}>Cancel</Button>
+          </div>
+        )}
+
+        {/* Step 2a: Template list */}
+        {effectiveCreateMode === "template" && (
+          <div className="space-y-3">
+            <button
+              onClick={() => setCreateMode(null)}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
+            >
+              <ArrowLeft className="size-3.5" />
+              Back
+            </button>
+            {loadingTemplates ? (
+              <p className="text-sm text-muted-foreground py-4">Loading templates...</p>
+            ) : templates.length === 0 ? (
+              <div className="rounded-lg border border-dashed px-5 py-8 text-center">
+                <p className="text-sm text-muted-foreground">No global templates available.</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Create templates in Global Settings &rarr; Evaluations.</p>
+              </div>
+            ) : (
+              templates.map((t) => (
+                <button
+                  key={t.name}
+                  onClick={() => handleImportTemplate(t.name)}
+                  className="flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{t.name}</p>
+                    {t.badgeLabel && <p className="text-[10px] text-muted-foreground mt-0.5">{t.badgeLabel}</p>}
+                  </div>
+                  <span className={cn(
+                    "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                    t.evalType === "llm_prompt" ? "bg-foreground text-background"
+                      : t.evalType === "api" ? "bg-foreground/10 text-foreground/70"
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {t.evalType === "llm_prompt" ? "LLM" : t.evalType === "code_rule" ? "RULE" : "API"}
+                  </span>
+                </button>
+              ))
+            )}
+            <Button variant="ghost" onClick={onCancelCreate} className="mt-2">Cancel</Button>
+          </div>
+        )}
+
+        {/* Step 2b: Custom create form */}
+        {effectiveCreateMode === "custom" && (
         <div className="space-y-5">
+          {!globalMode && (
+            <button
+              onClick={() => setCreateMode(null)}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
+            >
+              <ArrowLeft className="size-3.5" />
+              Back
+            </button>
+          )}
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Name</label>
             <Input
@@ -324,6 +434,7 @@ export function EvalEditor({
             </Button>
           </div>
         </div>
+        )}
       </div>
     );
   }
@@ -356,66 +467,38 @@ export function EvalEditor({
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {isProjectOverride && (
-                <Button size="sm" variant="ghost" onClick={handleClearOverride} className="gap-1 text-xs h-7">
-                  <X className="size-3" /> Remove Override
+              {dirty && (
+                <Button
+                  size="sm"
+                  onClick={handleSaveProject}
+                  disabled={saving}
+                  className="gap-1 text-xs h-7"
+                >
+                  {saving ? "Saving..." : "Save"}
                 </Button>
               )}
-              {isBuiltIn && !isProjectOverride && (
+              {isBuiltIn && (
                 <Button size="sm" variant="ghost" onClick={handleResetDefault} className="gap-1 text-xs h-7">
                   <RotateCcw className="size-3" /> Reset
                 </Button>
               )}
               {!isBuiltIn && (
-                <Button size="sm" variant="ghost" onClick={handleDelete} className="gap-1 text-xs h-7 text-red-600">
-                  <Trash2 className="size-3" />
+                <Button size="sm" variant="outline" onClick={handleDelete} className="text-xs h-7">
+                  Delete
                 </Button>
               )}
             </div>
           </div>
-
-          {/* Scope + Save bar */}
-          <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-2.5 py-1.5">
-            <span className="text-[10px] text-muted-foreground shrink-0">Scope:</span>
-            <div className="flex gap-0.5">
-              <button
-                onClick={() => { if (isProjectOverride) handleClearOverride(); }}
-                className={cn(
-                  "rounded px-2 py-1 text-[10px] font-medium transition-colors",
-                  !isProjectOverride ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                All Projects
-              </button>
-              <button
-                onClick={() => setIsProjectOverride(true)}
-                className={cn(
-                  "rounded px-2 py-1 text-[10px] font-medium transition-colors",
-                  isProjectOverride ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {selectedProject}
-              </button>
-            </div>
-            {dirty && (
-              <Button
-                size="sm"
-                onClick={isProjectOverride ? handleSaveProject : handleSaveGlobal}
-                disabled={saving}
-                className="ml-auto h-6 text-[10px] px-3"
-              >
-                {saving ? "Saving..." : "Save"}
-              </Button>
-            )}
-          </div>
         </div>
 
         {/* Backfill */}
-        <EvalBackfillPanel
-          selectedEval={selectedEval}
-          selectedProject={selectedProject}
-          editTemplate={editTemplate}
-        />
+        {!globalMode && (
+          <EvalBackfillPanel
+            selectedEval={selectedEval}
+            selectedProject={selectedProject}
+            editTemplate={editTemplate}
+          />
+        )}
 
         {/* Editor — changes by eval type */}
         {editEvalType === "api" ? (
@@ -500,7 +583,9 @@ Evaluate and respond with JSON only: {{"label": "pass" or "fail", "score": 0.0-1
         )}
 
         {/* Test */}
-        <EvalTestPanel editTemplate={editTemplate} projectId={projectId} />
+        {!globalMode && (
+          <EvalTestPanel editTemplate={editTemplate} projectId={projectId} />
+        )}
       </div>
     </div>
   );
