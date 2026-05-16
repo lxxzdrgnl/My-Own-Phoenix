@@ -155,6 +155,7 @@ export function SpanGraph({
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setZoom((z) => {
         const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
         return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta));
