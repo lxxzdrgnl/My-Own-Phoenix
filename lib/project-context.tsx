@@ -7,7 +7,12 @@ interface ProjectContextValue {
   slug: string;
   name: string;
   phoenixProject: string;
+  role: "owner" | "editor" | "viewer";
 }
+
+/** Convenience helpers */
+export function canEdit(role: string) { return role === "owner" || role === "editor"; }
+export function isOwner(role: string) { return role === "owner"; }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
