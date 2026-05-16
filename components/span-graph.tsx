@@ -2,241 +2,287 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { type RawSpan } from "@/lib/phoenix";
-import { cn } from "@/lib/utils";
-import { Bot, Link2, Search, Box, MessageSquare, Zap, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
-// ─── Layout helpers ─────────────────────────────────────────────────────
+// ─── Layout ─────────────────────────────────────────────────────────────
 
-interface GraphNode {
+interface GNode {
   id: string;
   name: string;
   kind: string;
   latency: number;
-  children: string[];
+  childIds: string[];
   x: number;
   y: number;
 }
 
-const NODE_W = 120;
-const NODE_H = 72;
-const GAP_X = 40;
-const GAP_Y = 50;
+const W = 120, H = 72, GX = 40, GY = 50, PAD = 40;
+const ZOOM_STEP = 0.1, MIN_Z = 0.2, MAX_Z = 2;
 
-const KIND_STYLES: Record<string, { icon: typeof Bot; bg: string; border: string }> = {
-  AGENT:     { icon: Bot,           bg: "bg-foreground",     border: "border-foreground" },
-  LLM:       { icon: Bot,           bg: "bg-emerald-600",    border: "border-emerald-600" },
-  CHAIN:     { icon: Link2,         bg: "bg-blue-600",       border: "border-blue-600" },
-  RETRIEVER: { icon: Search,        bg: "bg-pink-600",       border: "border-pink-600" },
-  TOOL:      { icon: Box,           bg: "bg-amber-600",      border: "border-amber-600" },
-  PROMPT:    { icon: MessageSquare, bg: "bg-purple-600",     border: "border-purple-600" },
-  DEFAULT:   { icon: Zap,           bg: "bg-muted-foreground", border: "border-muted-foreground" },
+const KIND_COLORS: Record<string, string> = {
+  AGENT: "#171717", LLM: "#059669", CHAIN: "#2563eb",
+  RETRIEVER: "#db2777", TOOL: "#d97706", PROMPT: "#7c3aed",
 };
+function kindColor(k: string) { return KIND_COLORS[k.toUpperCase()] ?? "#737373"; }
+function fmtMs(ms: number) { return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`; }
 
-function getStyle(kind: string) {
-  return KIND_STYLES[kind.toUpperCase()] ?? KIND_STYLES.DEFAULT;
-}
-
-function formatMs(ms: number) {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function buildGraph(root: RawSpan): { nodes: Map<string, GraphNode>; width: number; height: number } {
-  const nodes = new Map<string, GraphNode>();
+function buildGraph(root: RawSpan) {
+  const nodes = new Map<string, GNode>();
   const levels: string[][] = [];
-
-  const queue: { span: RawSpan; level: number }[] = [{ span: root, level: 0 }];
-  while (queue.length > 0) {
-    const { span, level } = queue.shift()!;
-    if (nodes.has(span.spanId)) continue;
-
-    if (!levels[level]) levels[level] = [];
-    levels[level].push(span.spanId);
-
-    nodes.set(span.spanId, {
-      id: span.spanId,
-      name: span.name.length > 14 ? span.name.slice(0, 12) + "..." : span.name,
-      kind: span.spanKind,
-      latency: span.latency,
-      children: span.children.map((c) => c.spanId),
-      x: 0,
-      y: 0,
+  const q: { s: RawSpan; l: number }[] = [{ s: root, l: 0 }];
+  while (q.length) {
+    const { s, l } = q.shift()!;
+    if (nodes.has(s.spanId)) continue;
+    if (!levels[l]) levels[l] = [];
+    levels[l].push(s.spanId);
+    nodes.set(s.spanId, {
+      id: s.spanId, name: s.name.length > 14 ? s.name.slice(0, 12) + "…" : s.name,
+      kind: s.spanKind, latency: s.latency, childIds: s.children.map(c => c.spanId), x: 0, y: 0,
     });
-
-    for (const child of span.children) {
-      queue.push({ span: child, level: level + 1 });
-    }
+    for (const c of s.children) q.push({ s: c, l: l + 1 });
   }
-
-  let maxWidth = 0;
-  for (let lvl = 0; lvl < levels.length; lvl++) {
-    const ids = levels[lvl];
-    const totalWidth = ids.length * NODE_W + (ids.length - 1) * GAP_X;
-    maxWidth = Math.max(maxWidth, totalWidth);
-  }
-
-  for (let lvl = 0; lvl < levels.length; lvl++) {
-    const ids = levels[lvl];
-    const totalWidth = ids.length * NODE_W + (ids.length - 1) * GAP_X;
-    const startX = (maxWidth - totalWidth) / 2;
+  let maxW = 0;
+  for (const ids of levels) maxW = Math.max(maxW, ids.length * W + (ids.length - 1) * GX);
+  for (let l = 0; l < levels.length; l++) {
+    const ids = levels[l];
+    const tw = ids.length * W + (ids.length - 1) * GX;
+    const sx = (maxW - tw) / 2;
     for (let i = 0; i < ids.length; i++) {
-      const node = nodes.get(ids[i])!;
-      node.x = startX + i * (NODE_W + GAP_X);
-      node.y = lvl * (NODE_H + GAP_Y);
+      const n = nodes.get(ids[i])!;
+      n.x = sx + i * (W + GX);
+      n.y = l * (H + GY);
     }
   }
+  return { nodes, w: maxW + W, h: levels.length * (H + GY) - GY + H };
+}
 
-  return { nodes, width: maxWidth, height: levels.length * (NODE_H + GAP_Y) - GAP_Y };
+// ─── Canvas renderer ────────────────────────────────────────────────────
+
+function drawGraph(
+  ctx: CanvasRenderingContext2D, nodes: Map<string, GNode>,
+  cw: number, ch: number, gw: number, gh: number,
+  zoom: number, panX: number, panY: number, selectedId: string | null,
+) {
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cw, ch);
+
+  // Center offset
+  const ox = (cw - gw * zoom) / 2 + panX;
+  const oy = PAD + panY;
+
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.scale(zoom, zoom);
+
+  // Edges
+  ctx.strokeStyle = "#d4d4d8";
+  ctx.lineWidth = 1.5 / zoom;
+  ctx.setLineDash([4 / zoom, 3 / zoom]);
+  nodes.forEach(n => {
+    for (const cid of n.childIds) {
+      const c = nodes.get(cid);
+      if (!c) continue;
+      const x1 = n.x + W / 2, y1 = n.y + H;
+      const x2 = c.x + W / 2, y2 = c.y;
+      const my = (y1 + y2) / 2;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.bezierCurveTo(x1, my, x2, my, x2, y2);
+      ctx.stroke();
+    }
+  });
+  ctx.setLineDash([]);
+
+  // Nodes
+  nodes.forEach(n => {
+    const color = kindColor(n.kind);
+    const selected = n.id === selectedId;
+    const r = 12;
+
+    // Card
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = selected ? 3 / zoom : 2 / zoom;
+    ctx.beginPath();
+    ctx.roundRect(n.x, n.y, W, H, r);
+    ctx.fill();
+    ctx.stroke();
+
+    if (selected) {
+      ctx.strokeStyle = "#171717";
+      ctx.lineWidth = 1 / zoom;
+      ctx.beginPath();
+      ctx.roundRect(n.x - 3, n.y - 3, W + 6, H + 6, r + 2);
+      ctx.stroke();
+    }
+
+    // Icon circle
+    const cx = n.x + W / 2, cy = n.y + 20;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Icon letter
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${11}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const letter = n.kind.charAt(0).toUpperCase() || "?";
+    ctx.fillText(letter, cx, cy);
+
+    // Name
+    ctx.fillStyle = "#171717";
+    ctx.font = `500 ${10}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(n.name, cx, n.y + 40);
+
+    // Latency
+    ctx.fillStyle = "#737373";
+    ctx.font = `${9}px system-ui, sans-serif`;
+    ctx.fillText(fmtMs(n.latency), cx, n.y + 54);
+  });
+
+  ctx.restore();
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
 
-const ZOOM_STEP = 0.15;
-const MIN_ZOOM = 0.3;
-const MAX_ZOOM = 1.5;
-
 export function SpanGraph({
-  rootSpan,
-  selectedId,
-  onSelect,
+  rootSpan, selectedId, onSelect,
 }: {
   rootSpan: RawSpan;
   selectedId?: string | null;
   onSelect?: (span: RawSpan) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [graph, setGraph] = useState<{ nodes: Map<string, GraphNode>; width: number; height: number } | null>(null);
-  const spanMap = useRef<Map<string, RawSpan>>(new Map());
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const stateRef = useRef({ dragging: false, startX: 0, startY: 0, panX: 0, panY: 0 });
+  const graphRef = useRef<{ nodes: Map<string, GNode>; w: number; h: number } | null>(null);
+  const spanMapRef = useRef<Map<string, RawSpan>>(new Map());
+  const dragRef = useRef({ active: false, sx: 0, sy: 0, px: 0, py: 0 });
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(pan);
+  zoomRef.current = zoom;
+  panRef.current = pan;
 
+  // Build graph
   useEffect(() => {
     const map = new Map<string, RawSpan>();
-    function walk(s: RawSpan) {
-      map.set(s.spanId, s);
-      s.children.forEach(walk);
+    (function walk(s: RawSpan) { map.set(s.spanId, s); s.children.forEach(walk); })(rootSpan);
+    spanMapRef.current = map;
+    graphRef.current = buildGraph(rootSpan);
+
+    // Auto-fit
+    const el = wrapRef.current;
+    if (el && graphRef.current) {
+      const fit = Math.min(1, (el.clientWidth - 40) / (graphRef.current.w + PAD * 2));
+      setZoom(Math.max(MIN_Z, fit));
     }
-    walk(rootSpan);
-    spanMap.current = map;
-    setGraph(buildGraph(rootSpan));
   }, [rootSpan]);
 
-  // Auto-fit zoom on mount
+  // Render
   useEffect(() => {
-    if (!graph || !containerRef.current) return;
-    const pad = 40;
-    const contentW = graph.width + NODE_W + pad * 2;
-    const containerW = containerRef.current.clientWidth - 16;
-    if (contentW > containerW) {
-      setZoom(Math.max(MIN_ZOOM, containerW / contentW));
-    }
-  }, [graph]);
+    const canvas = canvasRef.current;
+    const g = graphRef.current;
+    if (!canvas || !g) return;
+    const wrap = wrapRef.current!;
+    const dpr = window.devicePixelRatio || 1;
+    const cw = wrap.clientWidth;
+    const ch = Math.max(300, g.h * zoom + PAD * 2 + 40);
+    canvas.width = cw * dpr;
+    canvas.height = ch * dpr;
+    canvas.style.width = `${cw}px`;
+    canvas.style.height = `${ch}px`;
+    const ctx = canvas.getContext("2d")!;
+    drawGraph(ctx, g.nodes, cw, ch, g.w, g.h, zoom, pan.x, pan.y, selectedId ?? null);
+  }, [zoom, pan, selectedId, rootSpan]);
 
-  const handleZoomIn = useCallback(() => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP)), []);
-  const handleZoomOut = useCallback(() => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP)), []);
-  const handleFit = useCallback(() => {
-    if (!graph || !containerRef.current) return;
-    const pad = 40;
-    const contentW = graph.width + NODE_W + pad * 2;
-    const contentH = graph.height + NODE_H + pad * 2;
-    const containerW = containerRef.current.clientWidth - 16;
-    const containerH = containerRef.current.clientHeight - 40;
-    const fitZoom = Math.min(containerW / contentW, containerH / contentH, 1);
-    setZoom(Math.max(MIN_ZOOM, fitZoom));
-    setPan({ x: 0, y: 0 });
-  }, [graph]);
-
-  // Drag pan
+  // Wheel zoom
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const onDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      if ((e.target as HTMLElement).closest("button")) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    function onWheel(e: WheelEvent) {
       e.preventDefault();
-      const s = stateRef.current;
-      s.dragging = true;
-      s.startX = e.clientX;
-      s.startY = e.clientY;
-      setPan((p) => { s.panX = p.x; s.panY = p.y; return p; });
-      el.style.cursor = "grabbing";
-    };
+      const d = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      setZoom(z => Math.max(MIN_Z, Math.min(MAX_Z, z + d)));
+    }
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, []);
 
-    const onMove = (e: MouseEvent) => {
-      const s = stateRef.current;
-      if (!s.dragging) return;
-      setPan({ x: s.panX + e.clientX - s.startX, y: s.panY + e.clientY - s.startY });
-    };
+  // Mouse: drag + click
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const onUp = () => {
-      stateRef.current.dragging = false;
-      if (el) el.style.cursor = "grab";
-    };
+    function onDown(e: MouseEvent) {
+      const d = dragRef.current;
+      d.active = true;
+      d.sx = e.clientX; d.sy = e.clientY;
+      d.px = panRef.current.x; d.py = panRef.current.y;
+      canvas!.style.cursor = "grabbing";
+    }
+    function onMove(e: MouseEvent) {
+      if (!dragRef.current.active) return;
+      const d = dragRef.current;
+      setPan({ x: d.px + e.clientX - d.sx, y: d.py + e.clientY - d.sy });
+    }
+    function onUp(e: MouseEvent) {
+      const d = dragRef.current;
+      const moved = Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy);
+      d.active = false;
+      canvas!.style.cursor = "grab";
 
-    el.addEventListener("mousedown", onDown);
+      // Click detection (didn't drag)
+      if (moved < 5 && graphRef.current && onSelect) {
+        const rect = canvas!.getBoundingClientRect();
+        const g = graphRef.current;
+        const cw = rect.width;
+        const ox = (cw - g.w * zoomRef.current) / 2 + panRef.current.x;
+        const oy = PAD + panRef.current.y;
+        const mx = (e.clientX - rect.left - ox) / zoomRef.current;
+        const my = (e.clientY - rect.top - oy) / zoomRef.current;
+        for (const n of g.nodes.values()) {
+          if (mx >= n.x && mx <= n.x + W && my >= n.y && my <= n.y + H) {
+            const raw = spanMapRef.current.get(n.id);
+            if (raw) onSelect(raw);
+            break;
+          }
+        }
+      }
+    }
+
+    canvas.addEventListener("mousedown", onDown);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-    el.style.cursor = "grab";
+    canvas.style.cursor = "grab";
 
     return () => {
-      el.removeEventListener("mousedown", onDown);
+      canvas.removeEventListener("mousedown", onDown);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
+  }, [onSelect]);
+
+  const handleZoomIn = useCallback(() => setZoom(z => Math.min(MAX_Z, z + ZOOM_STEP)), []);
+  const handleZoomOut = useCallback(() => setZoom(z => Math.max(MIN_Z, z - ZOOM_STEP)), []);
+  const handleFit = useCallback(() => {
+    const g = graphRef.current, el = wrapRef.current;
+    if (!g || !el) return;
+    const fit = Math.min(1, (el.clientWidth - 40) / (g.w + PAD * 2), (el.clientHeight - 80) / (g.h + PAD * 2));
+    setZoom(Math.max(MIN_Z, fit));
+    setPan({ x: 0, y: 0 });
   }, []);
 
-  // Wheel zoom — we intercept the wheel event on the document during the capture
-  // phase and check if the cursor is inside the graph container. This approach is
-  // bulletproof because:
-  // 1. Capture-phase listener fires before any passive listeners or scroll
-  // 2. Document-level addEventListener always supports { passive: false }
-  // 3. No dependency on React's event system (which makes wheel passive in React 19)
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    function handler(e: WheelEvent) {
-      if (!el!.contains(e.target as Node)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const d = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-      const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomRef.current + d));
-      setZoom(next);
-    }
-
-    // Capture phase on document — fires before any element-level listeners
-    document.addEventListener("wheel", handler, { passive: false, capture: true });
-    return () => document.removeEventListener("wheel", handler, { capture: true });
-  }, []);
-
-  if (!graph || graph.nodes.size === 0) return null;
-
-  const padding = 40;
-  const svgW = graph.width + NODE_W + padding * 2;
-  const svgH = graph.height + NODE_H + padding * 2;
-
-  const edges: { x1: number; y1: number; x2: number; y2: number }[] = [];
-  graph.nodes.forEach((node) => {
-    for (const childId of node.children) {
-      const child = graph.nodes.get(childId);
-      if (!child) continue;
-      edges.push({
-        x1: node.x + NODE_W / 2 + padding,
-        y1: node.y + NODE_H + padding,
-        x2: child.x + NODE_W / 2 + padding,
-        y2: child.y + padding,
-      });
-    }
-  });
+  const g = graphRef.current;
+  const ch = g ? Math.max(300, g.h * zoom + PAD * 2 + 40) : 300;
 
   return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-lg border bg-muted/20" style={{ height: Math.max(300, svgH * zoom + 40), touchAction: "none", overscrollBehavior: "contain" }}>
-      {/* Zoom controls */}
+    <div ref={wrapRef} className="relative rounded-lg border bg-muted/20" style={{ height: ch }}>
       <div className="absolute top-1 right-1 z-10 flex gap-0.5 px-2 py-1 rounded bg-card/80 backdrop-blur-sm">
         <button onClick={handleZoomOut} className="rounded p-1 hover:bg-accent" title="Zoom out">
           <ZoomOut className="size-3.5 text-muted-foreground" />
@@ -251,66 +297,7 @@ export function SpanGraph({
           <Maximize2 className="size-3.5 text-muted-foreground" />
         </button>
       </div>
-
-      <div
-        className="mx-auto select-none"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: "top center",
-          width: svgW,
-          height: svgH * zoom,
-        }}
-      >
-        <svg className="absolute inset-0" width={svgW} height={svgH}>
-          {edges.map((e, i) => {
-            const midY = (e.y1 + e.y2) / 2;
-            return (
-              <path
-                key={i}
-                d={`M ${e.x1} ${e.y1} C ${e.x1} ${midY}, ${e.x2} ${midY}, ${e.x2} ${e.y2}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-                className="text-border"
-              />
-            );
-          })}
-        </svg>
-
-        {Array.from(graph.nodes.values()).map((node) => {
-          const style = getStyle(node.kind);
-          const Icon = style.icon;
-          const isSelected = selectedId === node.id;
-
-          return (
-            <button
-              key={node.id}
-              onClick={() => {
-                const raw = spanMap.current.get(node.id);
-                if (raw && onSelect) onSelect(raw);
-              }}
-              className={cn(
-                "absolute flex flex-col items-center justify-center rounded-xl border-2 bg-card transition-all hover:shadow-md",
-                isSelected ? "ring-2 ring-foreground shadow-lg" : "",
-                style.border,
-              )}
-              style={{
-                left: node.x + padding,
-                top: node.y + padding,
-                width: NODE_W,
-                height: NODE_H,
-              }}
-            >
-              <div className={cn("flex size-7 items-center justify-center rounded-full text-white", style.bg)}>
-                <Icon className="size-3.5" />
-              </div>
-              <p className="mt-1 text-[10px] font-medium leading-tight truncate max-w-[100px]">{node.name}</p>
-              <p className="text-[9px] text-muted-foreground">{formatMs(node.latency)}</p>
-            </button>
-          );
-        })}
-      </div>
+      <canvas ref={canvasRef} className="block w-full" style={{ height: ch }} />
     </div>
   );
 }
