@@ -17,8 +17,18 @@ function hashKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
-// GET /api/projects — list my projects
+// GET /api/projects — list my projects (internal-service sees all)
 export const GET = authedHandler(async (req: NextRequest, uid: string) => {
+  if (uid === "internal-service") {
+    const projects = await prisma.project.findMany({ orderBy: { createdAt: "desc" } });
+    return NextResponse.json(
+      projects.map((p) => ({
+        id: p.id, name: p.name, slug: p.slug,
+        phoenixProject: p.phoenixProject, role: "owner", createdAt: p.createdAt,
+      })),
+    );
+  }
+
   const memberships = await prisma.projectMember.findMany({
     where: { userId: uid },
     include: { project: true },
