@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Plus, Check, ChevronRight } from "lucide-react";
+import { Plus, Check, ChevronRight, Settings2 } from "lucide-react";
 import { Sidebar, SidebarHeader, SidebarItem, SidebarItemDiv } from "@/components/ui/sidebar";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -28,6 +28,14 @@ export interface ProjectEvalConfig {
   template: string | null;
 }
 
+const CONTEXT_SOURCES = [
+  { id: "auto", label: "Auto", desc: "TOOL/RETRIEVER outputs → input tags → system prompt" },
+  { id: "tool_outputs", label: "TOOL Outputs", desc: "Only from TOOL/RETRIEVER span outputs" },
+  { id: "system_prompt", label: "System Prompt", desc: "From LLM system message content" },
+  { id: "input_tags", label: "Input Tags", desc: "From <context> tags in input" },
+  { id: "none", label: "None", desc: "Always use (no context)" },
+];
+
 interface EvalListProps {
   selectedProject: string | null;
   selectedEval: string | null;
@@ -36,7 +44,9 @@ interface EvalListProps {
   onSelectEval: (name: string) => void;
   onToggleEval: (name: string) => void;
   onStartCreating: () => void;
+  onShowSettings?: () => void;
   globalMode?: boolean;
+  projectId?: string;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -49,7 +59,9 @@ export function EvalList({
   onSelectEval,
   onToggleEval,
   onStartCreating,
+  onShowSettings,
   globalMode,
+  projectId,
 }: EvalListProps) {
   const builtInEvals = globalPrompts.filter((p) => !p.isCustom);
   const customEvals = globalPrompts.filter((p) => p.isCustom);
@@ -153,6 +165,19 @@ export function EvalList({
               <Plus className="size-3" /> Add Evaluation
             </Button>
           </div>
+
+          {/* Eval Settings */}
+          {!globalMode && projectId && onShowSettings && (
+            <div className="border-t px-3 py-2">
+              <button
+                onClick={onShowSettings}
+                className="flex w-full items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Settings2 className="size-3" />
+                Eval Settings
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
