@@ -150,6 +150,9 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
       const lastMsg = messages[messages.length - 1];
       const userText = getTextContent(lastMsg?.content);
       if (activeDbIdRef.current && userText) saveMessage(activeDbIdRef.current, "user", userText);
+
+      // Build message list with history
+      const historyMsgs = historySentRef.current ? [] : history.map((m) => ({ role: m.role, content: m.content }));
       const allMsgs = [
         ...historyMsgs,
         ...messages.slice(-1).map((m) => ({ role: "user" as const, content: getTextContent(m.content) })),
