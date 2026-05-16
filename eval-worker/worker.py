@@ -102,11 +102,12 @@ def _resolve_project_id(phoenix_project: str) -> str:
 
 
 def fetch_provider_key(provider: str, project_id: str = "") -> str:
-    """Fetch decrypted API key from dashboard, preferring project-level key."""
+    """Fetch decrypted API key from dashboard using project-level endpoint."""
     try:
-        url = f"{DASHBOARD_URL}/api/providers?decrypt=true"
         if project_id:
-            url += f"&projectId={project_id}"
+            url = f"{DASHBOARD_URL}/api/projects/{project_id}/providers?decrypt=true"
+        else:
+            url = f"{DASHBOARD_URL}/api/providers?decrypt=true"
         resp = httpx.get(url, headers=DASHBOARD_HEADERS, timeout=10)
         for p in resp.json().get("providers", []):
             if p["provider"] == provider and p.get("isActive", False):
