@@ -134,13 +134,6 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         } catch (e) { console.error(e); }
       }
 
-      // Save user message
-      const lastMsg = messages[messages.length - 1];
-      const userText = typeof lastMsg?.content === "string" ? lastMsg.content : "";
-      if (activeDbIdRef.current && userText) saveMessage(activeDbIdRef.current, "user", userText);
-
-      // Build message list with history
-      const historyMsgs = historySentRef.current ? [] : history.map((m) => ({ role: m.role, content: m.content }));
       // Extract text from ContentPart[] or string
       const getTextContent = (content: any): string => {
         if (typeof content === "string") return content;
@@ -152,6 +145,11 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         }
         return "";
       };
+
+      // Save user message
+      const lastMsg = messages[messages.length - 1];
+      const userText = getTextContent(lastMsg?.content);
+      if (activeDbIdRef.current && userText) saveMessage(activeDbIdRef.current, "user", userText);
       const allMsgs = [
         ...historyMsgs,
         ...messages.slice(-1).map((m) => ({ role: "user" as const, content: getTextContent(m.content) })),

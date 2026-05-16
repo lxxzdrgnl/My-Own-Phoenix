@@ -158,6 +158,14 @@ export function EvalEditor({
 
   async function handleResetDefault() {
     if (!selectedEval) return;
+    if (globalMode) {
+      // In global mode: delete user's override from DB so built-in default shows
+      try {
+        await apiFetch(`/api/eval-prompts?name=${encodeURIComponent(selectedEval)}&reset=true`, { method: "DELETE" });
+        onDeleted(); // reload list
+      } catch (e) { console.error(e); }
+      return;
+    }
     const globalCustom = globalPrompts.find((p) => p.name === selectedEval);
     if (globalCustom?.template) {
       setEditTemplate(globalCustom.template);
