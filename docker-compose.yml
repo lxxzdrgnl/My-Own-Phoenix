@@ -26,6 +26,10 @@ services:
       - ~/.phoenix:/data
     environment:
       - PHOENIX_WORKING_DIR=/data
+      - PHOENIX_SQL_DATABASE_URL=postgresql://phoenix:${POSTGRES_PASSWORD:-phoenix_dev}@postgres:5432/phoenix_traces
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6006/healthz')"]
       interval: 5s

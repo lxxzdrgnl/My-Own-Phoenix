@@ -23,6 +23,7 @@ import {
   Timer,
   Zap,
   Plus,
+  Trash2,
 } from "lucide-react";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -348,9 +349,10 @@ function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; o
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-function TraceAccordionItem({ trace, onDeleteAnnotation, onRefresh }: {
+function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefresh }: {
   trace: TraceTree;
   onDeleteAnnotation?: (spanId: string, name: string) => void;
+  onDeleteTrace?: (traceId: string) => void;
   onRefresh?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -374,7 +376,7 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onRefresh }: {
           if (!expanded) setSelectedSpan(trace.rootSpan);
         }}
         className={cn(
-          "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-accent/40 cursor-pointer",
+          "group flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-accent/40 cursor-pointer",
           expanded && "bg-accent/20"
         )}
       >
@@ -428,6 +430,15 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onRefresh }: {
           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
             {trace.spanCount} span{trace.spanCount !== 1 && "s"}
           </span>
+          {onDeleteTrace && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDeleteTrace(trace.traceId); }}
+              className="rounded p-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent hover:text-foreground"
+              title="Delete trace"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -501,6 +512,19 @@ export function SpanTreeView({
 }) {
   const confirm = useConfirm();
 
+  async function handleDeleteTrace(traceId: string) {
+    const ok = await confirm({
+      title: "Delete trace",
+      description: "This trace and all its spans will be permanently removed.",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
+    try {
+      await apiFetch(`/api/v1/traces/${encodeURIComponent(traceId)}`, { method: "DELETE" });
+      onRefresh?.();
+    } catch (e) { console.error(e); }
+  }
+
   async function handleDeleteAnnotation(spanId: string, annotationName: string) {
     if (!projectName) return;
     const ok = await confirm({
@@ -526,6 +550,7 @@ export function SpanTreeView({
           key={t.traceId}
           trace={t}
           onDeleteAnnotation={projectName ? handleDeleteAnnotation : undefined}
+          onDeleteTrace={handleDeleteTrace}
           onRefresh={onRefresh}
         />
       ))}
