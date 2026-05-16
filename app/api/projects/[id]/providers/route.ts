@@ -1,26 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError, ErrorCode, authedHandler } from "@/lib/api-error";
-import { encrypt } from "@/lib/crypto";
+import { encrypt, decrypt } from "@/lib/crypto";
 
 // GET — list project's API keys (no decryption)
 export const GET = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
+  const decryptParam = req.nextUrl.searchParams.get("decrypt");
 
-  const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: uid } },
-  });
-  if (!member) return apiError(req, ErrorCode.FORBIDDEN, "Not a project member");
+  // Internal service (eval-worker) can access any project's keys
+  if (uid !== "internal-service") {
+    const member = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: uid } },
+    });
+    if (!member) return apiError(req, ErrorCode.FORBIDDEN, "Not a project member");
+  }
 
   let providers;
   try {
     providers = await prisma.llmProvider.findMany({
       where: { projectId: projectId },
-      select: { id: true, provider: true, isActive: true },
+      select: { id: true, provider: true, isActive: true, apiKey: decryptParam === "true" },
     });
   } catch (e) {
     console.error("[providers GET] findMany failed:", e);
     return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, `DB query failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // Decrypt keys if requested
+  if (decryptParam === "true") {
+    providers = providers.map((p: any) => ({
+      ...p,
+      apiKey: p.apiKey ? decrypt(p.apiKey) : "",
+    }));
   }
 
   return NextResponse.json({ providers });

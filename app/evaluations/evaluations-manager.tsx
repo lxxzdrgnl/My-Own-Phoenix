@@ -8,6 +8,7 @@ import { Sidebar, SidebarHeader, SidebarItem } from "@/components/ui/sidebar";
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from "@/components/rule-builder";
 import { EvalList, type EvalPrompt, type ProjectEvalConfig } from "./eval-list";
 import { EvalEditor } from "./eval-editor";
+import { EvalSettingsPanel } from "./eval-settings-panel";
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fi
 
   // New eval panel
   const [creating, setCreating] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Default model from settings
   const [defaultEvalModel, setDefaultEvalModel] = useState("gpt-4o-mini");
@@ -162,14 +164,19 @@ export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fi
         selectedEval={selectedEval}
         globalPrompts={globalPrompts}
         projectConfigs={projectConfigs}
-        onSelectEval={(name) => { setSelectedEval(name); setCreating(false); }}
+        onSelectEval={(name) => { setSelectedEval(name); setCreating(false); setShowSettings(false); }}
         onToggleEval={toggleEval}
-        onStartCreating={() => { setCreating(true); setSelectedEval(null); }}
+        onStartCreating={() => { setCreating(true); setSelectedEval(null); setShowSettings(false); }}
+        onShowSettings={() => { setShowSettings(true); setSelectedEval(null); setCreating(false); }}
         globalMode={globalMode}
+        projectId={projectId}
       />
 
-      {/* ── Right: Editor panel ── */}
+      {/* ── Right: Editor or Settings panel ── */}
       <div className="flex-1 overflow-y-auto">
+        {showSettings && projectId ? (
+          <EvalSettingsPanel projectId={projectId} />
+        ) : (
         <EvalEditor
           key={selectedEval ?? (creating ? "__creating__" : "__empty__")}
           selectedEval={selectedEval}
@@ -186,6 +193,7 @@ export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fi
           onDeleted={handleDeleted}
           onProjectConfigReload={handleProjectConfigReload}
         />
+        )}
       </div>
     </div>
   );

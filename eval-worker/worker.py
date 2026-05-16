@@ -102,11 +102,12 @@ def _resolve_project_id(phoenix_project: str) -> str:
 
 
 def fetch_provider_key(provider: str, project_id: str = "") -> str:
-    """Fetch decrypted API key from dashboard, preferring project-level key."""
+    """Fetch decrypted API key from dashboard using project-level endpoint."""
     try:
-        url = f"{DASHBOARD_URL}/api/providers?decrypt=true"
         if project_id:
-            url += f"&projectId={project_id}"
+            url = f"{DASHBOARD_URL}/api/projects/{project_id}/providers?decrypt=true"
+        else:
+            url = f"{DASHBOARD_URL}/api/providers?decrypt=true"
         resp = httpx.get(url, headers=DASHBOARD_HEADERS, timeout=10)
         for p in resp.json().get("providers", []):
             if p["provider"] == provider and p.get("isActive", False):
@@ -456,6 +457,53 @@ def _aggregate_context_from_siblings(target_span: dict, all_spans: list[dict]) -
     return "\n---\n".join(parts) if parts else ""
 
 
+def _collect_trace_context(trace_spans: list[dict], root_input: str) -> str:
+    """Collect context from all available sources in a trace.
+
+    Priority:
+    1. All TOOL/RETRIEVER span outputs (no time filtering)
+    2. <context> tags or injected data in LLM input
+    3. System prompt content from LLM input messages
+    4. Empty string if nothing found
+    """
+    parts: list[str] = []
+
+    # Source 1: ALL TOOL/RETRIEVER span outputs
+    for s in trace_spans:
+        kind = _get_span_kind(s)
+        if kind in ("TOOL", "RETRIEVER"):
+            output = s.get("attributes", {}).get("output.value", "")
+            if output:
+                text = _extract_text(str(output))
+                if text:
+                    parts.append(text)
+
+    if parts:
+        return "\n---\n".join(parts)
+
+    # Source 2: <context> tags or injected data in root input
+    ctx = _extract_context_from_input(root_input)
+    if ctx:
+        return ctx
+
+    # Source 3: System prompt from LLM input messages
+    for s in trace_spans:
+        if _get_span_kind(s) == "LLM":
+            raw_input = str(s.get("attributes", {}).get("input.value", ""))
+            try:
+                msgs = json.loads(raw_input)
+                if isinstance(msgs, list):
+                    for m in msgs:
+                        if isinstance(m, dict) and m.get("role") == "system":
+                            content = m.get("content", "")
+                            if content and len(content) > 100:
+                                return content[:5000]
+            except Exception:
+                pass
+
+    return ""
+
+
 # ── Code Rule engine ──────────────────────────────────────────────────────
 
 def _eval_code_rule(rule_config: dict, query: str, response: str, context: str, span: dict) -> dict:
@@ -674,28 +722,22 @@ def _run_llm_eval(name: str, default_template: str, context: str, response: str,
 
 
 def eval_hallucination(response: str, context: str, project_id: str = "") -> dict:
-    if not context:
-        return {}
     return _run_llm_eval("hallucination", default_prompts.HALLUCINATION, context, response, "", project_id)
 
 
 def eval_citation(response: str, context: str, project_id: str = "") -> dict:
-    if not context:
-        return {}
     return _run_llm_eval("citation", default_prompts.CITATION, context, response, "", project_id)
 
 
 def eval_tool_calling(query: str, context: str, project_id: str = "") -> dict:
-    if not context:
-        return {}
     return _run_llm_eval("tool_calling", default_prompts.TOOL_CALLING, context, "", query, project_id)
 
 
 # ── Eval pipeline ─────────────────────────────────────────────────────────
 
-TRACE_EVALS = {"qa_correctness", "banned_word", "tool_calling", "guardrail"}
-SPAN_LLM_EVALS = {"hallucination", "citation"}
-SPAN_RETRIEVER_EVALS = {"rag_relevance"}
+TRACE_EVALS = {"qa_correctness", "banned_word", "tool_calling", "guardrail", "hallucination", "citation", "rag_relevance"}
+SPAN_LLM_EVALS: set[str] = set()
+SPAN_RETRIEVER_EVALS: set[str] = set()
 ALL_ANNOTATIONS = TRACE_EVALS | SPAN_LLM_EVALS | SPAN_RETRIEVER_EVALS
 
 
@@ -731,6 +773,21 @@ def _run_trace_evals(
         r = _run_llm_eval("guardrail", default_prompts.GUARDRAIL, context, response, query, project_id)
         if r:
             phoenix_upload_annotation(root_id, "guardrail", "LLM", r["label"], r["score"], r.get("explanation", ""))
+
+    if "hallucination" in missing and response:
+        r = eval_hallucination(response, context or "(no context)", project_id)
+        if r:
+            phoenix_upload_annotation(root_id, "hallucination", "LLM", r["label"], r["score"], r.get("explanation", ""))
+
+    if "citation" in missing and response:
+        r = eval_citation(response, context or "(no context)", project_id)
+        if r:
+            phoenix_upload_annotation(root_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""))
+
+    if "rag_relevance" in missing and query:
+        r = _run_llm_eval("rag_relevance", RAG_RELEVANCE_PROMPT, context or "(no context)", response, query, project_id)
+        if r:
+            phoenix_upload_annotation(root_id, "rag_relevance", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
     # ── Custom evals (from dashboard) ──
     for eval_name in missing - BUILT_IN_EVALS:
@@ -845,19 +902,8 @@ def process_trace(
     if not query and not response:
         return 0
 
-    # Aggregate all TOOL/RETRIEVER outputs as trace-level context
-    trace_context = ""
-    for s in trace_spans:
-        kind = _get_span_kind(s)
-        if kind in ("TOOL", "RETRIEVER") and s.get("attributes", {}).get("output.value"):
-            out = _extract_text(str(s["attributes"]["output.value"]))
-            if out:
-                trace_context += out + "\n---\n"
-    trace_context = trace_context.strip()
-
-    # Also check for RAG-style injected context
-    if not trace_context:
-        trace_context = _extract_context_from_input(root_input)
+    # Aggregate context from trace — try multiple sources
+    trace_context = _collect_trace_context(trace_spans, root_input)
 
     eval_count = 0
 
@@ -949,8 +995,8 @@ def main() -> None:
             invalidate_key_cache()  # refresh API key cache each cycle
 
             for project in projects:
-                set_current_project(project)
                 db_project_id = _resolve_project_id(project)
+                set_current_project(db_project_id or project)
                 if project not in evaluated_traces:
                     evaluated_traces[project] = set()
                     caches[project] = deque(maxlen=MAX_CACHE)
