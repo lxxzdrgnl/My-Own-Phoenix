@@ -87,27 +87,29 @@ export function ProjectCard({ name, slug, role, createdAt, onRename }: ProjectCa
       href={`/${slug}/dashboard`}
       className="group relative block rounded-xl border border-border/60 bg-card p-5 transition-all duration-200 hover:border-border hover:shadow-lg hover:shadow-black/[0.03]"
     >
-      {onRename && (
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setEditValue(name);
-            setEditing(true);
-          }}
-          className="absolute top-3 right-3 rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-          title="Rename project"
-        >
-          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
-      )}
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-foreground/5">
             <FolderOpen className="h-4 w-4 text-foreground/60" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold tracking-tight">{name}</h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold tracking-tight">{name}</h3>
+              {onRename && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditValue(name);
+                    setEditing(true);
+                  }}
+                  className="rounded-md p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
+                  title="Rename project"
+                >
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                </button>
+              )}
+            </div>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               {new Date(createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </p>
