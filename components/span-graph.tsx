@@ -149,13 +149,11 @@ export function SpanGraph({
     const el = containerRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        setZoom((z) => {
-          const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-          return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta));
-        });
-      }
+      e.preventDefault();
+      setZoom((z) => {
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta));
+      });
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);

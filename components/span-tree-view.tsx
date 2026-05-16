@@ -431,7 +431,7 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onRefresh }: {
         </div>
       </div>
 
-      {/* Expanded: tree + graph + detail */}
+      {/* Expanded: tree + detail + graph */}
       {expanded && (
         <div>
           <div className="flex border-t" style={{ minHeight: "300px" }}>
@@ -450,17 +450,6 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onRefresh }: {
                   />
                 ))}
               </div>
-
-              {/* Graph below tree */}
-              {trace.rootSpan.children.length > 0 && (
-                <div className="border-t p-3">
-                  <SpanGraph
-                    rootSpan={trace.rootSpan}
-                    selectedId={selectedSpan?.spanId}
-                    onSelect={setSelectedSpan}
-                  />
-                </div>
-              )}
             </div>
 
             {/* Right: detail */}
@@ -474,6 +463,17 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onRefresh }: {
               )}
             </div>
           </div>
+
+          {/* Graph — full width below */}
+          {trace.rootSpan.children.length > 0 && (
+            <div className="border-t p-3">
+              <SpanGraph
+                rootSpan={trace.rootSpan}
+                selectedId={selectedSpan?.spanId}
+                onSelect={setSelectedSpan}
+              />
+            </div>
+          )}
         </div>
       )}
       <AnnotationForm
