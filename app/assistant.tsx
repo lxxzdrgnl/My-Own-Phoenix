@@ -240,6 +240,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   const runtime = useLocalRuntime(chatAdapter, { initialMessages });
 
   const handleSelectThread = useCallback(async (thread: DbThread) => {
+    if (activeDbIdRef.current === thread.id) return;
     setIsFadingOut(true);
 
     // fade-out 애니메이션과 메시지 로딩을 병렬 처리

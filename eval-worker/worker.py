@@ -457,6 +457,53 @@ def _aggregate_context_from_siblings(target_span: dict, all_spans: list[dict]) -
     return "\n---\n".join(parts) if parts else ""
 
 
+def _collect_trace_context(trace_spans: list[dict], root_input: str) -> str:
+    """Collect context from all available sources in a trace.
+
+    Priority:
+    1. All TOOL/RETRIEVER span outputs (no time filtering)
+    2. <context> tags or injected data in LLM input
+    3. System prompt content from LLM input messages
+    4. Empty string if nothing found
+    """
+    parts: list[str] = []
+
+    # Source 1: ALL TOOL/RETRIEVER span outputs
+    for s in trace_spans:
+        kind = _get_span_kind(s)
+        if kind in ("TOOL", "RETRIEVER"):
+            output = s.get("attributes", {}).get("output.value", "")
+            if output:
+                text = _extract_text(str(output))
+                if text:
+                    parts.append(text)
+
+    if parts:
+        return "\n---\n".join(parts)
+
+    # Source 2: <context> tags or injected data in root input
+    ctx = _extract_context_from_input(root_input)
+    if ctx:
+        return ctx
+
+    # Source 3: System prompt from LLM input messages
+    for s in trace_spans:
+        if _get_span_kind(s) == "LLM":
+            raw_input = str(s.get("attributes", {}).get("input.value", ""))
+            try:
+                msgs = json.loads(raw_input)
+                if isinstance(msgs, list):
+                    for m in msgs:
+                        if isinstance(m, dict) and m.get("role") == "system":
+                            content = m.get("content", "")
+                            if content and len(content) > 100:
+                                return content[:5000]
+            except Exception:
+                pass
+
+    return ""
+
+
 # ── Code Rule engine ──────────────────────────────────────────────────────
 
 def _eval_code_rule(rule_config: dict, query: str, response: str, context: str, span: dict) -> dict:
@@ -855,19 +902,8 @@ def process_trace(
     if not query and not response:
         return 0
 
-    # Aggregate all TOOL/RETRIEVER outputs as trace-level context
-    trace_context = ""
-    for s in trace_spans:
-        kind = _get_span_kind(s)
-        if kind in ("TOOL", "RETRIEVER") and s.get("attributes", {}).get("output.value"):
-            out = _extract_text(str(s["attributes"]["output.value"]))
-            if out:
-                trace_context += out + "\n---\n"
-    trace_context = trace_context.strip()
-
-    # Also check for RAG-style injected context
-    if not trace_context:
-        trace_context = _extract_context_from_input(root_input)
+    # Aggregate context from trace — try multiple sources
+    trace_context = _collect_trace_context(trace_spans, root_input)
 
     eval_count = 0
 

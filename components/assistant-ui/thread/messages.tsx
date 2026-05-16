@@ -20,6 +20,8 @@ import {
   RefreshCwIcon,
 } from "lucide-react";
 import type { FC } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
@@ -59,7 +61,9 @@ export const HistoryAssistantMessage: FC<{
     className="relative mx-auto w-full max-w-(--thread-max-width) py-3"
     data-role="assistant"
   >
-    <div className={cn(ASSISTANT_BODY_CLS, "whitespace-pre-wrap")}>{content}</div>
+    <div className={cn(ASSISTANT_BODY_CLS, "aui-md")}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
     <MessageFeedback messageId={messageId} content={content} initialValue={feedbackValue} />
   </div>
 );
