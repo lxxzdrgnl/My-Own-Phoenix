@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, CheckCircle, Loader2, AlertTriangle, ArrowRightLeft } from "lucide-react";
+import { Trash2, Plus, CheckCircle, Loader2, AlertTriangle, ArrowRightLeft, Copy, Check, RefreshCw } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const TABS = [
@@ -85,8 +85,68 @@ function ApiKeysTab() {
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
 
+  // Trace key
+  const [traceKey, setTraceKey] = useState<string | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleGenerateTraceKey = async () => {
+    setGeneratingKey(true);
+    try {
+      const res = await apiFetch(`/api/projects/${projectId}/trace-key`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setTraceKey(data.traceKey);
+      }
+    } catch (e) { console.error(e); }
+    setGeneratingKey(false);
+  };
+
+  const handleCopyKey = () => {
+    if (traceKey) {
+      navigator.clipboard.writeText(traceKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Trace Key */}
+      <section>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Trace Key</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Set this key in your agent to send traces to this project.
+        </p>
+        <div className="rounded-lg border px-4 py-3 space-y-3">
+          {traceKey ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">{traceKey}</code>
+                <button onClick={handleCopyKey} className="rounded-md p-2 hover:bg-accent">
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </div>
+              <div className="rounded-md bg-muted/50 p-3 font-mono text-[11px] text-muted-foreground space-y-1">
+                <p># Agent .env</p>
+                <p>PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.rheon.kr/api/collect</p>
+                <p>PHOENIX_API_KEY={traceKey}</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <CheckCircle className="h-3 w-3 text-emerald-500" />
+                Save this key — it will not be shown again. Previous key is invalidated.
+              </p>
+            </div>
+          ) : (
+            <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
+              {generatingKey ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
+              {generatingKey ? "Generating..." : "Generate Trace Key"}
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* LLM Provider Keys */}
       <section>
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">LLM Provider Keys</h3>
         <p className="text-xs text-muted-foreground mb-3">
