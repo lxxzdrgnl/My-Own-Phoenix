@@ -33,6 +33,9 @@ function ApiKeysTab() {
   const [adding, setAdding] = useState<string | null>(null);
   const [newKey, setNewKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [traceKey, setTraceKey] = useState<string | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -84,11 +87,6 @@ function ApiKeysTab() {
   };
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
-
-  // Trace key
-  const [traceKey, setTraceKey] = useState<string | null>(null);
-  const [generatingKey, setGeneratingKey] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const handleGenerateTraceKey = async () => {
     setGeneratingKey(true);
