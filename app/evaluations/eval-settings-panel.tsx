@@ -19,36 +19,16 @@ const CONTEXT_SOURCES = [
     example: "Best for most agents. Works with RAG, tool-calling, and multi-step agents without configuration.",
   },
   {
-    id: "tool_outputs",
-    label: "TOOL / RETRIEVER Outputs Only",
-    desc: "Uses only the output values from TOOL and RETRIEVER spans as context.",
-    details: [
-      "Collects output.value from all spans with kind = TOOL or RETRIEVER",
-      "Multiple outputs are joined with separator",
-      "Ignores system prompts and input tags",
-    ],
-    example: "Use when your agent has explicit tool calls (web search, database lookup, API calls) and you want only those results as context.",
-  },
-  {
     id: "system_prompt",
     label: "System Prompt",
-    desc: "Extracts context from the LLM's system message content.",
+    desc: "Extracts context from the LLM's system message content only.",
     details: [
       "Reads the system role message from LLM span input",
       "Uses the first system message with 100+ characters",
+      "Ignores TOOL/RETRIEVER outputs and input tags",
       "Truncated to 5000 characters",
     ],
-    example: "Use when context is injected into the system prompt (e.g. RAG-augmented system messages).",
-  },
-  {
-    id: "input_tags",
-    label: "Input Tags",
-    desc: "Extracts context from <context>...</context> tags in the input.",
-    details: [
-      "Searches root span input for <context> XML tags",
-      "Also checks for \"Data retrieved from tool calls:\" markers",
-    ],
-    example: "Use when your agent wraps retrieved data in explicit tags within the prompt.",
+    example: "Use when context is injected directly into the system prompt (e.g. RAG-augmented system messages where retrieved docs are prepended to the system instruction).",
   },
   {
     id: "none",
@@ -180,7 +160,7 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
           </div>
 
           {saved && (
-            <p className="mt-2 flex items-center gap-1 text-[11px] text-emerald-600">
+            <p className="mt-2 flex items-center gap-1 text-[11px] text-foreground">
               <CheckCircle className="size-3" /> Saved
             </p>
           )}
