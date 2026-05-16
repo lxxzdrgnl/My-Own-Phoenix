@@ -18,6 +18,7 @@ import { PromptBuilder } from "@/components/prompt-builder";
 import { refreshBadgeLabels } from "@/components/annotation-badge";
 import { ModelSelector } from "@/components/model-selector";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { RoleGate } from "@/components/ui/role-gate";
 import { NEW_EVAL_TEMPLATE } from "./eval-constants";
 import { EvalTestPanel } from "./eval-test-panel";
 import { EvalBackfillPanel } from "./eval-backfill-panel";
@@ -476,24 +477,30 @@ export function EvalEditor({
             </div>
             <div className="flex items-center gap-1">
               {dirty && (
-                <Button
-                  size="sm"
-                  onClick={handleSaveProject}
-                  disabled={saving}
-                  className="gap-1 text-xs h-7"
-                >
-                  {saving ? "Saving..." : "Save"}
-                </Button>
+                <RoleGate>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveProject}
+                    disabled={saving}
+                    className="gap-1 text-xs h-7"
+                  >
+                    {saving ? "Saving..." : "Save"}
+                  </Button>
+                </RoleGate>
               )}
               {isBuiltIn && (
-                <Button size="sm" variant="ghost" onClick={handleResetDefault} className="gap-1 text-xs h-7">
-                  <RotateCcw className="size-3" /> Reset
-                </Button>
+                <RoleGate>
+                  <Button size="sm" variant="ghost" onClick={handleResetDefault} className="gap-1 text-xs h-7">
+                    <RotateCcw className="size-3" /> Reset
+                  </Button>
+                </RoleGate>
               )}
               {!isBuiltIn && (
-                <Button size="sm" variant="outline" onClick={handleDelete} className="text-xs h-7">
-                  Delete
-                </Button>
+                <RoleGate>
+                  <Button size="sm" variant="outline" onClick={handleDelete} className="text-xs h-7">
+                    Delete
+                  </Button>
+                </RoleGate>
               )}
             </div>
           </div>

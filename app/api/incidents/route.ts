@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { requireProjectMember } from "@/lib/api-helpers";
 
-export async function GET(request: NextRequest) {
+export const GET = authedHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get("projectId");
 
@@ -14,14 +16,21 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({ incidents });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { projectId, title, severity, status } = body;
 
   if (!projectId || !title || !severity) {
-    return NextResponse.json({ error: "projectId, title, and severity are required" }, { status: 400 });
+    return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", {
+      fields: "projectId, title, and severity are required",
+    });
+  }
+
+  if (uid !== "internal-service") {
+    const roleCheck = await requireProjectMember(request, projectId, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
   }
 
   const incident = await prisma.incident.create({
@@ -34,14 +43,22 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ incident }, { status: 201 });
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { id, ...data } = body;
 
   if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+    return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
+  }
+
+  if (uid !== "internal-service") {
+    const incident = await prisma.incident.findUnique({ where: { id }, select: { projectId: true } });
+    if (incident?.projectId) {
+      const roleCheck = await requireProjectMember(request, incident.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
   }
 
   const updateData: Record<string, unknown> = { ...data };
@@ -53,4 +70,4 @@ export async function PUT(request: NextRequest) {
   });
 
   return NextResponse.json({ incident });
-}
+});

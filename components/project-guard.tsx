@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api-client";
+import { ProjectProvider } from "@/lib/project-context";
 import { LoadingState } from "@/components/ui/empty-state";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,15 @@ import { AuthModal } from "@/components/modals/auth-modal";
 
 interface ProjectGuardProps {
   projectId: string;
+  project: { id: string; slug: string; name: string; phoenixProject: string };
   children: React.ReactNode;
 }
 
-export function ProjectGuard({ projectId, children }: ProjectGuardProps) {
+export function ProjectGuard({ projectId, project, children }: ProjectGuardProps) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "ok" | "denied" | "unauthenticated">("loading");
+  const [role, setRole] = useState<"owner" | "editor" | "viewer">("viewer");
   const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
@@ -28,12 +31,16 @@ export function ProjectGuard({ projectId, children }: ProjectGuardProps) {
       return;
     }
 
-    // Check membership via API
     apiFetch(`/api/projects`)
       .then((res) => res.json())
-      .then((projects: { id: string }[]) => {
-        const isMember = projects.some((p) => p.id === projectId);
-        setStatus(isMember ? "ok" : "denied");
+      .then((projects: { id: string; role: string }[]) => {
+        const membership = projects.find((p) => p.id === projectId);
+        if (membership) {
+          setRole(membership.role as "owner" | "editor" | "viewer");
+          setStatus("ok");
+        } else {
+          setStatus("denied");
+        }
       })
       .catch(() => setStatus("denied"));
   }, [user, authLoading, projectId]);
@@ -80,5 +87,9 @@ export function ProjectGuard({ projectId, children }: ProjectGuardProps) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <ProjectProvider value={{ ...project, role }}>
+      {children}
+    </ProjectProvider>
+  );
 }

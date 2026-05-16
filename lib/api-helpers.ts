@@ -21,6 +21,25 @@ export async function requireProjectMember(
   return { role: member.role };
 }
 
+/**
+ * Resolve phoenixProject name → DB project ID + check membership.
+ */
+export async function requireProjectMemberByPhoenix(
+  req: NextRequest,
+  phoenixProject: string,
+  userId: string,
+  minRole?: "editor" | "owner"
+): Promise<{ role: string; projectId: string } | NextResponse> {
+  const project = await prisma.project.findFirst({
+    where: { phoenixProject },
+    select: { id: true },
+  });
+  if (!project) return apiError(req, ErrorCode.RESOURCE_NOT_FOUND, "Project not found");
+  const result = await requireProjectMember(req, project.id, userId, minRole);
+  if (result instanceof NextResponse) return result;
+  return { ...result, projectId: project.id };
+}
+
 export async function requireThreadOwner(
   req: NextRequest,
   threadId: string,

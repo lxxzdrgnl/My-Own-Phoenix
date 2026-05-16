@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { batchInsertRunResults } from "@/lib/dataset-utils";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 // GET — returns run metadata + results from DatasetRunResult table
 export const GET = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ runId: string }> }) => {
@@ -38,6 +39,15 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
 // PUT — update run status, evalNames, and/or upsert results
 export const PUT = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ runId: string }> }) => {
   const { runId } = await params;
+
+  if (uid !== "internal-service") {
+    const run = await prisma.datasetRun.findUnique({ where: { id: runId }, select: { dataset: { select: { projectId: true } } } });
+    if (run?.dataset?.projectId) {
+      const roleCheck = await requireProjectMember(req, run.dataset.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
+  }
+
   const body = await req.json();
 
   // Update run metadata
@@ -62,6 +72,14 @@ export const PUT = authedHandler(async (req: NextRequest, uid: string, { params 
 
 export const DELETE = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ runId: string }> }) => {
   const { runId } = await params;
+
+  if (uid !== "internal-service") {
+    const run = await prisma.datasetRun.findUnique({ where: { id: runId }, select: { dataset: { select: { projectId: true } } } });
+    if (run?.dataset?.projectId) {
+      const roleCheck = await requireProjectMember(req, run.dataset.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
+  }
 
   await prisma.$executeRaw`DELETE FROM "DatasetRunResult" WHERE "runId" = ${runId}`;
   await prisma.$executeRaw`DELETE FROM "DatasetRun" WHERE id = ${runId}`;

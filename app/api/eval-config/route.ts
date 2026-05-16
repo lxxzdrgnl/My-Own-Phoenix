@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 export const GET = authedHandler(async (request: NextRequest) => {
   const projectId = request.nextUrl.searchParams.get("projectId");
@@ -15,7 +16,7 @@ export const GET = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ configs });
 });
 
-export const PUT = authedHandler(async (request: NextRequest) => {
+export const PUT = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { projectId, evalName, enabled, template } = body as {
     projectId: string;
@@ -28,6 +29,11 @@ export const PUT = authedHandler(async (request: NextRequest) => {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", {
       fields: "projectId and evalName required",
     });
+  }
+
+  if (uid !== "internal-service") {
+    const roleCheck = await requireProjectMember(request, projectId, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
   }
 
   const data: Record<string, unknown> = {};

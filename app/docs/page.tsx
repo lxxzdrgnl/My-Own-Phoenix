@@ -4,46 +4,46 @@ import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Sidebar, SidebarHeader, SidebarItem } from "@/components/ui/sidebar";
 import { QuickStart } from "./sections/quickstart";
+import { ConnectorSetup } from "./sections/connector-setup";
+import { ApiKeys } from "./sections/api-keys";
 import { PhoenixTracing } from "./sections/phoenix-tracing";
-import { TracingOnly } from "./sections/tracing-only";
-import { Connector } from "./sections/connector";
-import { AgentTypes } from "./sections/agent-types";
-import { Projects } from "./sections/projects";
-import { ApiReference } from "./sections/api";
-
+import { Evaluations } from "./sections/evaluations";
+import { Dashboard } from "./sections/dashboard";
+import { Datasets } from "./sections/datasets";
+import { Chat } from "./sections/chat";
+import { Playground } from "./sections/playground";
 const GROUPS = [
   {
     label: "Getting Started",
     items: [
-      { id: "quickstart", label: "Quick Start" },
-      { id: "tracing", label: "Phoenix Tracing" },
+      { id: "quickstart", label: "Quick Start (Tracing)" },
+      { id: "connector-setup", label: "Connector Setup" },
+      { id: "api-keys", label: "API Keys" },
     ],
   },
   {
-    label: "Guides",
+    label: "Features",
     items: [
-      { id: "tracing-only", label: "Tracing Only" },
-      { id: "connector", label: "Agent Connector" },
-      { id: "agent-types", label: "Agent Types" },
-    ],
-  },
-  {
-    label: "Reference",
-    items: [
-      { id: "projects", label: "Projects & Teams" },
-      { id: "api", label: "API Reference" },
+      { id: "tracing", label: "Tracing" },
+      { id: "evaluations", label: "Evaluations" },
+      { id: "dashboard", label: "Dashboard" },
+      { id: "datasets", label: "Datasets" },
+      { id: "chat", label: "Chat" },
+      { id: "playground", label: "Playground" },
     ],
   },
 ];
 
 const SECTION_COMPONENTS: Record<string, React.FC> = {
   quickstart: QuickStart,
+  "connector-setup": ConnectorSetup,
+  "api-keys": ApiKeys,
   tracing: PhoenixTracing,
-  "tracing-only": TracingOnly,
-  connector: Connector,
-  "agent-types": AgentTypes,
-  projects: Projects,
-  api: ApiReference,
+  evaluations: Evaluations,
+  dashboard: Dashboard,
+  datasets: Datasets,
+  chat: Chat,
+  playground: Playground,
 };
 
 export default function DocsPage() {

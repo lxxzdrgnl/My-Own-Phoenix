@@ -120,9 +120,9 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
             )}
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex items-start gap-4">
             {/* Left — Option cards */}
-            <div className="w-[280px] shrink-0 space-y-2">
+            <div className="w-[280px] shrink-0 flex flex-col gap-2">
               {CONTEXT_SOURCES.map((src) => {
                 const Icon = src.icon;
                 const isActive = contextSource === src.id;
@@ -183,7 +183,7 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
 
             {/* Right — Detail panel */}
             <div className="flex-1 min-w-0">
-              <div className="rounded-lg border bg-muted/10 p-5 h-full">
+              <div className="rounded-lg border bg-muted/10 p-5 min-h-[340px]">
                 {/* Title */}
                 <div className="flex items-center gap-2.5 mb-4 pb-4 border-b">
                   {(() => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { batchInsertRows, updateDatasetRowCount } from "@/lib/dataset-utils";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 // GET — paginated rows from DatasetRow table
 export const GET = authedHandler(async (request: NextRequest) => {
@@ -56,12 +57,20 @@ export const GET = authedHandler(async (request: NextRequest) => {
 });
 
 // PUT — edit a single row by rowIndex
-export const PUT = authedHandler(async (request: NextRequest) => {
+export const PUT = authedHandler(async (request: NextRequest, uid: string) => {
   const { id, rowIndex, data } = await request.json();
   if (!id || rowIndex === undefined || !data) {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", {
       fields: "id, rowIndex, and data required",
     });
+  }
+
+  if (uid !== "internal-service") {
+    const dataset = await prisma.dataset.findUnique({ where: { id }, select: { projectId: true } });
+    if (dataset?.projectId) {
+      const roleCheck = await requireProjectMember(request, dataset.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
   }
 
   const dataStr = JSON.stringify(data);
@@ -72,10 +81,18 @@ export const PUT = authedHandler(async (request: NextRequest) => {
 });
 
 // DELETE — delete row(s) by rowIndex or rowIndices (batch)
-export const DELETE = authedHandler(async (request: NextRequest) => {
+export const DELETE = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { id, rowIndex, rowIndices } = body;
   if (!id) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
+
+  if (uid !== "internal-service") {
+    const dataset = await prisma.dataset.findUnique({ where: { id }, select: { projectId: true } });
+    if (dataset?.projectId) {
+      const roleCheck = await requireProjectMember(request, dataset.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
+  }
 
   const indices: number[] = rowIndices ?? (rowIndex !== undefined ? [rowIndex] : []);
   if (indices.length === 0) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { rowIndex: "rowIndex or rowIndices required" });
@@ -99,11 +116,19 @@ export const DELETE = authedHandler(async (request: NextRequest) => {
 });
 
 // POST — append rows
-export const POST = authedHandler(async (request: NextRequest) => {
+export const POST = authedHandler(async (request: NextRequest, uid: string) => {
   const { id, rows: newRows } = await request.json();
   if (!id || !newRows) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", {
     fields: "id and rows required",
   });
+
+  if (uid !== "internal-service") {
+    const dataset = await prisma.dataset.findUnique({ where: { id }, select: { projectId: true } });
+    if (dataset?.projectId) {
+      const roleCheck = await requireProjectMember(request, dataset.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
+  }
 
   const maxResult = await prisma.$queryRaw<[{ m: number | null }]>`
     SELECT MAX("rowIndex") as m FROM "DatasetRow" WHERE "datasetId" = ${id}

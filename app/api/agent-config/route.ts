@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { requireProjectMemberByPhoenix } from "@/lib/api-helpers";
 
 export const GET = authedHandler(async (req: NextRequest) => {
   const project = req.nextUrl.searchParams.get("project");
@@ -15,7 +16,7 @@ export const GET = authedHandler(async (req: NextRequest) => {
   return NextResponse.json({ config: config ?? null });
 });
 
-export const PUT = authedHandler(async (req: NextRequest) => {
+export const PUT = authedHandler(async (req: NextRequest, uid: string) => {
   const body = await req.json();
   const { project, alias, templateId, agentType, endpoint, assistantId } = body as {
     project: string;
@@ -28,6 +29,11 @@ export const PUT = authedHandler(async (req: NextRequest) => {
 
   if (!project) {
     return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { project: "project is required" });
+  }
+
+  if (uid !== "internal-service") {
+    const roleCheck = await requireProjectMemberByPhoenix(req, project, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
   }
 
   const config = await prisma.agentConfig.upsert({
@@ -52,10 +58,15 @@ export const PUT = authedHandler(async (req: NextRequest) => {
   return NextResponse.json({ config });
 });
 
-export const DELETE = authedHandler(async (req: NextRequest) => {
+export const DELETE = authedHandler(async (req: NextRequest, uid: string) => {
   const project = req.nextUrl.searchParams.get("project");
   if (!project) {
     return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { project: "project query param required" });
+  }
+
+  if (uid !== "internal-service") {
+    const roleCheck = await requireProjectMemberByPhoenix(req, project, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
   }
 
   await prisma.agentConfig.deleteMany({ where: { projectName: project } });

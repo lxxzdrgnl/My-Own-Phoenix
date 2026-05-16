@@ -114,7 +114,6 @@ model EvalPrompt {
   id         String   @id @default(cuid())
   name       String   // "hallucination", "citation", "tool_calling", or custom
   projectId  String?  // null = global (built-in), set = project-specific custom eval
-  userId     String?  // null = built-in, set = custom eval owner (Firebase UID)
   evalType   String   @default("llm_prompt") // "llm_prompt" | "code_rule" | "builtin"
   outputMode String   @default("score")      // "score" | "binary"
   template   String   @default("")           // prompt text for llm_prompt, empty for code_rule
@@ -126,7 +125,7 @@ model EvalPrompt {
   updatedAt  DateTime @updatedAt
   project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@unique([name, projectId, userId])
+  @@unique([name, projectId])
 }
 
 model ProjectEvalConfig {
