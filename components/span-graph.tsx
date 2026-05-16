@@ -187,30 +187,25 @@ export function SpanGraph({
     };
   }, []);
 
-  // Wheel zoom — capture phase on document to guarantee preventDefault works
+  // Wheel zoom — inline handler via onWheelCapture won't work for preventDefault
+  // So we attach directly and track focus via click
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    let inside = false;
-    const onEnter = () => { inside = true; };
-    const onLeave = () => { inside = false; };
-    const onWheel = (e: WheelEvent) => {
-      if (!inside) return;
+
+    function handler(e: WheelEvent) {
       e.preventDefault();
-      e.stopPropagation();
-      setZoom((z) => {
-        const d = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + d));
-      });
-    };
-    el.addEventListener("mouseenter", onEnter);
-    el.addEventListener("mouseleave", onLeave);
-    document.addEventListener("wheel", onWheel, { passive: false, capture: true });
-    return () => {
-      el.removeEventListener("mouseenter", onEnter);
-      el.removeEventListener("mouseleave", onLeave);
-      document.removeEventListener("wheel", onWheel, { capture: true });
-    };
+      const d = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomRef.current + d));
+      setZoom(next);
+    }
+
+    // Use { passive: false } — this is the ONLY way to preventDefault on wheel
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
   }, []);
 
   if (!graph || graph.nodes.size === 0) return null;
@@ -234,7 +229,7 @@ export function SpanGraph({
   });
 
   return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-lg border bg-muted/20" style={{ height: Math.max(300, svgH * zoom + 40) }}>
+    <div ref={containerRef} className="relative overflow-hidden rounded-lg border bg-muted/20" style={{ height: Math.max(300, svgH * zoom + 40), touchAction: "none" }}>
       {/* Zoom controls */}
       <div className="absolute top-1 right-1 z-10 flex gap-0.5 px-2 py-1 rounded bg-card/80 backdrop-blur-sm">
         <button onClick={handleZoomOut} className="rounded p-1 hover:bg-accent" title="Zoom out">
