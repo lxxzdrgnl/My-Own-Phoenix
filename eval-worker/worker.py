@@ -694,9 +694,9 @@ def eval_tool_calling(query: str, context: str, project_id: str = "") -> dict:
 
 # ── Eval pipeline ─────────────────────────────────────────────────────────
 
-TRACE_EVALS = {"qa_correctness", "banned_word", "tool_calling", "guardrail"}
-SPAN_LLM_EVALS = {"hallucination", "citation"}
-SPAN_RETRIEVER_EVALS = {"rag_relevance"}
+TRACE_EVALS = {"qa_correctness", "banned_word", "tool_calling", "guardrail", "hallucination", "citation", "rag_relevance"}
+SPAN_LLM_EVALS: set[str] = set()
+SPAN_RETRIEVER_EVALS: set[str] = set()
 ALL_ANNOTATIONS = TRACE_EVALS | SPAN_LLM_EVALS | SPAN_RETRIEVER_EVALS
 
 
@@ -732,6 +732,21 @@ def _run_trace_evals(
         r = _run_llm_eval("guardrail", default_prompts.GUARDRAIL, context, response, query, project_id)
         if r:
             phoenix_upload_annotation(root_id, "guardrail", "LLM", r["label"], r["score"], r.get("explanation", ""))
+
+    if "hallucination" in missing and response and context:
+        r = eval_hallucination(response, context, project_id)
+        if r:
+            phoenix_upload_annotation(root_id, "hallucination", "LLM", r["label"], r["score"], r.get("explanation", ""))
+
+    if "citation" in missing and response and context:
+        r = eval_citation(response, context, project_id)
+        if r:
+            phoenix_upload_annotation(root_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""))
+
+    if "rag_relevance" in missing and query and context:
+        r = _run_llm_eval("rag_relevance", RAG_RELEVANCE_PROMPT, context, response, query, project_id)
+        if r:
+            phoenix_upload_annotation(root_id, "rag_relevance", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
     # ── Custom evals (from dashboard) ──
     for eval_name in missing - BUILT_IN_EVALS:
