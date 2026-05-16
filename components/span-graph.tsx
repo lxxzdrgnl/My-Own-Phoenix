@@ -109,8 +109,7 @@ export function SpanGraph({
   const spanMap = useRef<Map<string, RawSpan>>(new Map());
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const dragging = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const stateRef = useRef({ dragging: false, startX: 0, startY: 0, panX: 0, panY: 0 });
 
   useEffect(() => {
     const map = new Map<string, RawSpan>();
@@ -126,9 +125,9 @@ export function SpanGraph({
   // Auto-fit zoom on mount
   useEffect(() => {
     if (!graph || !containerRef.current) return;
-    const padding = 40;
-    const contentW = graph.width + NODE_W + padding * 2;
-    const containerW = containerRef.current.clientWidth - 16; // subtract padding
+    const pad = 40;
+    const contentW = graph.width + NODE_W + pad * 2;
+    const containerW = containerRef.current.clientWidth - 16;
     if (contentW > containerW) {
       setZoom(Math.max(MIN_ZOOM, containerW / contentW));
     }
@@ -138,9 +137,9 @@ export function SpanGraph({
   const handleZoomOut = useCallback(() => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP)), []);
   const handleFit = useCallback(() => {
     if (!graph || !containerRef.current) return;
-    const padding = 40;
-    const contentW = graph.width + NODE_W + padding * 2;
-    const contentH = graph.height + NODE_H + padding * 2;
+    const pad = 40;
+    const contentW = graph.width + NODE_W + pad * 2;
+    const contentH = graph.height + NODE_H + pad * 2;
     const containerW = containerRef.current.clientWidth - 16;
     const containerH = containerRef.current.clientHeight - 40;
     const fitZoom = Math.min(containerW / contentW, containerH / contentH, 1);
@@ -148,7 +147,7 @@ export function SpanGraph({
     setPan({ x: 0, y: 0 });
   }, [graph]);
 
-  // Scroll wheel zoom + drag pan
+  // Wheel zoom + drag pan — single effect, no pan dependency
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -157,46 +156,47 @@ export function SpanGraph({
       e.preventDefault();
       e.stopPropagation();
       setZoom((z) => {
-        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta));
+        const d = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + d));
       });
     };
 
-    const onMouseDown = (e: MouseEvent) => {
+    const onDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
-      // Don't start drag if clicking a node button
-      if ((e.target as HTMLElement).closest("button[class*='rounded-xl']")) return;
-      dragging.current = true;
-      dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+      if ((e.target as HTMLElement).closest("button")) return;
+      e.preventDefault();
+      const s = stateRef.current;
+      s.dragging = true;
+      s.startX = e.clientX;
+      s.startY = e.clientY;
+      setPan((p) => { s.panX = p.x; s.panY = p.y; return p; });
       el.style.cursor = "grabbing";
     };
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!dragging.current) return;
-      setPan({
-        x: dragStart.current.panX + (e.clientX - dragStart.current.x),
-        y: dragStart.current.panY + (e.clientY - dragStart.current.y),
-      });
+    const onMove = (e: MouseEvent) => {
+      const s = stateRef.current;
+      if (!s.dragging) return;
+      setPan({ x: s.panX + e.clientX - s.startX, y: s.panY + e.clientY - s.startY });
     };
 
-    const onMouseUp = () => {
-      dragging.current = false;
-      el.style.cursor = "grab";
+    const onUp = () => {
+      stateRef.current.dragging = false;
+      if (el) el.style.cursor = "grab";
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
-    el.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    el.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
     el.style.cursor = "grab";
 
     return () => {
       el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
+      el.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
     };
-  }, [pan.x, pan.y]);
+  }, []); // no dependencies — uses refs for mutable state
 
   if (!graph || graph.nodes.size === 0) return null;
 
