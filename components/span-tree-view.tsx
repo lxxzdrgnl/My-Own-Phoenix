@@ -63,6 +63,7 @@ function formatJson(raw: string): string {
 
 /** Extract a short user-facing input preview from raw span input */
 import { extractInputPreview } from "@/lib/span-extraction";
+import { SpanGraph } from "@/components/span-graph";
 
 // ─── Span Tree Node (LangSmith style) ────────────────────────────────────────
 
@@ -430,35 +431,48 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onRefresh }: {
         </div>
       </div>
 
-      {/* Expanded: tree + detail */}
+      {/* Expanded: tree + graph + detail */}
       {expanded && (
-        <div className="flex border-t" style={{ minHeight: "300px" }}>
-          {/* Left: span tree — no scroll, drives container height */}
-          <div className="w-[400px] shrink-0 border-r bg-card">
-            <RootHeader span={trace.rootSpan} onDeleteAnnotation={onDeleteAnnotation} onAnnotate={handleAnnotate} />
-            <div className="py-1">
-              {trace.rootSpan.children.map((child, i) => (
-                <SpanNode
-                  key={child.spanId}
-                  span={child}
-                  depth={1}
-                  isLast={i === trace.rootSpan.children.length - 1}
-                  selectedId={selectedSpan?.spanId ?? null}
-                  onSelect={setSelectedSpan}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Right: detail — scrolls independently, sticky to viewport */}
-          <div className="flex-1 min-w-0 overflow-y-auto max-h-[600px]">
-            {selectedSpan ? (
-              <SpanDetail span={selectedSpan} onDeleteAnnotation={onDeleteAnnotation} onAnnotate={handleAnnotate} />
-            ) : (
-              <div className="flex h-full min-h-[300px] items-center justify-center text-sm text-muted-foreground">
-                Select a span
+        <div>
+          <div className="flex border-t" style={{ minHeight: "300px" }}>
+            {/* Left: span tree */}
+            <div className="w-[400px] shrink-0 border-r bg-card">
+              <RootHeader span={trace.rootSpan} onDeleteAnnotation={onDeleteAnnotation} onAnnotate={handleAnnotate} />
+              <div className="py-1">
+                {trace.rootSpan.children.map((child, i) => (
+                  <SpanNode
+                    key={child.spanId}
+                    span={child}
+                    depth={1}
+                    isLast={i === trace.rootSpan.children.length - 1}
+                    selectedId={selectedSpan?.spanId ?? null}
+                    onSelect={setSelectedSpan}
+                  />
+                ))}
               </div>
-            )}
+
+              {/* Graph below tree */}
+              {trace.rootSpan.children.length > 0 && (
+                <div className="border-t p-3">
+                  <SpanGraph
+                    rootSpan={trace.rootSpan}
+                    selectedId={selectedSpan?.spanId}
+                    onSelect={setSelectedSpan}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Right: detail */}
+            <div className="flex-1 min-w-0 overflow-y-auto max-h-[600px]">
+              {selectedSpan ? (
+                <SpanDetail span={selectedSpan} onDeleteAnnotation={onDeleteAnnotation} onAnnotate={handleAnnotate} />
+              ) : (
+                <div className="flex h-full min-h-[300px] items-center justify-center text-sm text-muted-foreground">
+                  Select a span
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
