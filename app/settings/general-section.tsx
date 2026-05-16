@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/empty-state";
 import { CheckCircle, Copy, Check, RefreshCw, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -15,12 +16,26 @@ export function GeneralSection() {
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
 
+  // Profile nickname state
+  const [nickname, setNickname] = useState("");
+  const [savedNickname, setSavedNickname] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
   const loadStatus = useCallback(async () => {
     try {
-      const res = await apiFetch("/api/user/connector-key");
-      if (res.ok) {
-        const data = await res.json();
+      const [keyRes, profileRes] = await Promise.all([
+        apiFetch("/api/user/connector-key"),
+        apiFetch("/api/user/profile"),
+      ]);
+      if (keyRes.ok) {
+        const data = await keyRes.json();
         setHasKey(data.hasKey);
+      }
+      if (profileRes.ok) {
+        const data = await profileRes.json();
+        setNickname(data.name || "");
+        setSavedNickname(data.name || "");
       }
     } catch (e) {
       console.error(e);
@@ -30,6 +45,28 @@ export function GeneralSection() {
   }, []);
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    setProfileSaved(false);
+    try {
+      const res = await apiFetch("/api/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nickname }),
+      });
+      if (res.ok) {
+        setSavedNickname(nickname.trim());
+        setNickname(nickname.trim());
+        setProfileSaved(true);
+        setTimeout(() => setProfileSaved(false), 2000);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -83,12 +120,25 @@ export function GeneralSection() {
                 <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Email</p>
                 <p className="mt-0.5 text-sm">{user?.email}</p>
               </div>
-              {user?.displayName && (
-                <div>
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Name</p>
-                  <p className="mt-0.5 text-sm">{user.displayName}</p>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">Nickname</p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="Enter a display name"
+                    className="max-w-xs"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile || nickname.trim() === savedNickname}
+                  >
+                    {savingProfile && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                    {profileSaved ? "Saved" : "Save"}
+                  </Button>
                 </div>
-              )}
+              </div>
             </div>
           </section>
 
