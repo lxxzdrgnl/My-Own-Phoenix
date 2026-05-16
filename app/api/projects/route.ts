@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { seedProjectEvals } from "@/lib/eval-seed";
+import { encrypt } from "@/lib/crypto";
 import { randomBytes, createHash } from "crypto";
 
 function generateSlug(): string {
@@ -46,12 +47,14 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
   const slug = generateSlug();
   const traceKey = generateKey("pt");
   const traceKeyHash = hashKey(traceKey);
+  const traceKeyEncrypted = encrypt(traceKey);
 
   const project = await prisma.project.create({
     data: {
       name: name.trim(),
       slug,
       traceKeyHash,
+      traceKeyEncrypted,
       members: {
         create: { userId: uid, role: "owner" },
       },

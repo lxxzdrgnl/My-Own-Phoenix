@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureBuiltInEvals } from "@/lib/eval-seed";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 
-export const GET = authedHandler(async (request: NextRequest) => {
+export const GET = authedHandler(async (request: NextRequest, uid: string) => {
   await ensureBuiltInEvals();
   const projectId = request.nextUrl.searchParams.get("projectId");
   const includeGlobalTemplates = request.nextUrl.searchParams.get("includeGlobalTemplates") === "true";
@@ -17,12 +17,12 @@ export const GET = authedHandler(async (request: NextRequest) => {
     return NextResponse.json({ prompts });
   }
 
-  // Global mode: all global evals (built-in + optionally custom templates)
+  // Global mode: built-in evals + current user's custom evals
   const conditions: any[] = [
     { isCustom: false, OR: [{ projectId: null }, { projectId: "" }] },
   ];
   if (includeGlobalTemplates) {
-    conditions.push({ isCustom: true, OR: [{ projectId: null }, { projectId: "" }] });
+    conditions.push({ isCustom: true, userId: uid, OR: [{ projectId: null }, { projectId: "" }] });
   }
 
   const prompts = await prisma.evalPrompt.findMany({
@@ -72,7 +72,7 @@ export const POST = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ imported: importedNames.length, names: importedNames });
 });
 
-export const PUT = authedHandler(async (request: NextRequest) => {
+export const PUT = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { name, projectId, evalType, outputMode, template, ruleConfig, badgeLabel, isCustom } = body as {
     name: string;
@@ -117,6 +117,7 @@ export const PUT = authedHandler(async (request: NextRequest) => {
       data: {
         name,
         projectId: pid,
+        userId: (isCustom ?? false) ? uid : null,
         evalType: evalType ?? "llm_prompt",
         outputMode: outputMode ?? "score",
         template: template ?? "",
@@ -130,19 +131,20 @@ export const PUT = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ prompt });
 });
 
-export const DELETE = authedHandler(async (request: NextRequest) => {
+export const DELETE = authedHandler(async (request: NextRequest, uid: string) => {
   const name = request.nextUrl.searchParams.get("name");
   const projectId = request.nextUrl.searchParams.get("projectId");
   if (!name) {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { name: "name is required" });
   }
   // Try exact projectId match first, then fallback to null/empty (legacy data)
+  // Custom evals can only be deleted by their owner
   const deleted = await prisma.evalPrompt.deleteMany({
-    where: { name, projectId: projectId || undefined },
+    where: { name, projectId: projectId || undefined, OR: [{ userId: uid }, { isCustom: false }] },
   });
   if (deleted.count === 0) {
     await prisma.evalPrompt.deleteMany({
-      where: { name, OR: [{ projectId: null }, { projectId: "" }] },
+      where: { name, OR: [{ projectId: null }, { projectId: "" }], AND: [{ OR: [{ userId: uid }, { isCustom: false }] }] },
     });
   }
   return NextResponse.json({ ok: true });

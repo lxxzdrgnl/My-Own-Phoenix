@@ -39,12 +39,16 @@ function ApiKeysTab() {
 
   const load = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/projects/${projectId}/providers`);
-      const data = await res.json();
-      if (res.ok) {
-        setKeys(data.providers || []);
-      } else {
-        console.error("Failed to load providers:", data);
+      const [provRes, keyRes] = await Promise.all([
+        apiFetch(`/api/projects/${projectId}/providers`),
+        apiFetch(`/api/projects/${projectId}/trace-key`),
+      ]);
+      const provData = await provRes.json();
+      if (provRes.ok) setKeys(provData.providers || []);
+
+      const keyData = await keyRes.json();
+      if (keyRes.ok && keyData.key) {
+        setTraceKey(keyData.key);
       }
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -94,7 +98,7 @@ function ApiKeysTab() {
       const res = await apiFetch(`/api/projects/${projectId}/trace-key`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        setTraceKey(data.traceKey);
+        setTraceKey(data.key);
       }
     } catch (e) { console.error(e); }
     setGeneratingKey(false);
@@ -130,10 +134,6 @@ function ApiKeysTab() {
                 <p>PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.rheon.kr/api/collect</p>
                 <p>PHOENIX_API_KEY={traceKey}</p>
               </div>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <CheckCircle className="h-3 w-3 text-emerald-500" />
-                Save this key — it will not be shown again. Previous key is invalidated.
-              </p>
             </div>
           )}
           <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
