@@ -147,19 +147,10 @@ export function SpanGraph({
     setPan({ x: 0, y: 0 });
   }, [graph]);
 
-  // Wheel zoom + drag pan — single effect, no pan dependency
+  // Drag pan
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setZoom((z) => {
-        const d = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + d));
-      });
-    };
 
     const onDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
@@ -184,19 +175,43 @@ export function SpanGraph({
       if (el) el.style.cursor = "grab";
     };
 
-    el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("mousedown", onDown);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     el.style.cursor = "grab";
 
     return () => {
-      el.removeEventListener("wheel", onWheel);
       el.removeEventListener("mousedown", onDown);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, []); // no dependencies — uses refs for mutable state
+  }, []);
+
+  // Wheel zoom — capture phase on document to guarantee preventDefault works
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let inside = false;
+    const onEnter = () => { inside = true; };
+    const onLeave = () => { inside = false; };
+    const onWheel = (e: WheelEvent) => {
+      if (!inside) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setZoom((z) => {
+        const d = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + d));
+      });
+    };
+    el.addEventListener("mouseenter", onEnter);
+    el.addEventListener("mouseleave", onLeave);
+    document.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => {
+      el.removeEventListener("mouseenter", onEnter);
+      el.removeEventListener("mouseleave", onLeave);
+      document.removeEventListener("wheel", onWheel, { capture: true });
+    };
+  }, []);
 
   if (!graph || graph.nodes.size === 0) return null;
 
