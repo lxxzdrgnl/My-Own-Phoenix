@@ -675,20 +675,14 @@ def _run_llm_eval(name: str, default_template: str, context: str, response: str,
 
 
 def eval_hallucination(response: str, context: str, project_id: str = "") -> dict:
-    if not context:
-        return {}
     return _run_llm_eval("hallucination", default_prompts.HALLUCINATION, context, response, "", project_id)
 
 
 def eval_citation(response: str, context: str, project_id: str = "") -> dict:
-    if not context:
-        return {}
     return _run_llm_eval("citation", default_prompts.CITATION, context, response, "", project_id)
 
 
 def eval_tool_calling(query: str, context: str, project_id: str = "") -> dict:
-    if not context:
-        return {}
     return _run_llm_eval("tool_calling", default_prompts.TOOL_CALLING, context, "", query, project_id)
 
 
@@ -733,18 +727,18 @@ def _run_trace_evals(
         if r:
             phoenix_upload_annotation(root_id, "guardrail", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
-    if "hallucination" in missing and response and context:
-        r = eval_hallucination(response, context, project_id)
+    if "hallucination" in missing and response:
+        r = eval_hallucination(response, context or "(no context)", project_id)
         if r:
             phoenix_upload_annotation(root_id, "hallucination", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
-    if "citation" in missing and response and context:
-        r = eval_citation(response, context, project_id)
+    if "citation" in missing and response:
+        r = eval_citation(response, context or "(no context)", project_id)
         if r:
             phoenix_upload_annotation(root_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
-    if "rag_relevance" in missing and query and context:
-        r = _run_llm_eval("rag_relevance", RAG_RELEVANCE_PROMPT, context, response, query, project_id)
+    if "rag_relevance" in missing and query:
+        r = _run_llm_eval("rag_relevance", RAG_RELEVANCE_PROMPT, context or "(no context)", response, query, project_id)
         if r:
             phoenix_upload_annotation(root_id, "rag_relevance", "LLM", r["label"], r["score"], r.get("explanation", ""))
 
