@@ -234,9 +234,9 @@ export function SpanGraph({
   });
 
   return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-lg border bg-muted/20">
+    <div ref={containerRef} className="relative overflow-hidden rounded-lg border bg-muted/20" style={{ height: Math.max(300, svgH * zoom + 40) }}>
       {/* Zoom controls */}
-      <div className="sticky top-1 right-1 z-10 flex justify-end gap-0.5 px-2 py-1">
+      <div className="absolute top-1 right-1 z-10 flex gap-0.5 px-2 py-1 rounded bg-card/80 backdrop-blur-sm">
         <button onClick={handleZoomOut} className="rounded p-1 hover:bg-accent" title="Zoom out">
           <ZoomOut className="size-3.5 text-muted-foreground" />
         </button>
