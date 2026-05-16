@@ -950,8 +950,8 @@ def main() -> None:
             invalidate_key_cache()  # refresh API key cache each cycle
 
             for project in projects:
-                set_current_project(project)
                 db_project_id = _resolve_project_id(project)
+                set_current_project(db_project_id or project)
                 if project not in evaluated_traces:
                     evaluated_traces[project] = set()
                     caches[project] = deque(maxlen=MAX_CACHE)

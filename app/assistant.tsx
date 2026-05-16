@@ -44,6 +44,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   const { user } = useAuth();
   const threadIdRef = useRef<string | null>(null);
   const activeDbIdRef = useRef<string | null>(null);
+  const runningRef = useRef(false);
   const relayUserIdRef = useRef(relayUserId);
   const relayProjectIdRef = useRef(relayProjectId);
   relayUserIdRef.current = relayUserId;
@@ -108,6 +109,10 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const chatAdapter: ChatModelAdapter = useMemo(() => ({
     async *run({ messages, abortSignal }) {
+      if (runningRef.current) return;
+      runningRef.current = true;
+
+      try {
 
       if (!user) {
         yield { content: [{ type: "text" as const, text: "Please sign in to use the chat." }] };
@@ -215,6 +220,10 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
       // Save assistant response
       if (activeDbIdRef.current && fullContent) {
         saveMessage(activeDbIdRef.current, "assistant", fullContent);
+      }
+
+      } finally {
+        runningRef.current = false;
       }
     },
   }), []);
