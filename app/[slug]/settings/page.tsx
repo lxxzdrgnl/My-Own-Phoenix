@@ -36,20 +36,23 @@ function ApiKeysTab() {
   const [traceKey, setTraceKey] = useState<string | null>(null);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [provRes, keyRes] = await Promise.all([
+      const [provRes, keyRes, membersRes] = await Promise.all([
         apiFetch(`/api/projects/${projectId}/providers`),
         apiFetch(`/api/projects/${projectId}/trace-key`),
+        apiFetch(`/api/projects/${projectId}/members`),
       ]);
       const provData = await provRes.json();
       if (provRes.ok) setKeys(provData.providers || []);
 
       const keyData = await keyRes.json();
-      if (keyRes.ok && keyData.key) {
-        setTraceKey(keyData.key);
-      }
+      if (keyRes.ok && keyData.key) setTraceKey(keyData.key);
+
+      const membersData = await membersRes.json();
+      if (membersRes.ok) setIsOwner(membersData.currentRole === "owner");
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [projectId]);
@@ -136,10 +139,12 @@ function ApiKeysTab() {
               </div>
             </div>
           )}
-          <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
-            {generatingKey ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
-            {traceKey ? "Regenerate" : "Generate Trace Key"}
-          </Button>
+          {isOwner && (
+            <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
+              {generatingKey ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
+              {traceKey ? "Regenerate" : "Generate Trace Key"}
+            </Button>
+          )}
         </div>
       </section>
 
