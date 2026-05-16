@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { callLlm } from "@/lib/llm-providers";
 import { PASS_LABELS } from "@/lib/constants";
 import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -82,6 +83,11 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
     { field: "endDate", value: endDate, required: true },
   ]);
   if (err) return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
+
+  if (uid !== "internal-service") {
+    const roleCheck = await requireProjectMember(req, projectId, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
+  }
 
   // Load eval definition
   const evalPrompt = await prisma.evalPrompt.findFirst({

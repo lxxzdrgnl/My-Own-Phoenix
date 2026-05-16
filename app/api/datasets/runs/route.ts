@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 export const GET = authedHandler(async (request: NextRequest) => {
   const datasetId = request.nextUrl.searchParams.get("datasetId");
@@ -14,12 +15,20 @@ export const GET = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ runs });
 });
 
-export const POST = authedHandler(async (request: NextRequest) => {
+export const POST = authedHandler(async (request: NextRequest, uid: string) => {
   const { datasetId, agentSource, evalNames } = await request.json();
   if (!datasetId || !agentSource) {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", {
       fields: "datasetId and agentSource required",
     });
+  }
+
+  if (uid !== "internal-service") {
+    const dataset = await prisma.dataset.findUnique({ where: { id: datasetId }, select: { projectId: true } });
+    if (dataset?.projectId) {
+      const roleCheck = await requireProjectMember(request, dataset.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
   }
 
   const id = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

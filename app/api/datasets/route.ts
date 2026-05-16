@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { batchInsertRows } from "@/lib/dataset-utils";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 export const GET = authedHandler(async (request: NextRequest) => {
   const projectId = request.nextUrl.searchParams.get("projectId");
@@ -21,12 +22,17 @@ export const GET = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ datasets });
 });
 
-export const POST = authedHandler(async (request: NextRequest) => {
+export const POST = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { name, fileName, headers, queryCol, contextCol, rows, projectId } = body;
 
   if (!name) {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { name: "name is required" });
+  }
+
+  if (projectId && uid !== "internal-service") {
+    const roleCheck = await requireProjectMember(request, projectId, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
   }
 
   const id = `ds_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -42,12 +48,20 @@ export const POST = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ dataset: { id, name } }, { status: 201 });
 });
 
-export const PUT = authedHandler(async (request: NextRequest) => {
+export const PUT = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { id, ...data } = body;
 
   if (!id) {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
+  }
+
+  if (uid !== "internal-service") {
+    const dataset = await prisma.dataset.findUnique({ where: { id }, select: { projectId: true } });
+    if (dataset?.projectId) {
+      const roleCheck = await requireProjectMember(request, dataset.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
   }
 
   const ALLOWED_FIELDS: Record<string, string> = {
@@ -106,10 +120,18 @@ export const PUT = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ ok: true });
 });
 
-export const DELETE = authedHandler(async (request: NextRequest) => {
+export const DELETE = authedHandler(async (request: NextRequest, uid: string) => {
   const { id } = await request.json();
   if (!id) {
     return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", { id: "id is required" });
+  }
+
+  if (uid !== "internal-service") {
+    const dataset = await prisma.dataset.findUnique({ where: { id }, select: { projectId: true } });
+    if (dataset?.projectId) {
+      const roleCheck = await requireProjectMember(request, dataset.projectId, uid, "editor");
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
   }
   await prisma.$executeRaw`DELETE FROM "DatasetRunResult" WHERE "runId" IN (SELECT id FROM "DatasetRun" WHERE "datasetId" = ${id})`;
   await prisma.$executeRaw`DELETE FROM "DatasetRun" WHERE "datasetId" = ${id}`;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureBuiltInEvals } from "@/lib/eval-seed";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 export const GET = authedHandler(async (request: NextRequest) => {
   await ensureBuiltInEvals();
@@ -32,10 +33,15 @@ export const GET = authedHandler(async (request: NextRequest) => {
 });
 
 // POST — import global template(s) into a project
-export const POST = authedHandler(async (request: NextRequest) => {
+export const POST = authedHandler(async (request: NextRequest, uid: string) => {
   const { names, projectId } = await request.json() as { names: string[]; projectId: string };
   if (!projectId || !names?.length) {
     return apiError(request, ErrorCode.BAD_REQUEST, "projectId and names[] are required");
+  }
+
+  if (uid !== "internal-service") {
+    const roleCheck = await requireProjectMember(request, projectId, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
   }
 
   const globals = await prisma.evalPrompt.findMany({
@@ -70,7 +76,7 @@ export const POST = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ imported: importedNames.length, names: importedNames });
 });
 
-export const PUT = authedHandler(async (request: NextRequest) => {
+export const PUT = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { name, projectId, evalType, outputMode, template, ruleConfig, badgeLabel, isCustom } = body as {
     name: string;
@@ -88,6 +94,11 @@ export const PUT = authedHandler(async (request: NextRequest) => {
   }
 
   const pid = projectId || null;
+
+  if (pid && uid !== "internal-service") {
+    const roleCheck = await requireProjectMember(request, pid, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
+  }
 
   const existing = await prisma.evalPrompt.findFirst({
     where: pid
@@ -127,7 +138,7 @@ export const PUT = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ prompt });
 });
 
-export const DELETE = authedHandler(async (request: NextRequest) => {
+export const DELETE = authedHandler(async (request: NextRequest, uid: string) => {
   const name = request.nextUrl.searchParams.get("name");
   const projectId = request.nextUrl.searchParams.get("projectId");
   if (!name) {
@@ -135,6 +146,11 @@ export const DELETE = authedHandler(async (request: NextRequest) => {
   }
 
   const pid = projectId || undefined;
+
+  if (pid && uid !== "internal-service") {
+    const roleCheck = await requireProjectMember(request, pid, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
+  }
   const deleted = await prisma.evalPrompt.deleteMany({
     where: { name, ...(pid ? { projectId: pid } : { OR: [{ projectId: null }, { projectId: "" }] }) },
   });

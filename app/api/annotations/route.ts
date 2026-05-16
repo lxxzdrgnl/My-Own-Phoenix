@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
-export const POST = authedHandler(async (req: NextRequest) => {
-  const { spanId, name, label, score, explanation } = (await req.json()) as {
+export const POST = authedHandler(async (req: NextRequest, uid: string) => {
+  const { spanId, name, label, score, explanation, projectId } = (await req.json()) as {
     spanId: string;
     name: string;
     label: string;
     score: number;
     explanation?: string;
+    projectId?: string;
   };
+
+  if (projectId && uid !== "internal-service") {
+    const roleCheck = await requireProjectMember(req, projectId, uid, "editor");
+    if (roleCheck instanceof NextResponse) return roleCheck;
+  }
 
   const err = validateFields([
     { field: "spanId", value: spanId, required: true },
