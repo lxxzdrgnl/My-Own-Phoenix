@@ -117,7 +117,7 @@ function ApiKeysTab() {
           Set this key in your agent to send traces to this project.
         </p>
         <div className="rounded-lg border px-4 py-3 space-y-3">
-          {traceKey ? (
+          {traceKey && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">{traceKey}</code>
@@ -135,12 +135,11 @@ function ApiKeysTab() {
                 Save this key — it will not be shown again. Previous key is invalidated.
               </p>
             </div>
-          ) : (
-            <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
-              {generatingKey ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
-              {generatingKey ? "Generating..." : "Generate Trace Key"}
-            </Button>
           )}
+          <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
+            {generatingKey ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
+            {traceKey ? "Regenerate" : "Generate Trace Key"}
+          </Button>
         </div>
       </section>
 
