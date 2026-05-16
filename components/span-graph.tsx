@@ -192,7 +192,7 @@ export function SpanGraph({
     const wrap = wrapRef.current!;
     const dpr = window.devicePixelRatio || 1;
     const cw = wrap.clientWidth;
-    const ch = Math.max(300, g.h * zoom + PAD * 2 + 40);
+    const ch = Math.max(300, g.h + PAD * 2 + 40);
     canvas.width = cw * dpr;
     canvas.height = ch * dpr;
     canvas.style.width = `${cw}px`;
@@ -279,7 +279,7 @@ export function SpanGraph({
   }, []);
 
   const g = graphRef.current;
-  const ch = g ? Math.max(300, g.h * zoom + PAD * 2 + 40) : 300;
+  const ch = g ? Math.max(300, g.h + PAD * 2 + 40) : 300;
 
   return (
     <div ref={wrapRef} className="relative rounded-lg border bg-muted/20" style={{ height: ch }}>
