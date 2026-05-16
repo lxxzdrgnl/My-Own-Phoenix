@@ -198,8 +198,8 @@ export function SpanGraph({
       </div>
 
       <div
-        className="origin-top-left"
-        style={{ transform: `scale(${zoom})`, width: svgW, height: svgH }}
+        className="origin-top mx-auto"
+        style={{ transform: `scale(${zoom})`, width: svgW, height: svgH * zoom }}
       >
         <svg className="absolute inset-0" width={svgW} height={svgH}>
           {edges.map((e, i) => {
