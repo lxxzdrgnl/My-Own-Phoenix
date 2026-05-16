@@ -9,6 +9,7 @@ import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Users, Copy, Trash2, Check, X, Plus, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { RoleGate } from "@/components/ui/role-gate";
 
 interface Member {
   id: string;
@@ -172,17 +173,21 @@ export function MembersTab() {
               <div className="flex items-center gap-2">
                 {isOwner && m.role !== "owner" ? (
                   <>
-                    <select
-                      value={m.role}
-                      onChange={(e) => handleRoleChange(m.userId, e.target.value)}
-                      className="rounded-md border bg-background px-2 py-1 text-xs"
-                    >
-                      <option value="editor">editor</option>
-                      <option value="viewer">viewer</option>
-                    </select>
-                    <button onClick={() => handleRemove(m.userId)} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <RoleGate minRole="owner">
+                      <select
+                        value={m.role}
+                        onChange={(e) => handleRoleChange(m.userId, e.target.value)}
+                        className="rounded-md border bg-background px-2 py-1 text-xs"
+                      >
+                        <option value="editor">editor</option>
+                        <option value="viewer">viewer</option>
+                      </select>
+                    </RoleGate>
+                    <RoleGate minRole="owner">
+                      <button onClick={() => handleRemove(m.userId)} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </RoleGate>
                   </>
                 ) : (
                   <span className={cn(
@@ -282,9 +287,11 @@ export function MembersTab() {
               </div>
             </div>
           ) : (
-            <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(true)}>
-              <Plus className="mr-1.5 h-3 w-3" /> Generate Code
-            </Button>
+            <RoleGate minRole="owner">
+              <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(true)}>
+                <Plus className="mr-1.5 h-3 w-3" /> Generate Code
+              </Button>
+            </RoleGate>
           )}
         </section>
       )}

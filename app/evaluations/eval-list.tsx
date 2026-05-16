@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Plus, Check, ChevronRight, Settings2 } from "lucide-react";
 import { Sidebar, SidebarHeader, SidebarItem, SidebarItemDiv } from "@/components/ui/sidebar";
+import { RoleGate } from "@/components/ui/role-gate";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -80,15 +81,17 @@ export function EvalList({
     return (
       <SidebarItemDiv active={selectedEval === prompt.name}>
         {!globalMode && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggleEval(prompt.name); }}
-            className={cn(
-              "flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
-              enabled ? "border-foreground bg-foreground" : "border-muted-foreground/30",
-            )}
-          >
-            {enabled && <Check className="size-2.5 text-background" />}
-          </button>
+          <RoleGate>
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleEval(prompt.name); }}
+              className={cn(
+                "flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
+                enabled ? "border-foreground bg-foreground" : "border-muted-foreground/30",
+              )}
+            >
+              {enabled && <Check className="size-2.5 text-background" />}
+            </button>
+          </RoleGate>
         )}
         <button
           onClick={() => onSelectEval(prompt.name)}
@@ -156,26 +159,30 @@ export function EvalList({
 
           {/* Add new */}
           <div className="px-3 py-3 space-y-1.5">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onStartCreating}
-              className="w-full gap-1.5 text-xs"
-            >
-              <Plus className="size-3" /> Add Evaluation
-            </Button>
+            <RoleGate>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onStartCreating}
+                className="w-full gap-1.5 text-xs"
+              >
+                <Plus className="size-3" /> Add Evaluation
+              </Button>
+            </RoleGate>
           </div>
 
           {/* Eval Settings */}
           {!globalMode && projectId && onShowSettings && (
             <div className="border-t px-3 py-2">
-              <button
-                onClick={onShowSettings}
-                className="flex w-full items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Settings2 className="size-3" />
-                Eval Settings
-              </button>
+              <RoleGate>
+                <button
+                  onClick={onShowSettings}
+                  className="flex w-full items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Settings2 className="size-3" />
+                  Eval Settings
+                </button>
+              </RoleGate>
             </div>
           )}
         </div>

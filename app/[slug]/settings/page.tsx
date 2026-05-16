@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, CheckCircle, Loader2, AlertTriangle, ArrowRightLeft, Copy, Check, RefreshCw } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { RoleGate } from "@/components/ui/role-gate";
 
 const TABS = [
   { id: "members", label: "Members" },
@@ -139,12 +140,12 @@ function ApiKeysTab() {
               </div>
             </div>
           )}
-          {isOwner && (
+          <RoleGate minRole="owner">
             <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
               {generatingKey ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
               {traceKey ? "Regenerate" : "Generate Trace Key"}
             </Button>
-          )}
+          </RoleGate>
         </div>
       </section>
 
@@ -168,9 +169,11 @@ function ApiKeysTab() {
                       <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
                       <span className="text-xs text-muted-foreground">Configured</span>
                     </div>
-                    <button onClick={() => handleDelete(existing.id)} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <RoleGate>
+                      <button onClick={() => handleDelete(existing.id)} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </RoleGate>
                   </>
                 ) : adding === p.id ? (
                   <div className="flex-1 flex items-center gap-2">
@@ -190,9 +193,11 @@ function ApiKeysTab() {
                   </div>
                 ) : (
                   <div className="flex-1">
-                    <Button size="sm" variant="outline" onClick={() => setAdding(p.id)}>
-                      <Plus className="mr-1 h-3 w-3" /> Add Key
-                    </Button>
+                    <RoleGate>
+                      <Button size="sm" variant="outline" onClick={() => setAdding(p.id)}>
+                        <Plus className="mr-1 h-3 w-3" /> Add Key
+                      </Button>
+                    </RoleGate>
                   </div>
                 )}
               </div>

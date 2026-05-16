@@ -33,3 +33,8 @@ export function useProject(): ProjectContextValue {
   if (!ctx) throw new Error("useProject must be used within ProjectProvider");
   return ctx;
 }
+
+/** Like useProject but returns null when outside ProjectProvider instead of throwing. */
+export function useProjectOptional(): ProjectContextValue | null {
+  return useContext(ProjectContext);
+}

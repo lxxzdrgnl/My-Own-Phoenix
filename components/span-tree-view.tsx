@@ -65,6 +65,7 @@ function formatJson(raw: string): string {
 /** Extract a short user-facing input preview from raw span input */
 import { extractInputPreview } from "@/lib/span-extraction";
 import { SpanGraph } from "@/components/span-graph";
+import { RoleGate } from "@/components/ui/role-gate";
 
 // ─── Span Tree Node (LangSmith style) ────────────────────────────────────────
 
@@ -235,16 +236,18 @@ function RootHeader({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; o
           />
         )}
         {onAnnotate && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAnnotate(span.spanId, span.annotations);
-            }}
-            className="rounded p-1 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
-            title="Add annotation"
-          >
-            <Plus className="h-3 w-3" />
-          </button>
+          <RoleGate>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAnnotate(span.spanId, span.annotations);
+              }}
+              className="rounded p-1 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+              title="Add annotation"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </RoleGate>
         )}
       </div>
     </div>
@@ -303,16 +306,18 @@ function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; o
             />
           )}
           {onAnnotate && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAnnotate(span.spanId, span.annotations);
-              }}
-              className="rounded p-1 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
-              title="Add annotation"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
+            <RoleGate>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAnnotate(span.spanId, span.annotations);
+                }}
+                className="rounded p-1 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+                title="Add annotation"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </RoleGate>
           )}
         </div>
       </div>
@@ -412,16 +417,18 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
             {trace.rootSpan.annotations.length > 0 && (
               <AnnotationBadges annotations={trace.rootSpan.annotations} />
             )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAnnotate(trace.rootSpan.spanId, trace.rootSpan.annotations);
-              }}
-              className="rounded p-1 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
-              title="Add annotation"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
+            <RoleGate>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAnnotate(trace.rootSpan.spanId, trace.rootSpan.annotations);
+                }}
+                className="rounded p-1 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+                title="Add annotation"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </RoleGate>
           </div>
         </div>
         <div className="flex items-center gap-2.5 shrink-0">
@@ -431,13 +438,15 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
             {trace.spanCount} span{trace.spanCount !== 1 && "s"}
           </span>
           {onDeleteTrace && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDeleteTrace(trace.traceId); }}
-              className="rounded p-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent hover:text-foreground"
-              title="Delete trace"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
+            <RoleGate>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteTrace(trace.traceId); }}
+                className="rounded p-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent hover:text-foreground"
+                title="Delete trace"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </RoleGate>
           )}
         </div>
       </div>
