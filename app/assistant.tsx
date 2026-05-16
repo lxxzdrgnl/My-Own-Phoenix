@@ -218,7 +218,16 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
     },
   }), []);
 
-  const runtime = useLocalRuntime(chatAdapter);
+  const initialMessages = useMemo(() =>
+    history.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [runtimeKey]
+  );
+
+  const runtime = useLocalRuntime(chatAdapter, { initialMessages });
 
   const handleSelectThread = useCallback(async (thread: DbThread) => {
     setIsFadingOut(true);
