@@ -2,9 +2,10 @@
 
 import { apiFetch } from "@/lib/api-client";
 import { useCallback, useEffect, useState } from "react";
-import { useProject } from "@/lib/project-context";
+import { useProject, canEdit } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
+import { RoleGate } from "@/components/ui/role-gate";
 import {
   WidgetGrid,
   type WidgetConfig,
@@ -69,8 +70,9 @@ const DEFAULT_LAYOUTS: LayoutItem[] = [
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { phoenixProject: project } = useProject();
+  const { phoenixProject: project, role } = useProject();
   const t = useT();
+  const isViewer = !canEdit(role);
 
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [layouts, setLayouts] = useState<LayoutItem[]>(DEFAULT_LAYOUTS);
@@ -113,7 +115,7 @@ export default function DashboardPage() {
       newViewModes?: Record<string, WidgetViewMode>,
       newColors?: Record<string, WidgetColors>,
     ) => {
-      if (!layoutLoaded || !user) return;
+      if (!layoutLoaded || !user || isViewer) return;
       const w = newWidgets ?? widgets;
       const vm = newViewModes ?? viewModes;
       const wc = newColors ?? widgetColors;
@@ -128,7 +130,7 @@ export default function DashboardPage() {
         }),
       }).catch((e) => { console.error(e); });
     },
-    [user, widgets, viewModes, widgetColors, project, layoutLoaded],
+    [user, widgets, viewModes, widgetColors, project, layoutLoaded, isViewer],
   );
 
   // ─── Data loading ───
@@ -243,7 +245,9 @@ export default function DashboardPage() {
         <h1 className="text-xl font-semibold tracking-tight">{t.dashboard.title}</h1>
         <div className="h-4 w-px bg-border/60" />
         <DateRangePicker value={dateRange} onChange={setDateRange} />
-        <AddWidgetMenu onAdd={handleAddWidget} />
+        <RoleGate>
+          <AddWidgetMenu onAdd={handleAddWidget} />
+        </RoleGate>
       </div>
       <div
         className="relative flex-1 overflow-y-auto p-4"
@@ -258,6 +262,7 @@ export default function DashboardPage() {
             layouts={layouts}
             viewModes={viewModes}
             widgetColors={widgetColors}
+            readOnly={isViewer}
             onSaveLayout={(l) => saveLayout(l)}
             onRemoveWidget={handleRemoveWidget}
             onViewModeChange={handleViewModeChange}

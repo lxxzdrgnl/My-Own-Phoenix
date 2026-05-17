@@ -3,6 +3,7 @@
 import { Inbox, Plus } from "lucide-react";
 import { Trace } from "@/lib/phoenix";
 import { AnnotationBadges } from "@/components/annotation-badge";
+import { RoleGate } from "@/components/ui/role-gate";
 import { formatDateTime } from "@/lib/date-utils";
 import { useT } from "@/lib/i18n";
 
@@ -82,16 +83,18 @@ export function TraceList({
                   {t.annotations.length > 0 && (
                     <AnnotationBadges annotations={t.annotations} />
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAnnotate(t.spanId);
-                    }}
-                    className="rounded p-0.5 text-muted-foreground/30 transition-colors hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100"
-                    title="Add annotation"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                  <RoleGate>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAnnotate(t.spanId);
+                      }}
+                      className="rounded p-0.5 text-muted-foreground/30 transition-colors hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100"
+                      title="Add annotation"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </RoleGate>
                 </div>
               </div>
             </div>

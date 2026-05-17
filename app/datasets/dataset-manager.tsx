@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
 
 import { useDatasetGeneration } from "./hooks/use-dataset-generation";
@@ -317,9 +318,11 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         {!selectedId ? (
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <EmptyState icon={Database} title={t.datasets.selectDataset} description={t.datasets.selectDatasetDesc} className="h-auto" />
-            <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: null })} className="gap-1.5 text-xs">
-              <Upload className="size-3" /> {t.common.import}
-            </Button>
+            <RoleGate>
+              <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: null })} className="gap-1.5 text-xs">
+                <Upload className="size-3" /> {t.common.import}
+              </Button>
+            </RoleGate>
           </div>
         ) : (
           <div className="flex h-full flex-col">
@@ -395,9 +398,11 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                   {rows.length === 0 ? (
                     <div className="flex flex-col items-center gap-3 py-16 text-center">
                       <EmptyState icon={Database} title={t.datasets.noPrompts} description={t.datasets.noPromptsDesc} className="h-auto" />
-                      <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })} className="mt-1 gap-1.5 text-xs">
-                        <Upload className="size-3" /> {t.common.import}
-                      </Button>
+                      <RoleGate>
+                        <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })} className="mt-1 gap-1.5 text-xs">
+                          <Upload className="size-3" /> {t.common.import}
+                        </Button>
+                      </RoleGate>
                     </div>
                   ) : (
                     <>
@@ -421,28 +426,30 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                       {selectedRowIndices.size > 0 ? (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>{selectedRowIndices.size.toLocaleString()} selected</span>
-                          <button
-                            onClick={async () => {
-                              const ok = await confirm({
-                                title: "Delete selected prompts",
-                                description: `${selectedRowIndices.size} selected prompt(s) will be permanently deleted.`,
-                                confirmText: "Delete",
-                              });
-                              if (!ok) return;
-                              if (selectedId) {
-                                await apiFetch("/api/datasets/rows", {
-                                  method: "DELETE", headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ id: selectedId, rowIndices: [...selectedRowIndices] }),
+                          <RoleGate>
+                            <button
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: "Delete selected prompts",
+                                  description: `${selectedRowIndices.size} selected prompt(s) will be permanently deleted.`,
+                                  confirmText: "Delete",
                                 });
-                                setSelectedRowIndices(new Set());
-                                loadDatasets();
-                                loadPage(selectedId, 0);
-                              }
-                            }}
-                            className="flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] hover:bg-muted hover:text-destructive transition-colors"
-                          >
-                            <Trash2 className="size-2.5" /> Delete
-                          </button>
+                                if (!ok) return;
+                                if (selectedId) {
+                                  await apiFetch("/api/datasets/rows", {
+                                    method: "DELETE", headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ id: selectedId, rowIndices: [...selectedRowIndices] }),
+                                  });
+                                  setSelectedRowIndices(new Set());
+                                  loadDatasets();
+                                  loadPage(selectedId, 0);
+                                }
+                              }}
+                              className="flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] hover:bg-muted hover:text-destructive transition-colors"
+                            >
+                              <Trash2 className="size-2.5" /> Delete
+                            </button>
+                          </RoleGate>
                           <button onClick={() => setSelectedRowIndices(new Set())} className="text-muted-foreground/60 hover:text-foreground">Clear</button>
                         </div>
                       ) : (
@@ -531,20 +538,24 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                                 </div>
                                 {/* Actions */}
                                 <div className="flex shrink-0 items-center gap-1 px-3 py-3">
-                                  <button
-                                    onClick={() => startEditRow(i)}
-                                    className="rounded p-1.5 text-muted-foreground/40 hover:bg-muted hover:text-foreground transition-colors"
-                                    title="Edit"
-                                  >
-                                    <Pencil className="size-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteRow(i)}
-                                    className="rounded p-1.5 text-muted-foreground/40 hover:bg-muted hover:text-destructive transition-colors"
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="size-3.5" />
-                                  </button>
+                                  <RoleGate>
+                                    <button
+                                      onClick={() => startEditRow(i)}
+                                      className="rounded p-1.5 text-muted-foreground/40 hover:bg-muted hover:text-foreground transition-colors"
+                                      title="Edit"
+                                    >
+                                      <Pencil className="size-3.5" />
+                                    </button>
+                                  </RoleGate>
+                                  <RoleGate>
+                                    <button
+                                      onClick={() => handleDeleteRow(i)}
+                                      className="rounded p-1.5 text-muted-foreground/40 hover:bg-muted hover:text-destructive transition-colors"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </button>
+                                  </RoleGate>
                                 </div>
                               </div>
                             )}
