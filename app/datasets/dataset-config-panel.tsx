@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { AgentModelSelector } from "@/components/agent-model-selector";
 import { Play, X, Pencil } from "lucide-react";
+import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
 
 interface EvalOption {
@@ -53,9 +54,11 @@ export function DatasetConfigPanel({
             <X className="size-3" /> Stop ({genProgress}%)
           </Button>
         ) : (
-          <Button onClick={onGenerate} disabled={totalRows === 0 || !selectedAgent} variant="outline" className="h-8 gap-1.5 text-xs">
-            <Play className="size-3" />{t.common.generate}{selectedRowIndices.size > 0 && ` (${selectedRowIndices.size})`}
-          </Button>
+          <RoleGate>
+            <Button onClick={onGenerate} disabled={totalRows === 0 || !selectedAgent} variant="outline" className="h-8 gap-1.5 text-xs">
+              <Play className="size-3" />{t.common.generate}{selectedRowIndices.size > 0 && ` (${selectedRowIndices.size})`}
+            </Button>
+          </RoleGate>
         )}
         {generating && (
           <div className="h-1 w-28 overflow-hidden rounded-full bg-muted">
@@ -90,9 +93,11 @@ export function DatasetConfigPanel({
             <X className="size-3" /> Stop ({evalProgress}%)
           </Button>
         ) : (
-          <Button onClick={onEvaluate} disabled={checkedEvals.size === 0 || displayResultsLength === 0} className="h-8 shrink-0 gap-1.5 text-xs">
-            <Play className="size-3" />{t.common.evaluate}
-          </Button>
+          <RoleGate>
+            <Button onClick={onEvaluate} disabled={checkedEvals.size === 0 || displayResultsLength === 0} className="h-8 shrink-0 gap-1.5 text-xs">
+              <Play className="size-3" />{t.common.evaluate}
+            </Button>
+          </RoleGate>
         )}
         {evaluating && (
           <div className="mt-3 h-1 w-28 shrink-0 overflow-hidden rounded-full bg-muted">

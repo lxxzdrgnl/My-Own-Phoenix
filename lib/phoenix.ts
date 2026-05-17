@@ -365,6 +365,9 @@ export async function fetchTraces(
     });
   }
 
+  // Sort by time descending (newest first)
+  results.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
   return results;
 }
 

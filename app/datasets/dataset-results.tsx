@@ -7,6 +7,7 @@ import { PASS_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/date-utils";
 import { Trash2, ChevronRight, FlaskConical, Filter, X, Pencil, Check as CheckIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
 
 interface RunMeta {
@@ -185,18 +186,22 @@ export function DatasetResults({
                 </button>
               ) : (
                 <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditingRunId(r.id); setEditingRunName(displayName); }}
-                    className="shrink-0 rounded p-1 opacity-0 hover:text-foreground group-hover:opacity-100"
-                  >
-                    <Pencil className="size-3 text-muted-foreground" />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDeleteRun(r.id); }}
-                    className="shrink-0 rounded p-1 opacity-0 hover:text-red-500 group-hover:opacity-100"
-                  >
-                    <Trash2 className="size-3 text-muted-foreground" />
-                  </button>
+                  <RoleGate>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEditingRunId(r.id); setEditingRunName(displayName); }}
+                      className="shrink-0 rounded p-1 opacity-0 hover:text-foreground group-hover:opacity-100"
+                    >
+                      <Pencil className="size-3 text-muted-foreground" />
+                    </button>
+                  </RoleGate>
+                  <RoleGate>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDeleteRun(r.id); }}
+                      className="shrink-0 rounded p-1 opacity-0 hover:text-red-500 group-hover:opacity-100"
+                    >
+                      <Trash2 className="size-3 text-muted-foreground" />
+                    </button>
+                  </RoleGate>
                 </>
               )}
             </div>

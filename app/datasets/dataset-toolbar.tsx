@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Upload, Download, Settings2 } from "lucide-react";
+import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
 
 interface DatasetToolbarProps {
@@ -46,14 +47,16 @@ export function DatasetToolbar({
             <Download className="size-3" /> {t.common.export}
           </Button>
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onImport}
-          className="h-7 gap-1.5 text-xs"
-        >
-          <Upload className="size-3" /> {t.common.import}
-        </Button>
+        <RoleGate>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onImport}
+            className="h-7 gap-1.5 text-xs"
+          >
+            <Upload className="size-3" /> {t.common.import}
+          </Button>
+        </RoleGate>
         <button
           onClick={onToggleConfig}
           title="Configure"

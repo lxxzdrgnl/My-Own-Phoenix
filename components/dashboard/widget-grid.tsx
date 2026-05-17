@@ -57,6 +57,7 @@ interface WidgetGridProps {
   layouts: LayoutItem[];
   viewModes: Record<string, WidgetViewMode>;
   widgetColors: Record<string, WidgetColors>;
+  readOnly?: boolean;
   onSaveLayout: (layouts: readonly LayoutItem[]) => void;
   onRemoveWidget: (id: string) => void;
   onViewModeChange: (id: string, mode: WidgetViewMode) => void;
@@ -85,6 +86,7 @@ function WidgetCard({
   colors,
   gridW,
   gridH,
+  readOnly,
   onCycleMode,
   onSetMode,
   onRemove,
@@ -96,6 +98,7 @@ function WidgetCard({
   colors: WidgetColors;
   gridW: number;
   gridH: number;
+  readOnly?: boolean;
   onCycleMode: () => void;
   onSetMode: (mode: WidgetViewMode) => void;
   onRemove: () => void;
@@ -182,6 +185,7 @@ function WidgetCard({
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {!readOnly && (
           <div className="relative" ref={optionsRef}>
             <button
               onClick={() => setOptionsOpen(!optionsOpen)}
@@ -269,12 +273,15 @@ function WidgetCard({
               </div>
             )}
           </div>
+          )}
+          {!readOnly && (
           <button
             onClick={onRemove}
             className="rounded-lg p-1 text-muted-foreground/50 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
           >
             <X className="h-3.5 w-3.5" />
           </button>
+          )}
         </div>
       </div>
 
@@ -294,6 +301,7 @@ export function WidgetGrid({
   layouts,
   viewModes,
   widgetColors,
+  readOnly,
   onSaveLayout,
   onRemoveWidget,
   onViewModeChange,
@@ -424,13 +432,14 @@ export function WidgetGrid({
             const wColors = widgetColors[w.id] ?? DEFAULT_COLORS;
             return (
               <div key={w.id} className="overflow-visible"
-                data-grid={li ? { x: li.x, y: li.y, w: li.w, h: li.h, minW: li.minW, minH: li.minH } : undefined}>
+                data-grid={li ? { x: li.x, y: li.y, w: li.w, h: li.h, minW: li.minW, minH: li.minH, static: !!readOnly } : undefined}>
                 <WidgetCard
                   widget={w}
                   viewMode={mode}
                   colors={wColors}
                   gridW={li?.w ?? 1}
                   gridH={li?.h ?? 1}
+                  readOnly={readOnly}
                   onCycleMode={() => cycleViewMode(w.id)}
                   onSetMode={(m) => onViewModeChange(w.id, m)}
                   onRemove={() => onRemoveWidget(w.id)}

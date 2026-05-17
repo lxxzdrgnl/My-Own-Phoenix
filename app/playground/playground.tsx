@@ -28,6 +28,7 @@ import { AddToDatasetModal } from "@/components/modals/add-to-dataset-modal";
 import { PromptEditModal } from "@/components/modals/prompt-edit-modal";
 import { PromptsModal } from "@/components/modals/prompts-modal";
 import { AnnotationForm } from "@/components/modals/annotation-form";
+import { RoleGate } from "@/components/ui/role-gate";
 import { usePlaygroundColumns, VersionOption } from "./hooks/use-playground-columns";
 import { PromptColumn } from "./prompt-column";
 import { FilterDropdown } from "./filter-dropdown";
@@ -56,7 +57,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
     promptName: string;
     version: PromptVersion;
   } | null>(null);
-  const [spanKinds, setSpanKinds] = useState<Set<string>>(new Set(["LLM"]));
+  const [spanKinds, setSpanKinds] = useState<Set<string>>(new Set());
   const [contentFilter, setContentFilter] = useState("ALL");
   const [filterOpen, setFilterOpen] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
@@ -98,12 +99,14 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
       const saved = localStorage.getItem(filterKey(pid));
       if (saved) {
         const { kinds, content } = JSON.parse(saved);
-        setSpanKinds(new Set(kinds ?? ["LLM"]));
+        // Migrate old default: ["LLM"] → [] (show all root spans)
+        const migratedKinds = Array.isArray(kinds) && kinds.length === 1 && kinds[0] === "LLM" ? [] : (kinds ?? []);
+        setSpanKinds(new Set(migratedKinds));
         setContentFilter(content ?? "ALL");
         return;
       }
     } catch (e) { console.error(e); }
-    setSpanKinds(new Set(["LLM"]));
+    setSpanKinds(new Set([]));
     setContentFilter("ALL");
   }
 
@@ -264,15 +267,17 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                   className={`h-3.5 w-3.5 ${loading ? "animate-spin text-primary" : "text-muted-foreground"}`}
                 />
               </button>
-              <button
-                onClick={toggleDeleteMode}
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition hover:bg-accent ${deleteMode ? "border-primary bg-accent" : "bg-background"}`}
-                title="Delete traces"
-              >
-                <Trash2
-                  className={`h-3.5 w-3.5 ${deleteMode ? "text-foreground" : ""}`}
-                />
-              </button>
+              <RoleGate>
+                <button
+                  onClick={toggleDeleteMode}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition hover:bg-accent ${deleteMode ? "border-primary bg-accent" : "bg-background"}`}
+                  title="Delete traces"
+                >
+                  <Trash2
+                    className={`h-3.5 w-3.5 ${deleteMode ? "text-foreground" : ""}`}
+                  />
+                </button>
+              </RoleGate>
             </div>
             <div className="mt-2 flex items-center gap-1.5">
               <button
@@ -345,20 +350,23 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                     onClose={() => setDatasetModalOpen(false)}
                     query={selected.query}
                     context={selected.context}
+                    response={selected.response}
                   />
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                       {t.playground.original}
                     </span>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setDatasetModalOpen(true)}
-                        className="flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        title="Add to dataset"
-                      >
-                        <Database className="size-3" />
-                        Dataset
-                      </button>
+                      <RoleGate>
+                        <button
+                          onClick={() => setDatasetModalOpen(true)}
+                          className="flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          title="Add to dataset"
+                        >
+                          <Database className="size-3" />
+                          Dataset
+                        </button>
+                      </RoleGate>
                       <AnnotationBadges annotations={selected.annotations} />
                     </div>
                   </div>

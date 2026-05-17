@@ -1,9 +1,16 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useProject } from "@/lib/project-context";
-import { ProjectView } from "@/app/projects/[name]/project-view";
 
 export default function OverviewPage() {
-  const { phoenixProject } = useProject();
-  return <ProjectView projectName={phoenixProject} defaultTab="traces" hideTabBar />;
+  const { slug } = useProject();
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace(`/${slug}/requests`);
+  }, [slug, router]);
+
+  return null;
 }
