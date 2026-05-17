@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { AgentModelSelector } from "@/components/agent-model-selector";
 import { Play, X, Pencil } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface EvalOption {
   name: string; evalType: string; template: string;
@@ -38,11 +39,12 @@ export function DatasetConfigPanel({
   evaluating, evalProgress, displayResultsLength,
   onEvaluate, onOpenEvalModal,
 }: DatasetConfigPanelProps) {
+  const t = useT();
   return (
     <div className="shrink-0 border-b bg-muted/5 px-5 py-4 space-y-4">
       {/* Row 1: Generate */}
       <div className="flex items-center gap-3">
-        <p className="w-24 shrink-0 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Agent</p>
+        <p className="w-24 shrink-0 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.agent}</p>
         <div className="w-52">
           <AgentModelSelector value={selectedAgent} onChange={onAgentChange} />
         </div>
@@ -52,7 +54,7 @@ export function DatasetConfigPanel({
           </Button>
         ) : (
           <Button onClick={onGenerate} disabled={totalRows === 0 || !selectedAgent} variant="outline" className="h-8 gap-1.5 text-xs">
-            <Play className="size-3" />Generate{selectedRowIndices.size > 0 && ` (${selectedRowIndices.size})`}
+            <Play className="size-3" />{t.common.generate}{selectedRowIndices.size > 0 && ` (${selectedRowIndices.size})`}
           </Button>
         )}
         {generating && (
@@ -64,7 +66,7 @@ export function DatasetConfigPanel({
 
       {/* Row 2: Evaluate */}
       <div className="flex items-start gap-3">
-        <p className="mt-1.5 w-24 shrink-0 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Evals</p>
+        <p className="mt-1.5 w-24 shrink-0 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.evals}</p>
         <div className="flex flex-1 flex-wrap items-center gap-1.5">
           {checkedEvals.size > 0 ? (
             [...checkedEvals].map(name => {
@@ -77,10 +79,10 @@ export function DatasetConfigPanel({
               );
             })
           ) : (
-            <span className="text-xs text-muted-foreground">None selected</span>
+            <span className="text-xs text-muted-foreground">{t.datasets.noneSelected}</span>
           )}
           <button onClick={onOpenEvalModal} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
-            <Pencil className="size-2.5" /> Edit
+            <Pencil className="size-2.5" /> {t.common.edit}
           </button>
         </div>
         {evaluating ? (
@@ -89,7 +91,7 @@ export function DatasetConfigPanel({
           </Button>
         ) : (
           <Button onClick={onEvaluate} disabled={checkedEvals.size === 0 || displayResultsLength === 0} className="h-8 shrink-0 gap-1.5 text-xs">
-            <Play className="size-3" />Evaluate
+            <Play className="size-3" />{t.common.evaluate}
           </Button>
         )}
         {evaluating && (

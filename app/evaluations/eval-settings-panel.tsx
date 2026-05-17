@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { Zap, MessageSquare, CircleOff, Check, ArrowRight } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 const CONTEXT_SOURCES = [
   {
@@ -56,6 +57,7 @@ interface EvalSettingsPanelProps {
 }
 
 export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
+  const t = useT();
   const [contextSource, setContextSource] = useState("auto");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -96,9 +98,9 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
       <div className="mx-auto max-w-3xl p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-xl font-semibold tracking-tight">Eval Settings</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t.evaluations.evalSettings}</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Configure how the eval worker processes traces for this project.
+            {t.evaluations.configureDesc}
           </p>
         </div>
 
@@ -107,15 +109,15 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                Context Source
+                {t.evaluations.contextSource}
               </h3>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Where to extract context for hallucination, citation, and RAG relevance evals.
+                {t.evaluations.contextSourceDesc}
               </p>
             </div>
             {saved && (
               <span className="flex items-center gap-1 text-xs text-foreground font-medium animate-in fade-in">
-                <Check className="size-3.5" /> Saved
+                <Check className="size-3.5" /> {t.evaluations.saved}
               </span>
             )}
           </div>
@@ -203,7 +205,7 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
                 {/* How it works */}
                 <div className="mb-4">
                   <h5 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2.5">
-                    How it works
+                    {t.evaluations.howItWorks}
                   </h5>
                   <div className="space-y-2">
                     {displaySource.details.map((d, i) => (
@@ -223,7 +225,7 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
                 {/* When to use */}
                 <div className="mb-4">
                   <h5 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2">
-                    When to use
+                    {t.evaluations.whenToUse}
                   </h5>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     {displaySource.useCase}
@@ -233,7 +235,7 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
                 {/* Suitable agents */}
                 <div>
                   <h5 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2">
-                    Suitable for
+                    {t.evaluations.suitableFor}
                   </h5>
                   <div className="flex flex-wrap gap-1">
                     {displaySource.agents.map((a) => (

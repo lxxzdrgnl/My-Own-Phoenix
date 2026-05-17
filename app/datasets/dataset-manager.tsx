@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n";
 
 import { useDatasetGeneration } from "./hooks/use-dataset-generation";
 import { useDatasetEvaluation } from "./hooks/use-dataset-evaluation";
@@ -50,6 +51,7 @@ interface EvalOption {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function DatasetManager({ projectId }: { projectId?: string } = {}) {
+  const t = useT();
   const confirm = useConfirm();
   const [datasets, setDatasets] = useState<DatasetMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -314,9 +316,9 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
       >
         {!selectedId ? (
           <div className="flex h-full flex-col items-center justify-center gap-3">
-            <EmptyState icon={Database} title="Select a dataset" description="Choose a dataset from the list to get started." className="h-auto" />
+            <EmptyState icon={Database} title={t.datasets.selectDataset} description={t.datasets.selectDatasetDesc} className="h-auto" />
             <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: null })} className="gap-1.5 text-xs">
-              <Upload className="size-3" /> Import
+              <Upload className="size-3" /> {t.common.import}
             </Button>
           </div>
         ) : (
@@ -377,7 +379,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                   disabled={tab === "results" && !hasResults && runs.length === 0}
                 >
                   {tab === "prompts" ? <List className="size-3" /> : <FlaskConical className="size-3" />}
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab === "prompts" ? t.datasets.prompts : t.datasets.results}
                   {tab === "prompts" && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">{totalRows}</span>}
                   {tab === "results" && runs.length > 0 && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">{runs.length}</span>}
                 </button>
@@ -392,9 +394,9 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                 <div className="px-5 py-4">
                   {rows.length === 0 ? (
                     <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <EmptyState icon={Database} title="No prompts yet" description="Import a file or add prompts from the Playground." className="h-auto" />
+                      <EmptyState icon={Database} title={t.datasets.noPrompts} description={t.datasets.noPromptsDesc} className="h-auto" />
                       <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })} className="mt-1 gap-1.5 text-xs">
-                        <Upload className="size-3" /> Import
+                        <Upload className="size-3" /> {t.common.import}
                       </Button>
                     </div>
                   ) : (
@@ -444,7 +446,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                           <button onClick={() => setSelectedRowIndices(new Set())} className="text-muted-foreground/60 hover:text-foreground">Clear</button>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground/50">Select rows to run on a subset</span>
+                        <span className="text-xs text-muted-foreground/50">{t.datasets.selectRows}</span>
                       )}
                     </div>
 

@@ -10,6 +10,7 @@ import { Users, Copy, Trash2, Check, X, Plus, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
+import { useT } from "@/lib/i18n";
 
 interface Member {
   id: string;
@@ -39,6 +40,7 @@ interface InviteCode {
 export function MembersTab() {
   const { id: projectId } = useProject();
   const confirm = useConfirm();
+  const t = useT();
   const [members, setMembers] = useState<Member[]>([]);
   const [currentRole, setCurrentRole] = useState("");
   const [requests, setRequests] = useState<JoinRequest[]>([]);
@@ -90,9 +92,9 @@ export function MembersTab() {
 
   const handleRemove = async (userId: string) => {
     const ok = await confirm({
-      title: "Remove member",
-      description: "This member will lose access to the project.",
-      confirmText: "Remove",
+      title: t.projectSettings.removeMember,
+      description: t.projectSettings.removeMemberDesc,
+      confirmText: t.common.remove,
     });
     if (!ok) return;
     await apiFetch(`/api/projects/${projectId}/members`, {
@@ -162,7 +164,7 @@ export function MembersTab() {
     <div className="space-y-8">
       {/* Members */}
       <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Members</h3>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t.projectSettings.membersSection}</h3>
         <div className="space-y-1">
           {members.map((m) => (
             <div key={m.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
@@ -207,7 +209,7 @@ export function MembersTab() {
       {isOwner && requests.length > 0 && (
         <section>
           <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-            Pending Requests
+            {t.projectSettings.pendingRequests}
             <span className="ml-2 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] text-background">{requests.length}</span>
           </h3>
           <div className="space-y-1">
@@ -221,10 +223,10 @@ export function MembersTab() {
                 </div>
                 <div className="flex gap-1">
                   <Button size="sm" onClick={() => handleApprove(r.id)}>
-                    <Check className="mr-1 h-3 w-3" /> Approve
+                    <Check className="mr-1 h-3 w-3" /> {t.projectSettings.approve}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => handleReject(r.id)}>
-                    <X className="mr-1 h-3 w-3" /> Reject
+                    <X className="mr-1 h-3 w-3" /> {t.projectSettings.reject}
                   </Button>
                 </div>
               </div>
@@ -236,7 +238,7 @@ export function MembersTab() {
       {/* Invite Codes (owner only) */}
       {isOwner && (
         <section>
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Invite Codes</h3>
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t.projectSettings.inviteCodes}</h3>
           {codes.length > 0 && (
             <div className="space-y-1 mb-3">
               {codes.map((c) => (
@@ -244,8 +246,8 @@ export function MembersTab() {
                   <div>
                     <code className="text-xs font-mono">{c.code}</code>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {c.role} · {c.maxUses > 0 ? `${c.useCount}/${c.maxUses} used` : `${c.useCount} used`}
-                      {c.expiresAt && ` · expires ${new Date(c.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                      {c.role} · {c.maxUses > 0 ? `${c.useCount}/${c.maxUses} ${t.projectSettings.used}` : `${c.useCount} ${t.projectSettings.used}`}
+                      {c.expiresAt && ` · ${t.projectSettings.expires} ${new Date(c.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
                     </p>
                   </div>
                   <div className="flex gap-1">
@@ -265,31 +267,31 @@ export function MembersTab() {
             <div className="rounded-lg border p-4 space-y-3">
               <div className="flex gap-3">
                 <div>
-                  <label className="text-xs font-medium">Role</label>
+                  <label className="text-xs font-medium">{t.projectSettings.role}</label>
                   <select value={genRole} onChange={(e) => setGenRole(e.target.value)} className="mt-1 block w-full rounded-md border bg-background px-2 py-1.5 text-xs">
                     <option value="editor">editor</option>
                     <option value="viewer">viewer</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium">Expires</label>
+                  <label className="text-xs font-medium">{t.projectSettings.expires}</label>
                   <select value={genExpiry} onChange={(e) => setGenExpiry(e.target.value)} className="mt-1 block w-full rounded-md border bg-background px-2 py-1.5 text-xs">
-                    <option value="1">1 day</option>
-                    <option value="7">7 days</option>
-                    <option value="30">30 days</option>
-                    <option value="">Never</option>
+                    <option value="1">{t.projectSettings.day1}</option>
+                    <option value="7">{t.projectSettings.days7}</option>
+                    <option value="30">{t.projectSettings.days30}</option>
+                    <option value="">{t.projectSettings.never}</option>
                   </select>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button type="button" size="sm" onClick={handleGenerate}>Generate & Copy</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(false)}>Cancel</Button>
+                <Button type="button" size="sm" onClick={handleGenerate}>{t.projectSettings.generateAndCopy}</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(false)}>{t.common.cancel}</Button>
               </div>
             </div>
           ) : (
             <RoleGate minRole="owner">
               <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(true)}>
-                <Plus className="mr-1.5 h-3 w-3" /> Generate Code
+                <Plus className="mr-1.5 h-3 w-3" /> {t.projectSettings.generateCode}
               </Button>
             </RoleGate>
           )}

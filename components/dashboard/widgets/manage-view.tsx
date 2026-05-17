@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShieldAlert, Plus, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface RiskItem {
   id: string;
@@ -77,7 +78,7 @@ function RiskLevelBadge({ level }: { level: string }) {
   );
 }
 
-function buildDonutOptions(risks: RiskItem[]): Highcharts.Options {
+function buildDonutOptions(risks: RiskItem[], titleText: string): Highcharts.Options {
   const counts: Record<string, number> = {};
   for (const r of risks) {
     counts[r.status] = (counts[r.status] ?? 0) + 1;
@@ -91,7 +92,7 @@ function buildDonutOptions(risks: RiskItem[]): Highcharts.Options {
 
   return {
     chart: { type: "pie" },
-    title: { text: "Status Distribution", style: { fontSize: "14px" } },
+    title: { text: titleText, style: { fontSize: "14px" } },
     plotOptions: {
       pie: {
         innerSize: "60%",
@@ -114,6 +115,7 @@ interface ManageViewProps {
 }
 
 export function ManageView({ projectId, className }: ManageViewProps) {
+  const t = useT();
   const [risks, setRisks] = useState<RiskItem[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,7 +208,7 @@ export function ManageView({ projectId, className }: ManageViewProps) {
   if (loading) {
     return (
       <div className={cn("flex items-center justify-center py-16 text-muted-foreground text-sm", className)}>
-        Loading...
+        {t.common.loading}
       </div>
     );
   }
@@ -217,25 +219,25 @@ export function ManageView({ projectId, className }: ManageViewProps) {
       <div>
         {!showAddForm ? (
           <Button size="sm" variant="outline" onClick={() => setShowAddForm(true)} className="gap-1.5 text-xs">
-            <Plus className="size-3" /> Add Risk
+            <Plus className="size-3" /> {t.measure.addRisk}
           </Button>
         ) : (
           <div className="rounded-lg border p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">New Risk</h3>
+              <h3 className="text-sm font-semibold">{t.measure.newRisk}</h3>
               <button onClick={() => setShowAddForm(false)}><X className="size-4 text-muted-foreground" /></button>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Name</label>
-                <Input value={newRisk.name} onChange={(e) => setNewRisk({ ...newRisk, name: e.target.value })} placeholder="e.g. Hallucination in legal advice" className="h-8 text-xs" />
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.measure.name}</label>
+                <Input value={newRisk.name} onChange={(e) => setNewRisk({ ...newRisk, name: e.target.value })} placeholder={t.measure.namePlaceholder} className="h-8 text-xs" />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">System</label>
-                <Input value={newRisk.system} onChange={(e) => setNewRisk({ ...newRisk, system: e.target.value })} placeholder="e.g. RAG Pipeline" className="h-8 text-xs" />
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.measure.system}</label>
+                <Input value={newRisk.system} onChange={(e) => setNewRisk({ ...newRisk, system: e.target.value })} placeholder={t.measure.systemPlaceholder} className="h-8 text-xs" />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Severity</label>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.measure.severity}</label>
                 <select value={newRisk.riskLevel} onChange={(e) => setNewRisk({ ...newRisk, riskLevel: e.target.value })} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
                   {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((l) => <option key={l} value={l}>{l}</option>)}
                 </select>
@@ -243,15 +245,15 @@ export function ManageView({ projectId, className }: ManageViewProps) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Mitigation</label>
-                <Input value={newRisk.mitigation} onChange={(e) => setNewRisk({ ...newRisk, mitigation: e.target.value })} placeholder="e.g. Add citation eval + guardrail" className="h-8 text-xs" />
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.measure.mitigation}</label>
+                <Input value={newRisk.mitigation} onChange={(e) => setNewRisk({ ...newRisk, mitigation: e.target.value })} placeholder={t.measure.mitigationPlaceholder} className="h-8 text-xs" />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Assignee</label>
-                <Input value={newRisk.assignee} onChange={(e) => setNewRisk({ ...newRisk, assignee: e.target.value })} placeholder="e.g. Team Lead" className="h-8 text-xs" />
+                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.measure.assignee}</label>
+                <Input value={newRisk.assignee} onChange={(e) => setNewRisk({ ...newRisk, assignee: e.target.value })} placeholder={t.measure.assigneePlaceholder} className="h-8 text-xs" />
               </div>
             </div>
-            <Button size="sm" onClick={handleAddRisk} disabled={!newRisk.name.trim()} className="text-xs">Create Risk</Button>
+            <Button size="sm" onClick={handleAddRisk} disabled={!newRisk.name.trim()} className="text-xs">{t.measure.createRisk}</Button>
           </div>
         )}
       </div>
@@ -259,11 +261,11 @@ export function ManageView({ projectId, className }: ManageViewProps) {
       {/* Top row: 5 stat cards */}
       <div className="grid grid-cols-5 gap-3">
         {[
-          { value: `${coverage}%`, label: "MANAGE Coverage" },
-          { value: openRisks, label: "Open Risks" },
-          { value: activeIncidents, label: "Active Incidents" },
-          { value: overdueCount, label: "Overdue Actions" },
-          { value: avgMttr !== null ? `${avgMttr}h` : "—", label: "Avg MTTR" },
+          { value: `${coverage}%`, label: t.measure.manageCoverage },
+          { value: openRisks, label: t.measure.openRisks },
+          { value: activeIncidents, label: t.measure.activeIncidents },
+          { value: overdueCount, label: t.measure.overdueActions },
+          { value: avgMttr !== null ? `${avgMttr}h` : "\u2014", label: t.measure.avgMttr },
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl border bg-card h-28">
             <StatCard value={stat.value} label={stat.label} />
@@ -276,10 +278,10 @@ export function ManageView({ projectId, className }: ManageViewProps) {
         {/* Donut chart */}
         <div className="rounded-xl border bg-card h-72">
           {risks.length > 0 ? (
-            <HighchartWidget options={buildDonutOptions(risks)} />
+            <HighchartWidget options={buildDonutOptions(risks, t.measure.statusDistribution)} />
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-              No data
+              {t.measure.noData}
             </div>
           )}
         </div>
@@ -288,13 +290,13 @@ export function ManageView({ projectId, className }: ManageViewProps) {
         <div className="rounded-xl border bg-card flex flex-col overflow-hidden">
           {/* Table header + filter */}
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <h3 className="text-sm font-semibold">Risk Treatment Plan</h3>
+            <h3 className="text-sm font-semibold">{t.measure.riskTreatmentPlan}</h3>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
               className="rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              <option value="ALL">All Status</option>
+              <option value="ALL">{t.measure.allStatus}</option>
               {STATUS_LABELS.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -308,15 +310,22 @@ export function ManageView({ projectId, className }: ManageViewProps) {
             {filteredRisks.length === 0 ? (
               <EmptyState
                 icon={ShieldAlert}
-                title="No risk items found"
+                title={t.measure.noRiskItems}
                 className="h-full"
               />
             ) : (
               <table className="w-full text-xs">
                 <thead className="bg-muted/30 sticky top-0">
                   <tr>
-                    {["Risk", "System", "Severity", "Mitigation", "Status", "Assignee", "Action"].map(
-                      (h) => (
+                    {[
+                      t.measure.risk,
+                      t.measure.system,
+                      t.measure.severity,
+                      t.measure.mitigation,
+                      t.measure.status,
+                      t.measure.assignee,
+                      t.measure.action,
+                    ].map((h) => (
                         <th
                           key={h}
                           className="px-3 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap"
@@ -352,7 +361,7 @@ export function ManageView({ projectId, className }: ManageViewProps) {
                         <StatusBadge status={r.status} />
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">
-                        {r.assignee ?? "—"}
+                        {r.assignee ?? "\u2014"}
                       </td>
                       <td className="px-3 py-2">
                         <select

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Play } from "lucide-react";
 import { PASS_LABELS } from "@/lib/constants";
 import { apiFetch } from "@/lib/api-client";
+import { useT } from "@/lib/i18n";
 import { parsePromptToConfig, generatePromptMessages } from "@/components/prompt-builder";
 
 interface TestResult {
@@ -21,6 +22,7 @@ interface EvalTestPanelProps {
 }
 
 export function EvalTestPanel({ editTemplate, projectId }: EvalTestPanelProps) {
+  const t = useT();
   const [testContext, setTestContext] = useState(
     "The Eiffel Tower is located in Paris, France. It was constructed in 1889 and stands 330 meters tall. It was designed by Gustave Eiffel's engineering company."
   );
@@ -85,7 +87,7 @@ export function EvalTestPanel({ editTemplate, projectId }: EvalTestPanelProps) {
     <div className="rounded-lg border p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-          <Play className="size-3" /> Test
+          <Play className="size-3" /> {t.evaluations.test}
         </h3>
         <Button
           size="sm"
@@ -94,13 +96,13 @@ export function EvalTestPanel({ editTemplate, projectId }: EvalTestPanelProps) {
           disabled={testing || !editTemplate}
           className="gap-1.5 text-xs"
         >
-          {testing ? "Running..." : "Run"}
+          {testing ? t.common.running : t.common.run}
         </Button>
       </div>
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div>
           <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Context
+            {t.evaluations.context}
           </label>
           <Textarea
             value={testContext}
@@ -112,7 +114,7 @@ export function EvalTestPanel({ editTemplate, projectId }: EvalTestPanelProps) {
         </div>
         <div>
           <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Query
+            {t.evaluations.query}
           </label>
           <Textarea
             value={testQuery}
@@ -124,7 +126,7 @@ export function EvalTestPanel({ editTemplate, projectId }: EvalTestPanelProps) {
         </div>
         <div>
           <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Response
+            {t.evaluations.response}
           </label>
           <Textarea
             value={testResponse}

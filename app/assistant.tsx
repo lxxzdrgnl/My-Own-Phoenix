@@ -13,6 +13,7 @@ import { auth } from "@/lib/firebase";
 import { Thread } from "@/components/assistant-ui/thread";
 
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/i18n";
 import { ProjectSelector } from "@/components/project-selector";
 import { Sidebar, SidebarItemDiv } from "@/components/ui/sidebar";
 
@@ -42,6 +43,7 @@ interface AssistantProps {
 
 export function Assistant({ project = "default", projects = [], onProjectChange, onProjectAdd, relayUserId, relayProjectId }: AssistantProps) {
   const { user } = useAuth();
+  const t = useT();
   const threadIdRef = useRef<string | null>(null);
   const activeDbIdRef = useRef<string | null>(null);
   const runningRef = useRef(false);
@@ -123,7 +125,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
       if (!threadIdRef.current) {
         threadIdRef.current = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const lastMsg = messages[messages.length - 1];
-        const title = (typeof lastMsg?.content === "string" ? lastMsg.content : "New Chat").slice(0, 30);
+        const title = (typeof lastMsg?.content === "string" ? lastMsg.content : t.chat.newChat ?? "New Chat").slice(0, 30);
         try {
           const res = await apiFetch("/api/user-threads", {
             method: "POST",
@@ -303,7 +305,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
           {user && sidebarOpen && (
             <Sidebar>
               <div className="flex items-center justify-between px-3 py-2 border-b">
-                <span className="text-sm font-semibold">Chat History</span>
+                <span className="text-sm font-semibold">{t.chat.chatHistory ?? "Chat History"}</span>
                 <button
                   onClick={() => { setSidebarOpen(false); localStorage.setItem("sidebar_open", "false"); }}
                   className="rounded p-1 hover:bg-muted transition-colors"
@@ -330,7 +332,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
                   className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
                 >
                   <Plus className="h-4 w-4" />
-                  New Chat
+                  {t.chat.newChat ?? "New Chat"}
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">

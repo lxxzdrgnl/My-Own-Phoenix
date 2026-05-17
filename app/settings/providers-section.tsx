@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/empty-state";
 import { ProviderIcon } from "@/components/provider-icon";
+import { useT } from "@/lib/i18n";
 
 interface ProviderEntry {
   id: string;
@@ -23,6 +24,7 @@ const ALL_PROVIDERS = [
 ] as const;
 
 export function ProvidersSection() {
+  const t = useT();
   const [providers, setProviders] = useState<ProviderEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const load = useCallback(async () => {
@@ -45,9 +47,9 @@ export function ProvidersSection() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">LLM Providers</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{t.settings.providers}</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Register API keys to enable models across playground, evaluations, and dataset runs.
+          {t.settings.providersDesc}
         </p>
       </div>
 
@@ -58,7 +60,7 @@ export function ProvidersSection() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                Providers
+                {t.settings.providersLabel}
               </h3>
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {configuredCount}/{ALL_PROVIDERS.length}
@@ -99,6 +101,7 @@ function ProviderRow({
   existing: ProviderEntry | null;
   onUpdate: () => void;
 }) {
+  const t = useT();
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -170,11 +173,11 @@ function ProviderRow({
           {isConfigured ? (
             <span className="flex items-center gap-1 text-[11px] font-medium text-[#10b981]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-              Active
+              {t.settings.active}
             </span>
           ) : (
             <span className="text-[11px] font-medium text-muted-foreground/40">
-              Not configured
+              {t.settings.notConfigured}
             </span>
           )}
         </div>
@@ -188,7 +191,7 @@ function ProviderRow({
               disabled={deleting}
               className="text-[11px] font-medium text-muted-foreground/60 transition-colors hover:text-foreground"
             >
-              {deleting ? "..." : "Remove"}
+              {deleting ? "..." : t.settings.remove}
             </button>
           </div>
         )}
@@ -198,7 +201,7 @@ function ProviderRow({
           <div className="relative flex-1">
             <Input
               type={showKey ? "text" : "password"}
-              placeholder={isConfigured ? "New key to replace..." : placeholder}
+              placeholder={isConfigured ? t.settings.newKeyToReplace : placeholder}
               value={apiKey}
               onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }}
               className="pr-8 font-mono text-xs"
@@ -218,7 +221,7 @@ function ProviderRow({
             onClick={handleTest}
             disabled={testing || !apiKey.trim()}
           >
-            {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Test"}
+            {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : t.settings.test}
           </Button>
           <Button
             size="sm"
@@ -226,7 +229,7 @@ function ProviderRow({
             onClick={handleSave}
             disabled={saving || !apiKey.trim()}
           >
-            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : isConfigured ? "Replace" : "Save"}
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : isConfigured ? t.settings.replace : t.common.save}
           </Button>
         </div>
 
@@ -236,7 +239,7 @@ function ProviderRow({
             testResult.success ? "text-[#10b981]" : "text-[#ef4444]"
           }`}>
             {testResult.success ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-            {testResult.success ? "Connection verified" : testResult.error || "Connection failed"}
+            {testResult.success ? t.settings.connectionVerified : testResult.error || t.settings.connectionFailed}
           </div>
         )}
       </div>

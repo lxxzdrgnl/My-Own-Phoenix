@@ -7,6 +7,7 @@ import { PASS_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/date-utils";
 import { Trash2, ChevronRight, FlaskConical, Filter, X, Pencil, Check as CheckIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { useT } from "@/lib/i18n";
 
 interface RunMeta {
   id: string; agentSource: string; evalNames: string; status: string; createdAt: string;
@@ -68,6 +69,7 @@ export function DatasetResults({
   onDeleteRun,
   onBackToPrompts,
 }: DatasetResultsProps) {
+  const t = useT();
   const [expandedResultIdx, setExpandedResultIdx] = useState<number | null>(null);
   const [openFilter, setOpenFilter] = useState<string | null>(null);
   const [evalFilters, setEvalFilters] = useState<Record<string, EvalFilter>>({});
@@ -110,7 +112,7 @@ export function DatasetResults({
       {/* Run list sidebar */}
       {runs.length > 0 && (
         <div className="w-52 shrink-0 border-r overflow-y-auto">
-          <p className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b">Runs</p>
+          <p className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b">{t.datasets.runs}</p>
           {liveRunId && (
             <div
               onClick={() => onLoadRun("")}
@@ -121,8 +123,8 @@ export function DatasetResults({
             >
               <div className="size-1.5 shrink-0 rounded-full bg-foreground/40 animate-pulse" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium">Live run</p>
-                <p className="text-[10px] text-muted-foreground">{liveResults.length} responses</p>
+                <p className="truncate text-xs font-medium">{t.datasets.liveRun}</p>
+                <p className="text-[10px] text-muted-foreground">{liveResults.length} {t.datasets.responses}</p>
               </div>
             </div>
           )}
@@ -207,12 +209,12 @@ export function DatasetResults({
       <div className="flex-1 overflow-y-auto px-5 py-4">
         {!hasResults ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <EmptyState icon={FlaskConical} title="No results yet" description="Generate responses first, then optionally run evaluations." className="h-auto" />
+            <EmptyState icon={FlaskConical} title={t.datasets.noResultsYet} description={t.datasets.noResultsYetDesc} className="h-auto" />
             <button
               onClick={onBackToPrompts}
               className="mt-1 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
-              <ChevronRight className="size-3" /> Back to prompts
+              <ChevronRight className="size-3" /> {t.datasets.backToPrompts}
             </button>
           </div>
         ) : (
@@ -228,15 +230,15 @@ export function DatasetResults({
               return latencies.length > 0 ? (
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-lg border px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rows</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.rows}</p>
                     <p className="text-2xl font-bold tabular-nums">{displayResults.length}</p>
                   </div>
                   <div className="rounded-lg border px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Avg Latency</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.avgLatency}</p>
                     <p className="text-2xl font-bold tabular-nums">{avgLatency!.toFixed(1)}s</p>
                   </div>
                   <div className="rounded-lg border px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">p95 Latency</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.p95Latency}</p>
                     <p className="text-2xl font-bold tabular-nums">{p95Latency!.toFixed(1)}s</p>
                   </div>
                 </div>

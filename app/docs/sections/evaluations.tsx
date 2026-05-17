@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, ChevronRight, Eye, Pencil } from "lucide-react";
 import { Callout } from "../code-block";
+import { useT } from "@/lib/i18n";
 
 /* ── 7 built-in eval definitions ── */
 const EVALS = [
@@ -303,40 +304,38 @@ function EvalPreview() {
 /* ── Main ── */
 
 export function Evaluations() {
+  const t = useT();
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-        Features
+        {t.docs.evaluations.groupLabel}
       </p>
-      <h1 className="text-2xl font-bold tracking-tight mb-2">Evaluations</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-2">{t.docs.evaluations.title}</h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Every trace is automatically evaluated by 7 built-in templates. The
-        project owner&apos;s global settings determine the default templates — new
-        projects inherit them automatically.
+        {t.docs.evaluations.subtitle}
       </p>
 
       <div className="space-y-10">
         <div>
-          <h3 className="text-sm font-semibold mb-4">Evaluation editor</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.evaluations.evalEditor}</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Click an evaluation to view its config. Toggle between Form View
-            and Raw Prompt to see the generated template.
+            {t.docs.evaluations.evalEditorHelper}
           </p>
           <EvalPreview />
         </div>
 
         {/* Two types */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">LLM-based vs Rule-based</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.evaluations.llmVsRule}</h3>
           <div className="grid gap-px grid-cols-2 rounded-xl border overflow-hidden bg-border">
             <div className="bg-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <span className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-foreground text-background">LLM</span>
-                <span className="text-xs font-semibold">LLM-as-Judge</span>
+                <span className="text-xs font-semibold">{t.docs.evaluations.llmJudgeLabel}</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["Uses an LLM to evaluate trace quality", "Supports nuanced judgment (context, reasoning)", "Score (0.0-1.0) or Binary (pass/fail) output", "Customizable prompt templates via form builder", "Requires LLM Provider API key"].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5">
+                {(t.docs.evaluations.llmFeatures as unknown as readonly string[]).map((item, i) => (
+                  <li key={i} className="flex items-start gap-2.5">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
                     {item}
                   </li>
@@ -346,11 +345,11 @@ export function Evaluations() {
             <div className="bg-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <span className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-muted text-muted-foreground">RULE</span>
-                <span className="text-xs font-semibold">Code Rule</span>
+                <span className="text-xs font-semibold">{t.docs.evaluations.codeRuleLabel}</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["Pattern matching on response content", "Keyword detection (banned words, required terms)", "Token/latency thresholds", "Instant — no LLM call needed", "Binary output only (match/clean)"].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5">
+                {(t.docs.evaluations.ruleFeatures as unknown as readonly string[]).map((item, i) => (
+                  <li key={i} className="flex items-start gap-2.5">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
                     {item}
                   </li>
@@ -362,13 +361,13 @@ export function Evaluations() {
 
         {/* How it works */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">How evaluations work</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.evaluations.howItWorks}</h3>
           <ol className="text-sm text-muted-foreground space-y-3 leading-relaxed">
             {[
-              <><strong className="text-foreground">Trace arrives</strong> — your agent sends a trace via the Trace API Key</>,
-              <><strong className="text-foreground">Eval worker picks it up</strong> — the Python worker polls every 15 seconds for new traces</>,
-              <><strong className="text-foreground">Templates run</strong> — each enabled eval template is applied (LLM call or rule check)</>,
-              <><strong className="text-foreground">Results saved</strong> — annotation badges (HAL, QA, CIT, etc.) appear on the trace</>,
+              t.docs.evaluations.howItWorksStep1,
+              t.docs.evaluations.howItWorksStep2,
+              t.docs.evaluations.howItWorksStep3,
+              t.docs.evaluations.howItWorksStep4,
             ].map((step, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold">{i + 1}</span>
@@ -378,12 +377,8 @@ export function Evaluations() {
           </ol>
         </div>
 
-        <Callout title="Owner defaults">
-          When a new project is created, the 7 built-in eval templates are
-          automatically enabled. The owner&apos;s{" "}
-          <strong>Global Settings &rarr; LLM Providers</strong> API key is
-          used to run LLM-based evaluations. Custom templates can be added
-          globally or per-project.
+        <Callout title={t.docs.evaluations.calloutTitle}>
+          {t.docs.evaluations.calloutText}
         </Callout>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { FileSpreadsheet, Plus, Trash2, Database } from "lucide-react";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Sidebar, SidebarHeader, SidebarItemDiv } from "@/components/ui/sidebar";
+import { useT } from "@/lib/i18n";
 
 interface DatasetMeta {
   id: string;
@@ -35,6 +36,7 @@ export function DatasetSidebar({
   onDelete,
   loading,
 }: DatasetSidebarProps) {
+  const t = useT();
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
 
@@ -48,14 +50,14 @@ export function DatasetSidebar({
   return (
     <Sidebar>
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
-        <SidebarHeader>Datasets</SidebarHeader>
+        <SidebarHeader>{t.datasets.title}</SidebarHeader>
         <button
           onClick={() => setCreating(true)}
           className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title="New dataset"
+          title={t.datasets.dataset}
         >
           <Plus className="size-3" />
-          Dataset
+          {t.datasets.dataset}
         </button>
       </div>
 
@@ -68,7 +70,7 @@ export function DatasetSidebar({
               if (e.key === "Enter") handleCreate();
               if (e.key === "Escape") setCreating(false);
             }}
-            placeholder="Dataset name..."
+            placeholder={t.datasets.datasetName}
             className="h-7 text-xs"
             autoFocus
           />
@@ -117,7 +119,7 @@ export function DatasetSidebar({
           </SidebarItemDiv>
         ))}
         {datasets.length === 0 && !loading && (
-          <EmptyState icon={Database} title="No datasets yet" className="py-8" />
+          <EmptyState icon={Database} title={t.datasets.noDatasets} className="py-8" />
         )}
       </div>
     </Sidebar>

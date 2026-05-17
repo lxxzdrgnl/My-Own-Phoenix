@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormLabel, FormError } from "@/components/ui/form-field";
 import { Loader2 } from "lucide-react";
 import type { Annotation } from "@/lib/phoenix";
+import { useT } from "@/lib/i18n";
 
 interface EvalOption {
   name: string;
@@ -25,6 +26,7 @@ interface AnnotationFormProps {
 }
 
 export function AnnotationForm({ open, onClose, spanId, existingAnnotations = [], onSaved }: AnnotationFormProps) {
+  const t = useT();
   const [evalOptions, setEvalOptions] = useState<EvalOption[]>([]);
   const [selectedEval, setSelectedEval] = useState("");
   const [customName, setCustomName] = useState("");
@@ -116,28 +118,28 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
 
   return (
     <Modal open={open} onClose={onClose} className="w-[440px]">
-      <ModalHeader onClose={onClose}>Add Annotation</ModalHeader>
+      <ModalHeader onClose={onClose}>{t.annotationForm.title}</ModalHeader>
       <ModalBody>
         <div className="space-y-4">
           <div>
-            <FormLabel>Evaluation</FormLabel>
+            <FormLabel>{t.annotationForm.evaluation}</FormLabel>
             <select
               value={selectedEval}
               onChange={(e) => setSelectedEval(e.target.value)}
               className="h-9 w-full rounded-md border bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
             >
-              <option value="">Select evaluation...</option>
+              <option value="">{t.annotationForm.selectEval}</option>
               {availableEvals.map((e) => (
                 <option key={e.name} value={e.name}>
                   {e.badgeLabel ? `${e.name} (${e.badgeLabel})` : e.name}
                 </option>
               ))}
-              <option value="__custom__">Custom name...</option>
+              <option value="__custom__">{t.annotationForm.customName}</option>
             </select>
             {selectedEval === "__custom__" && (
               <Input
                 className="mt-2"
-                placeholder="Enter annotation name"
+                placeholder={t.annotationForm.enterName}
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
               />
@@ -146,7 +148,7 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
 
           {evalName && (
             <div>
-              <FormLabel>Result</FormLabel>
+              <FormLabel>{t.annotationForm.result}</FormLabel>
               {mode === "binary" ? (
                 <div className="flex gap-2">
                   <Button
@@ -155,7 +157,7 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
                     className="flex-1"
                     onClick={() => setLabel("pass")}
                   >
-                    Pass
+                    {t.annotationForm.pass}
                   </Button>
                   <Button
                     variant={label === "fail" ? "default" : "outline"}
@@ -163,7 +165,7 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
                     className="flex-1"
                     onClick={() => setLabel("fail")}
                   >
-                    Fail
+                    {t.annotationForm.fail}
                   </Button>
                 </div>
               ) : (
@@ -190,10 +192,10 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
 
           {evalName && (
             <div>
-              <FormLabel>Comment (optional)</FormLabel>
+              <FormLabel>{t.annotationForm.comment}</FormLabel>
               <Textarea
                 rows={2}
-                placeholder="Explain your assessment..."
+                placeholder={t.annotationForm.commentPlaceholder}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
               />
@@ -204,11 +206,11 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
 
           <div className="flex justify-end gap-2 border-t pt-3">
             <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button size="sm" onClick={handleSave} disabled={saving || !evalName}>
               {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-              Save
+              {t.common.save}
             </Button>
           </div>
         </div>

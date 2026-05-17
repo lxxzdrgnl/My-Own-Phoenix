@@ -2,6 +2,7 @@
 import { apiFetch } from "@/lib/api-client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   PlusIcon,
@@ -89,6 +90,7 @@ interface CustomEval {
 }
 
 export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [customEvals, setCustomEvals] = useState<CustomEval[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -122,7 +124,7 @@ export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
         onClick={() => setOpen(!open)}
       >
         <PlusIcon className="size-3.5" />
-        Add Widget
+        {t.dashboard.addWidget}
       </Button>
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1.5 max-h-80 w-64 overflow-y-auto rounded-xl border bg-popover p-1.5 shadow-xl">
@@ -152,7 +154,7 @@ export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
           {customEvals.length > 0 && (
             <div>
               <div className="px-2.5 pb-1 pt-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
-                Custom Evals
+                {t.dashboard.customEvals}
               </div>
               {customEvals.map((e) => (
                 <button

@@ -12,6 +12,7 @@ import {
   Pencil,
   GripVertical,
 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -249,6 +250,7 @@ function canParseAsForm(template: string): boolean {
 }
 
 export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, onBadgeLabelChange }: PromptBuilderProps) {
+  const t = useT();
   const [mode, setMode] = useState<"form" | "raw">(() => canParseAsForm(template) ? "form" : "raw");
   const [config, setConfig] = useState<EvalFormConfig>(() => {
     return parsePromptToConfig(template) ?? DEFAULT_FORM_CONFIG;
@@ -325,7 +327,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
       <div>
         <div className="mb-2 flex items-center justify-between">
           <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Prompt Template (Raw)
+            {t.promptBuilder.promptTemplateRaw}
           </label>
           <Button
             size="sm"
@@ -337,7 +339,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
             }}
             className="gap-1.5 text-[11px] h-6"
           >
-            <Eye className="size-3" /> Form View
+            <Eye className="size-3" /> {t.promptBuilder.formView}
           </Button>
         </div>
         <Textarea
@@ -347,7 +349,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
           className="font-mono text-xs leading-relaxed"
         />
         <p className="mt-1.5 text-[10px] text-muted-foreground">
-          Placeholders: <code className="rounded bg-muted px-1">{"{context}"}</code>{" "}
+          {t.promptBuilder.placeholders}: <code className="rounded bg-muted px-1">{"{context}"}</code>{" "}
           <code className="rounded bg-muted px-1">{"{query}"}</code>{" "}
           <code className="rounded bg-muted px-1">{"{response}"}</code>
         </p>
@@ -360,7 +362,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
       {/* Mode toggle */}
       <div className="flex items-center justify-between">
         <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          Evaluation Config
+          {t.promptBuilder.evalConfig}
         </label>
         <Button
           size="sm"
@@ -368,17 +370,17 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
           onClick={() => setMode("raw")}
           className="gap-1.5 text-[11px] h-6"
         >
-          <Pencil className="size-3" /> Edit Raw Prompt
+          <Pencil className="size-3" /> {t.promptBuilder.editRawPrompt}
         </Button>
       </div>
 
       {/* ── Role & Task ── */}
       <div className="rounded-lg border p-4 space-y-3">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          Evaluator Role
+          {t.promptBuilder.evaluatorRole}
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">You are an expert</span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">{t.promptBuilder.youAreExpert}</span>
           <Input
             value={config.role}
             onChange={(e) => updateConfig({ role: e.target.value })}
@@ -388,7 +390,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
-            Task Description
+            {t.promptBuilder.taskDescription}
           </p>
           <Textarea
             value={config.task}
@@ -403,7 +405,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
       {/* ── Input Fields ── */}
       <div className="rounded-lg border p-4">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          Input Fields
+          {t.promptBuilder.inputFields}
         </p>
         <div className="flex gap-2">
           {(["context", "query", "response"] as const).map((field) => {
@@ -425,14 +427,14 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
           })}
         </div>
         <p className="mt-2 text-[10px] text-muted-foreground">
-          Select which data fields are included in the evaluation prompt.
+          {t.promptBuilder.inputFieldsDesc}
         </p>
       </div>
 
       {/* ── Output Mode ── */}
       <div className="rounded-lg border p-4">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          Output Mode
+          {t.promptBuilder.outputMode}
         </p>
         <div className="grid grid-cols-2 gap-3 mb-4">
           <button
@@ -442,9 +444,9 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
               config.outputMode === "score" ? "border-foreground bg-accent" : "hover:bg-accent/50",
             )}
           >
-            <p className="text-sm font-semibold">Score (0.0 - 1.0)</p>
+            <p className="text-sm font-semibold">{t.promptBuilder.scoreModeTitle}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Returns a numeric score with label. Best for nuanced quality assessment.
+              {t.promptBuilder.scoreModeDesc}
             </p>
           </button>
           <button
@@ -454,9 +456,9 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
               config.outputMode === "binary" ? "border-foreground bg-accent" : "hover:bg-accent/50",
             )}
           >
-            <p className="text-sm font-semibold">Binary (True / False)</p>
+            <p className="text-sm font-semibold">{t.promptBuilder.binaryModeTitle}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Returns pass or fail only. Best for clear-cut checks.
+              {t.promptBuilder.binaryModeDesc}
             </p>
           </button>
         </div>
@@ -465,7 +467,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
         <div className={cn("grid gap-3", config.outputMode === "score" ? "grid-cols-3" : "grid-cols-2")}>
           <div>
             <label className="text-[10px] text-muted-foreground mb-1 block">
-              {config.outputMode === "binary" ? "True Label" : "Pass Label"}
+              {config.outputMode === "binary" ? t.promptBuilder.trueLabel : t.promptBuilder.passLabel}
             </label>
             <Input
               value={config.passLabel}
@@ -476,7 +478,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
           </div>
           <div>
             <label className="text-[10px] text-muted-foreground mb-1 block">
-              {config.outputMode === "binary" ? "False Label" : "Fail Label"}
+              {config.outputMode === "binary" ? t.promptBuilder.falseLabel : t.promptBuilder.failLabel}
             </label>
             <Input
               value={config.failLabel}
@@ -487,7 +489,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
           </div>
           {config.outputMode === "score" && (
             <div>
-              <label className="text-[10px] text-muted-foreground mb-1 block">Pass Threshold</label>
+              <label className="text-[10px] text-muted-foreground mb-1 block">{t.promptBuilder.passThreshold}</label>
               <Input
                 type="number"
                 step="0.1"
@@ -514,7 +516,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
         <div className="rounded-lg border p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Score Ranges
+              {t.promptBuilder.scoreRanges}
             </p>
             <Button
               size="sm"
@@ -522,7 +524,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
               onClick={addScoreRange}
               className="h-6 text-[11px] gap-1"
             >
-              <Plus className="size-3" /> Add Range
+              <Plus className="size-3" /> {t.promptBuilder.addRange}
             </Button>
           </div>
 
@@ -586,7 +588,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
                   <Input
                     value={range.label}
                     onChange={(e) => updateScoreRange(range.id, { label: e.target.value })}
-                    placeholder="Label"
+                    placeholder={t.promptBuilder.label}
                     className="h-7 w-28 text-xs"
                   />
                   <Input
@@ -616,11 +618,11 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
       {/* ── Badge Preview ── */}
       <div className="rounded-lg border p-4">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          Badge Preview
+          {t.promptBuilder.badgePreview}
         </p>
         <div className="flex items-center gap-4 mb-3">
           <div>
-            <label className="text-[10px] text-muted-foreground mb-1 block">Short Name (max 4 chars)</label>
+            <label className="text-[10px] text-muted-foreground mb-1 block">{t.promptBuilder.shortName}</label>
             <Input
               value={badgeLabel}
               onChange={(e) => {
@@ -633,7 +635,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
             />
           </div>
           <div className="flex-1">
-            <label className="text-[10px] text-muted-foreground mb-1 block">Preview</label>
+            <label className="text-[10px] text-muted-foreground mb-1 block">{t.promptBuilder.preview}</label>
             <div className="flex items-center gap-3">
               {/* Pass example */}
               <span className="inline-flex items-center overflow-hidden rounded text-[9px] font-mono tabular-nums leading-none border border-foreground/15">
@@ -666,7 +668,7 @@ export function PromptBuilder({ template, evalName, badgeLabel = "", onChange, o
       {/* ── Generated Prompt Preview ── */}
       <details className="rounded-lg border">
         <summary className="cursor-pointer px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:bg-muted/20 transition-colors">
-          Preview Generated Prompt
+          {t.promptBuilder.previewGeneratedPrompt}
         </summary>
         <div className="border-t px-4 py-3">
           <pre className="whitespace-pre-wrap text-xs font-mono text-muted-foreground leading-relaxed">

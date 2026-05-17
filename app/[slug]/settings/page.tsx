@@ -11,13 +11,17 @@ import { Input } from "@/components/ui/input";
 import { Trash2, Plus, CheckCircle, Loader2, AlertTriangle, ArrowRightLeft, Copy, Check, RefreshCw } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
+import { useT } from "@/lib/i18n";
 
-const TABS = [
-  { id: "members", label: "Members" },
-  { id: "api-keys", label: "API Keys" },
-  { id: "agent", label: "Agent" },
-  { id: "danger", label: "Danger Zone" },
-];
+function useTabs() {
+  const t = useT();
+  return [
+    { id: "members", label: t.projectSettings.members },
+    { id: "api-keys", label: t.projectSettings.apiKeys },
+    { id: "agent", label: t.projectSettings.agent },
+    { id: "danger", label: t.projectSettings.dangerZone },
+  ];
+}
 
 const PROVIDERS = [
   { id: "openai", label: "OpenAI", placeholder: "sk-..." },
@@ -29,6 +33,7 @@ const PROVIDERS = [
 function ApiKeysTab() {
   const { id: projectId } = useProject();
   const confirm = useConfirm();
+  const t = useT();
   const [keys, setKeys] = useState<{ id: string; provider: string; isActive: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<string | null>(null);
@@ -85,16 +90,16 @@ function ApiKeysTab() {
 
   const handleDelete = async (id: string) => {
     const ok = await confirm({
-      title: "Remove API key",
-      description: "This API key will be permanently removed from this project.",
-      confirmText: "Remove",
+      title: t.projectSettings.removeApiKey,
+      description: t.projectSettings.removeApiKeyDesc,
+      confirmText: t.common.remove,
     });
     if (!ok) return;
     await apiFetch(`/api/projects/${projectId}/providers/${id}`, { method: "DELETE" });
     load();
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">{t.common.loading}</p>;
 
   const handleGenerateTraceKey = async () => {
     setGeneratingKey(true);
@@ -120,9 +125,9 @@ function ApiKeysTab() {
     <div className="space-y-6">
       {/* Trace Key */}
       <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Trace Key</h3>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t.projectSettings.traceKey}</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          Set this key in your agent to send traces to this project.
+          {t.projectSettings.traceKeyDesc}
         </p>
         <div className="rounded-lg border px-4 py-3 space-y-3">
           {traceKey && (
@@ -143,7 +148,7 @@ function ApiKeysTab() {
           <RoleGate minRole="owner">
             <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
               {generatingKey ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
-              {traceKey ? "Regenerate" : "Generate Trace Key"}
+              {traceKey ? t.projectSettings.regenerate : t.projectSettings.generateTraceKey}
             </Button>
           </RoleGate>
         </div>
@@ -151,9 +156,9 @@ function ApiKeysTab() {
 
       {/* LLM Provider Keys */}
       <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">LLM Provider Keys</h3>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t.projectSettings.llmProviderKeys}</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          API keys used for evaluations and playground in this project.
+          {t.projectSettings.llmProviderKeysDesc}
         </p>
         <div className="space-y-2">
           {PROVIDERS.map((p) => {
@@ -167,7 +172,7 @@ function ApiKeysTab() {
                   <>
                     <div className="flex-1 flex items-center gap-2">
                       <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                      <span className="text-xs text-muted-foreground">Configured</span>
+                      <span className="text-xs text-muted-foreground">{t.projectSettings.configured}</span>
                     </div>
                     <RoleGate>
                       <button onClick={() => handleDelete(existing.id)} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive">
@@ -185,17 +190,17 @@ function ApiKeysTab() {
                       className="h-8 text-xs font-mono"
                     />
                     <Button size="sm" onClick={() => handleAdd(p.id)} disabled={saving || !newKey.trim()}>
-                      {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                      {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : t.common.save}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => { setAdding(null); setNewKey(""); }}>
-                      Cancel
+                      {t.common.cancel}
                     </Button>
                   </div>
                 ) : (
                   <div className="flex-1">
                     <RoleGate>
                       <Button size="sm" variant="outline" onClick={() => setAdding(p.id)}>
-                        <Plus className="mr-1 h-3 w-3" /> Add Key
+                        <Plus className="mr-1 h-3 w-3" /> {t.projectSettings.addKey}
                       </Button>
                     </RoleGate>
                   </div>
@@ -211,11 +216,13 @@ function ApiKeysTab() {
 
 export default function ProjectSettingsPage() {
   const { name } = useProject();
+  const t = useT();
+  const TABS = useTabs();
   const [activeTab, setActiveTab] = useState("members");
 
   return (
     <div className="mx-auto max-w-2xl px-8 py-8">
-      <h1 className="text-xl font-semibold tracking-tight mb-1">Project Settings</h1>
+      <h1 className="text-xl font-semibold tracking-tight mb-1">{t.projectSettings.title}</h1>
       <p className="text-sm text-muted-foreground mb-6">{name}</p>
 
       <div className="flex gap-1 border-b mb-6">
@@ -253,6 +260,7 @@ interface MemberInfo {
 function DangerTab() {
   const { id: projectId, name } = useProject();
   const router = useRouter();
+  const t = useT();
   const [currentRole, setCurrentRole] = useState("");
   const [members, setMembers] = useState<MemberInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -325,12 +333,12 @@ function DangerTab() {
     }
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">{t.common.loading}</p>;
 
   if (!isOwner) {
     return (
       <div className="rounded-lg border px-5 py-8 text-center">
-        <p className="text-sm text-muted-foreground">Only the project owner can access this section.</p>
+        <p className="text-sm text-muted-foreground">{t.projectSettings.ownerOnly}</p>
       </div>
     );
   }
@@ -341,14 +349,14 @@ function DangerTab() {
       <section>
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
           <ArrowRightLeft className="inline h-3 w-3 mr-1" />
-          Transfer Ownership
+          {t.projectSettings.transferOwnership}
         </h3>
         <div className="rounded-lg border px-5 py-4 space-y-3">
           <p className="text-xs text-muted-foreground">
-            Transfer this project to another member. You will become an editor.
+            {t.projectSettings.transferOwnershipDesc}
           </p>
           {otherMembers.length === 0 ? (
-            <p className="text-xs text-muted-foreground/60">No other members to transfer to.</p>
+            <p className="text-xs text-muted-foreground/60">{t.projectSettings.noOtherMembers}</p>
           ) : (
             <>
               <select
@@ -356,7 +364,7 @@ function DangerTab() {
                 onChange={(e) => setTransferTarget(e.target.value)}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="">Select a member</option>
+                <option value="">{t.projectSettings.selectMember}</option>
                 {otherMembers.map((m) => (
                   <option key={m.userId} value={m.userId}>
                     {m.user.name || m.user.email} ({m.role})
@@ -366,7 +374,7 @@ function DangerTab() {
               {transferTarget && (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">
-                    Type <strong>{name}</strong> to confirm:
+                    {t.projectSettings.typeToConfirm.split("{name}")[0]}<strong>{name}</strong>{t.projectSettings.typeToConfirm.split("{name}")[1]}
                   </p>
                   <Input
                     value={transferConfirm}
@@ -381,7 +389,7 @@ function DangerTab() {
                     disabled={transferConfirm !== name || transferring}
                   >
                     {transferring ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-                    Transfer Ownership
+                    {t.projectSettings.transferOwnership}
                   </Button>
                 </div>
               )}
@@ -394,14 +402,14 @@ function DangerTab() {
       <section>
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-destructive mb-3">
           <AlertTriangle className="inline h-3 w-3 mr-1" />
-          Delete Project
+          {t.projectSettings.deleteProject}
         </h3>
         <div className="rounded-lg border border-destructive/20 px-5 py-4 space-y-3">
           <p className="text-xs text-muted-foreground">
-            Permanently delete this project and all its data. This action cannot be undone.
+            {t.projectSettings.deleteProjectDesc}
           </p>
           <p className="text-xs text-muted-foreground">
-            Type <strong>{name}</strong> to confirm:
+            {t.projectSettings.typeToConfirm.split("{name}")[0]}<strong>{name}</strong>{t.projectSettings.typeToConfirm.split("{name}")[1]}
           </p>
           <Input
             value={deleteConfirm}
@@ -416,7 +424,7 @@ function DangerTab() {
             disabled={deleteConfirm !== name || deleting}
           >
             {deleting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-            Delete Project
+            {t.projectSettings.deleteProject}
           </Button>
         </div>
       </section>
@@ -426,6 +434,7 @@ function DangerTab() {
 
 function AgentTab() {
   const { id: projectId, name } = useProject();
+  const t = useT();
   const [connectors, setConnectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -449,15 +458,15 @@ function AgentTab() {
     <div className="space-y-6">
       <section>
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          Connected Agents
+          {t.projectSettings.connectedAgents}
         </h3>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">{t.common.loading}</p>
         ) : connectors.length === 0 ? (
           <div className="rounded-lg border border-dashed px-5 py-8 text-center">
-            <p className="text-sm text-muted-foreground mb-1">No agents connected</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.projectSettings.noAgentsConnected}</p>
             <p className="text-xs text-muted-foreground/60">
-              Connect your local agent using the phoenix-connector CLI.
+              {t.projectSettings.noAgentsConnectedDesc}
             </p>
           </div>
         ) : (
@@ -488,11 +497,11 @@ function AgentTab() {
 
       <section>
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          Setup Guide
+          {t.projectSettings.setupGuide}
         </h3>
         <div className="rounded-lg border px-5 py-4 space-y-3">
           <p className="text-xs text-muted-foreground">
-            Connect your local agent using the phoenix-connector CLI:
+            {t.projectSettings.setupGuideDesc}
           </p>
           <div className="rounded-lg bg-muted/50 p-3 font-mono text-xs text-muted-foreground break-all">
             pip install phoenix-connector
@@ -500,7 +509,7 @@ function AgentTab() {
             phoenix-connector --key=pc_... --agent=http://localhost:2024 --project={name}
           </div>
           <p className="text-[10px] text-muted-foreground/60">
-            Get your connector key from Global Settings &rarr; Profile &amp; Key.
+            {t.projectSettings.connectorKeyHint}
           </p>
         </div>
       </section>

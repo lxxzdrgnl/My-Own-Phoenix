@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 // ── Types ──
 
@@ -88,6 +89,8 @@ interface RuleBuilderProps {
 }
 
 export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
+  const t = useT();
+
   function updateRule(idx: number, partial: Partial<Rule>) {
     const rules = [...config.rules];
     rules[idx] = { ...rules[idx], ...partial };
@@ -120,16 +123,16 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
       {/* Rules */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rules</label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.ruleBuilder.rules}</label>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground">Logic:</span>
+            <span className="text-[10px] text-muted-foreground">{t.ruleBuilder.logic}:</span>
             <select
               value={config.logic}
               onChange={(e) => onChange({ ...config, logic: e.target.value as "any" | "all" })}
               className="h-6 rounded border bg-background px-1.5 text-[11px] outline-none"
             >
-              <option value="any">ANY rule matches (OR)</option>
-              <option value="all">ALL rules match (AND)</option>
+              <option value="any">{t.ruleBuilder.anyRuleMatches}</option>
+              <option value="all">{t.ruleBuilder.allRulesMatch}</option>
             </select>
           </div>
         </div>
@@ -203,17 +206,17 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
         </div>
 
         <Button size="sm" variant="outline" onClick={addRule} className="mt-2 gap-1.5 text-xs w-full">
-          <Plus className="size-3" /> Add Rule
+          <Plus className="size-3" /> {t.ruleBuilder.addRule}
         </Button>
       </div>
 
       {/* Results */}
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-lg border p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">When Matched</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{t.ruleBuilder.whenMatched}</p>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-[10px] text-muted-foreground">Label</label>
+              <label className="text-[10px] text-muted-foreground">{t.ruleBuilder.label}</label>
               <Input
                 value={config.match.label}
                 onChange={(e) => onChange({ ...config, match: { ...config.match, label: e.target.value } })}
@@ -222,7 +225,7 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
               />
             </div>
             <div className="w-20">
-              <label className="text-[10px] text-muted-foreground">Score</label>
+              <label className="text-[10px] text-muted-foreground">{t.ruleBuilder.score}</label>
               <Input
                 type="number"
                 step="0.1"
@@ -236,10 +239,10 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
           </div>
         </div>
         <div className="rounded-lg border p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">When Clean</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{t.ruleBuilder.whenClean}</p>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-[10px] text-muted-foreground">Label</label>
+              <label className="text-[10px] text-muted-foreground">{t.ruleBuilder.label}</label>
               <Input
                 value={config.clean.label}
                 onChange={(e) => onChange({ ...config, clean: { ...config.clean, label: e.target.value } })}
@@ -248,7 +251,7 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
               />
             </div>
             <div className="w-20">
-              <label className="text-[10px] text-muted-foreground">Score</label>
+              <label className="text-[10px] text-muted-foreground">{t.ruleBuilder.score}</label>
               <Input
                 type="number"
                 step="0.1"

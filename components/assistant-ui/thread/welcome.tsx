@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { apiFetch } from "@/lib/api-client";
 import { ChatSuggestion, DEFAULT_CHAT_SUGGESTIONS, parseChatSuggestions } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 export const ThreadScrollToBottom: FC = () => {
   return (
@@ -73,15 +74,16 @@ const ThreadSuggestions: FC<{ project: string }> = ({ project }) => {
 };
 
 export const ThreadWelcome: FC<{ project?: string }> = ({ project = "default" }) => {
+  const t = useT();
   return (
     <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
         <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
           <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in font-semibold text-2xl duration-200">
-            Hello there!
+            {t.chat.welcome}
           </h1>
           <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in text-muted-foreground text-xl delay-75 duration-200">
-            Ask me anything.
+            {t.chat.welcomeSub}
           </p>
         </div>
       </div>

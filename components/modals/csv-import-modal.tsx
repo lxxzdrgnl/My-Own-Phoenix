@@ -5,6 +5,7 @@ import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, RefreshCw } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface CSVImportModalProps {
   open: boolean;
@@ -134,6 +135,7 @@ function autoMapColumns(headers: string[]) {
 }
 
 export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVImportModalProps) {
+  const t = useT();
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
@@ -191,14 +193,14 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
   return (
     <Modal open={open} onClose={handleClose} className="w-[700px]">
       <ModalHeader onClose={handleClose}>
-        {targetDataset ? `Import File \u2192 ${targetDataset.name}` : "Import File \u2014 New Dataset"}
+        {targetDataset ? `${t.csvImport.importToDataset} \u2192 ${targetDataset.name}` : t.csvImport.newDataset}
       </ModalHeader>
       <ModalBody>
         <div className="space-y-4">
           {!targetDataset && (
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Dataset Name
+                {t.csvImport.datasetName}
               </label>
               <Input
                 value={name}
@@ -218,7 +220,7 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
               className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/20 py-10 transition-colors hover:border-muted-foreground/40"
             >
               <Upload className="size-6 text-muted-foreground/40" />
-              <p className="text-xs text-muted-foreground">Drop a CSV or JSON file or click to browse</p>
+              <p className="text-xs text-muted-foreground">{t.csvImport.dropFile}</p>
               <input ref={fileRef} type="file" accept=".csv,.tsv,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </div>
           ) : (
@@ -226,14 +228,14 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
               <div className="flex items-center justify-between rounded-lg border px-3 py-2">
                 <p className="text-sm font-medium">{file.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {parsing ? "Parsing..." : `${rows.length.toLocaleString()} rows, ${headers.length} columns`}
+                  {parsing ? t.csvImport.parsing : `${rows.length.toLocaleString()} rows, ${headers.length} columns`}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Query Column
+                    {t.csvImport.queryColumn}
                   </label>
                   <select value={queryCol} onChange={(e) => setQueryCol(e.target.value)} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
                     <option value="">&mdash; None &mdash;</option>
@@ -242,7 +244,7 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
                 </div>
                 <div>
                   <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Context Column (optional)
+                    {t.csvImport.contextColumn}
                   </label>
                   <select value={contextCol} onChange={(e) => setContextCol(e.target.value)} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
                     <option value="">&mdash; None &mdash;</option>
@@ -252,7 +254,7 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
               </div>
 
               <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Preview (first 5 rows)</p>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.csvImport.preview5Rows}</p>
                 <div className="overflow-hidden rounded-lg border">
                   <div className="max-h-[200px] overflow-auto">
                     <table className="w-full text-xs">
@@ -284,12 +286,12 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={handleClose} disabled={importing} className="text-xs">Cancel</Button>
+            <Button variant="ghost" onClick={handleClose} disabled={importing} className="text-xs">{t.common.cancel}</Button>
             <Button onClick={handleConfirm} disabled={importing || headers.length === 0 || (!targetDataset && !name.trim())} className="text-xs gap-1.5">
               {importing ? (
-                <><RefreshCw className="size-3 animate-spin" /> Importing...</>
+                <><RefreshCw className="size-3 animate-spin" /> {t.csvImport.importing}</>
               ) : (
-                targetDataset ? "Import" : "Create & Import"
+                targetDataset ? t.csvImport.import : t.csvImport.createAndImport
               )}
             </Button>
           </div>

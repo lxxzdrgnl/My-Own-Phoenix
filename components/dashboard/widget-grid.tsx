@@ -14,6 +14,7 @@ import { GripVertical, X, Settings2 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import React from "react";
 import { getColorSlots, getViewModes } from "./widgets/registry";
+import { useT } from "@/lib/i18n";
 
 export type { LayoutItem };
 
@@ -101,6 +102,7 @@ function WidgetCard({
   onColorChange: (colors: WidgetColors) => void;
   renderWidget: (widget: WidgetConfig, viewMode: WidgetViewMode, gridW: number, gridH: number, colors: WidgetColors) => React.ReactNode;
 }) {
+  const t = useT();
   const cardRef = useRef<HTMLDivElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
@@ -141,7 +143,7 @@ function WidgetCard({
 
   const customModes = getViewModes(widget.type);
   const colorSlots = getColorSlots(widget.type);
-  const DEFAULT_LABELS: Record<WidgetViewMode, string> = { summary: "Summary", trend: "Trend", detail: "Detail" };
+  const DEFAULT_LABELS: Record<WidgetViewMode, string> = { summary: t.dashboard.summary, trend: t.dashboard.trend, detail: t.dashboard.detail };
   const VIEW_MODE_FULL: Record<string, string> = customModes?.labels ?? DEFAULT_LABELS;
   const VIEW_MODE_ORDER: WidgetViewMode[] = (customModes?.modes ?? ["summary", "trend", "detail"]) as WidgetViewMode[];
   const isSingleView = VIEW_MODE_ORDER.length <= 1;
@@ -199,7 +201,7 @@ function WidgetCard({
                           viewMode === vm ? "bg-accent text-accent-foreground" : "hover:bg-accent"
                         }`}
                       >
-                        {VIEW_MODE_FULL[vm]} View
+                        {VIEW_MODE_FULL[vm]} {t.dashboard.view}
                       </button>
                     ))}
                     <div className="my-1 border-t border-border/40" />
@@ -207,7 +209,7 @@ function WidgetCard({
                 )}
                 {/* Color settings */}
                 <div className="px-2.5 py-1.5">
-                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Colors</p>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.dashboard.colors}</p>
                   {/* Presets */}
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {colorSlots === 2 ? (
@@ -262,7 +264,7 @@ function WidgetCard({
                   onClick={() => { onRemove(); setOptionsOpen(false); }}
                   className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10"
                 >
-                  Remove Widget
+                  {t.dashboard.removeWidget}
                 </button>
               </div>
             )}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
+
 interface FilterDropdownProps {
   spanKinds: Set<string>;
   contentFilter: string;
@@ -27,6 +29,7 @@ export function FilterDropdown({
   onContentFilterChange,
   onClearSelected,
 }: FilterDropdownProps) {
+  const t = useT();
   const top =
     (document.getElementById("filter-btn")?.getBoundingClientRect().bottom ??
       0) + 6;
@@ -42,7 +45,7 @@ export function FilterDropdown({
       >
         <div className="border-b px-3 py-2.5">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-            Span Kind
+            {t.playground.spanKind}
           </p>
           <div className="flex flex-wrap gap-1">
             {["ALL", "LLM", "CHAIN", "RETRIEVER", "PROMPT"].map((kind) => {
@@ -79,13 +82,13 @@ export function FilterDropdown({
 
         <div className="px-3 py-2.5">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-            Content
+            {t.playground.content}
           </p>
           <div className="flex flex-col gap-0.5">
             {[
-              { value: "ALL", label: "All" },
-              { value: "RAG", label: "RAG only" },
-              { value: "PLAYGROUND", label: "Playground only" },
+              { value: "ALL", label: t.playground.all },
+              { value: "RAG", label: t.playground.ragOnly },
+              { value: "PLAYGROUND", label: t.playground.playgroundOnly },
             ].map(({ value, label }) => {
               const active = contentFilter === value;
               return (

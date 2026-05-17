@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useCallback, useEffect, useState } from "react";
 import { useProject } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/i18n";
 import {
   WidgetGrid,
   type WidgetConfig,
@@ -69,6 +70,7 @@ const DEFAULT_LAYOUTS: LayoutItem[] = [
 export default function DashboardPage() {
   const { user } = useAuth();
   const { phoenixProject: project } = useProject();
+  const t = useT();
 
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [layouts, setLayouts] = useState<LayoutItem[]>(DEFAULT_LAYOUTS);
@@ -238,7 +240,7 @@ export default function DashboardPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b border-border/60 px-5 py-3">
-        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t.dashboard.title}</h1>
         <div className="h-4 w-px bg-border/60" />
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <AddWidgetMenu onAdd={handleAddWidget} />

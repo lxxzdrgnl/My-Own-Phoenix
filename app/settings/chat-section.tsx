@@ -11,6 +11,7 @@ import { FormLabel, FormError } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { ChatSuggestion, MAX_CHAT_SUGGESTIONS, parseChatSuggestions } from "@/lib/constants";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n";
 
 interface AgentConfig {
   id: string;
@@ -33,6 +34,7 @@ interface AgentTemplate {
 }
 
 export function ChatSection() {
+  const t = useT();
   const [configs, setConfigs] = useState<AgentConfig[]>([]);
   const [templates, setTemplates] = useState<AgentTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,9 +59,9 @@ export function ChatSection() {
 
   async function handleDisconnect(project: string) {
     const ok = await confirm({
-      title: "Disconnect agent",
-      description: `The agent will be disconnected from project "${project}".`,
-      confirmText: "Disconnect",
+      title: t.settings.disconnectAgent,
+      description: `${t.settings.disconnectAgentDesc} "${project}".`,
+      confirmText: t.settings.disconnect,
     });
     if (!ok) return;
     await apiFetch(`/api/agent-config?project=${encodeURIComponent(project)}`, { method: "DELETE" });
@@ -69,9 +71,9 @@ export function ChatSection() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">Chat</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{t.settings.chatTitle}</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Manage which agents are connected to each Phoenix project.
+          {t.settings.chatDesc}
         </p>
       </div>
 
@@ -82,7 +84,7 @@ export function ChatSection() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                Project Agent Mapping
+                {t.settings.projectAgentMapping}
               </h3>
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {configs.length}
@@ -93,8 +95,8 @@ export function ChatSection() {
             {configs.length === 0 && !showAddForm && (
               <EmptyState
                 icon={Bot}
-                title="No project-agent connections"
-                description="Connect an agent to a project using the button below."
+                title={t.settings.noConnections}
+                description={t.settings.noConnectionsDesc}
               />
             )}
 
@@ -124,7 +126,7 @@ export function ChatSection() {
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed py-3 text-sm text-muted-foreground/60 transition-colors hover:border-foreground/20 hover:text-foreground"
                 >
                   <Plus className="h-4 w-4" />
-                  Connect Project
+                  {t.settings.connectProject}
                 </button>
               )}
             </div>
@@ -209,6 +211,7 @@ function ExpandedPanel({
   onSaved: () => void;
   onDisconnect: () => void;
 }) {
+  const t = useT();
   const [tab, setTab] = useState<"config" | "questions">("config");
 
   return (
@@ -223,7 +226,7 @@ function ExpandedPanel({
               : "border-transparent text-muted-foreground/50 hover:text-muted-foreground",
           )}
         >
-          Configuration
+          {t.settings.configTab}
         </button>
         <button
           onClick={() => setTab("questions")}
@@ -234,7 +237,7 @@ function ExpandedPanel({
               : "border-transparent text-muted-foreground/50 hover:text-muted-foreground",
           )}
         >
-          Starter Questions
+          {t.settings.starterQuestionsTab}
         </button>
       </div>
       <div className="px-4 pb-4 pt-3">
@@ -258,6 +261,7 @@ function ConfigTab({
   onSaved: () => void;
   onDisconnect: () => void;
 }) {
+  const t = useT();
   const [alias, setAlias] = useState(config.alias ?? "");
   const [selectedTemplateId, setSelectedTemplateId] = useState(config.templateId ?? "");
   const [saving, setSaving] = useState(false);
@@ -268,7 +272,7 @@ function ConfigTab({
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
   async function handleSave() {
-    if (!selectedTemplateId) { setError("Select an agent."); return; }
+    if (!selectedTemplateId) { setError(`${t.settings.selectAgent}`); return; }
     setSaving(true);
     try {
       const res = await apiFetch("/api/agent-config", {
@@ -294,14 +298,14 @@ function ConfigTab({
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <FormLabel>Display Name</FormLabel>
+          <FormLabel>{t.settings.displayName}</FormLabel>
           <Input placeholder={config.projectName} value={alias} onChange={(e) => { setAlias(e.target.value); setSaved(false); }} className="text-xs" />
         </div>
         <div>
-          <FormLabel>Agent Template</FormLabel>
+          <FormLabel>{t.settings.agentTemplate}</FormLabel>
           <select value={selectedTemplateId} onChange={(e) => { setSelectedTemplateId(e.target.value); setSaved(false); }} className="h-9 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:ring-1 focus:ring-ring">
-            <option value="">Select agent...</option>
-            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}{t.description ? ` — ${t.description}` : ""}</option>)}
+            <option value="">{t.settings.selectAgent}</option>
+            {templates.map((tmpl) => <option key={tmpl.id} value={tmpl.id}>{tmpl.name}{tmpl.description ? ` — ${tmpl.description}` : ""}</option>)}
           </select>
         </div>
       </div>
@@ -310,17 +314,17 @@ function ConfigTab({
         {dirty && (
           <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={saving || !selectedTemplateId}>
             {saving ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
-            Save Changes
+            {t.settings.saveChanges}
           </Button>
         )}
         {saved && !dirty && (
           <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <CheckCircle className="h-3 w-3 text-[#10b981]" /> Saved
+            <CheckCircle className="h-3 w-3 text-[#10b981]" /> {t.settings.saved}
           </span>
         )}
         <div className="flex-1" />
         <button onClick={onDisconnect} className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground/30 transition-colors hover:text-[#ef4444]">
-          <Trash2 className="h-3 w-3" /> Disconnect
+          <Trash2 className="h-3 w-3" /> {t.settings.disconnect}
         </button>
       </div>
     </div>
@@ -330,6 +334,7 @@ function ConfigTab({
 // ── Questions Tab ──
 
 function QuestionsTab({ project }: { project: string }) {
+  const t = useT();
   const [suggestions, setSuggestions] = useState<ChatSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -394,7 +399,7 @@ function QuestionsTab({ project }: { project: string }) {
       ))}
 
       {suggestions.length === 0 && !addMode && (
-        <p className="text-xs text-muted-foreground/40 py-2">No starter questions yet.</p>
+        <p className="text-xs text-muted-foreground/40 py-2">{t.settings.noStarterQuestions}</p>
       )}
 
       {addMode ? (
@@ -407,18 +412,18 @@ function QuestionsTab({ project }: { project: string }) {
         <div className="flex items-center gap-2 pt-1">
           {suggestions.length < MAX_CHAT_SUGGESTIONS && (
             <button onClick={() => setAddMode(true)} className="flex items-center gap-1.5 rounded-md border border-dashed px-2.5 py-1.5 text-[11px] text-muted-foreground/50 transition-colors hover:border-foreground/20 hover:text-foreground">
-              <Plus className="h-3 w-3" /> Add
+              <Plus className="h-3 w-3" /> {t.common.add}
             </button>
           )}
           {dirty && (
             <Button onClick={handleSave} disabled={saving} size="sm" className="h-7 text-xs">
               {saving ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
-              Save
+              {t.common.save}
             </Button>
           )}
           {saved && !dirty && (
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <CheckCircle className="h-3 w-3 text-[#10b981]" /> Saved
+              <CheckCircle className="h-3 w-3 text-[#10b981]" /> {t.settings.saved}
             </span>
           )}
         </div>
@@ -438,6 +443,7 @@ function QuestionInlineForm({
   onSave: (s: ChatSuggestion) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [title, setTitle] = useState(initial.title);
   const [label, setLabel] = useState(initial.label);
   const [prompt, setPrompt] = useState(initial.prompt);
@@ -448,21 +454,21 @@ function QuestionInlineForm({
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title"
+          placeholder={t.settings.titleField}
           className="text-xs"
           autoFocus
         />
         <Input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="Subtitle (optional)"
+          placeholder={t.settings.subtitleField}
           className="text-xs"
         />
       </div>
       <Textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Full prompt sent to the agent..."
+        placeholder={t.settings.fullPrompt}
         rows={2}
         className="text-xs"
       />
@@ -473,10 +479,10 @@ function QuestionInlineForm({
           onClick={() => { if (title.trim() && prompt.trim()) onSave({ title: title.trim(), label: label.trim(), prompt: prompt.trim() }); }}
           disabled={!title.trim() || !prompt.trim()}
         >
-          {initial.title ? "Update" : "Add"}
+          {initial.title ? t.settings.update : t.common.add}
         </Button>
         <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={onCancel}>
-          Cancel
+          {t.common.cancel}
         </Button>
       </div>
     </div>
@@ -496,6 +502,7 @@ function AddProjectForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const [project, setProject] = useState("");
   const [alias, setAlias] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -504,12 +511,12 @@ function AddProjectForm({
 
   const isDuplicate = project.trim() !== "" && existingProjects.includes(project.trim());
 
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const selectedTemplate = templates.find((tmpl) => tmpl.id === selectedTemplateId);
 
   async function handleSave() {
-    if (!project.trim()) { setError("Enter a project name."); return; }
-    if (isDuplicate) { setError(`Project "${project.trim()}" already exists.`); return; }
-    if (!selectedTemplateId) { setError("Select an agent."); return; }
+    if (!project.trim()) { setError(`${t.settings.projectNameLabel} required.`); return; }
+    if (isDuplicate) { setError(`"${project.trim()}" ${t.settings.alreadyExists}`); return; }
+    if (!selectedTemplateId) { setError(`${t.settings.selectAgent}`); return; }
     setSaving(true);
     try {
       const res = await apiFetch("/api/agent-config", {
@@ -537,7 +544,7 @@ function AddProjectForm({
   return (
     <div className="rounded-lg border p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">New Project Connection</p>
+        <p className="text-sm font-semibold">{t.settings.newProjectConnection}</p>
         <button onClick={onCancel} className="rounded p-1 text-muted-foreground/40 hover:text-foreground">
           <X className="h-4 w-4" />
         </button>
@@ -545,7 +552,7 @@ function AddProjectForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <FormLabel>Project Name</FormLabel>
+          <FormLabel>{t.settings.projectNameLabel}</FormLabel>
           <Input
             value={project}
             onChange={(e) => { setProject(e.target.value); setError(undefined); }}
@@ -553,11 +560,11 @@ function AddProjectForm({
             className="text-xs"
           />
           {isDuplicate && (
-            <p className="mt-1 text-[10px] text-destructive">Already exists.</p>
+            <p className="mt-1 text-[10px] text-destructive">{t.settings.alreadyExists}</p>
           )}
         </div>
         <div>
-          <FormLabel>Display Name (optional)</FormLabel>
+          <FormLabel>{t.settings.displayNameOptional}</FormLabel>
           <Input
             placeholder={project || "Alias"}
             value={alias}
@@ -568,22 +575,22 @@ function AddProjectForm({
       </div>
 
       <div>
-        <FormLabel>Agent</FormLabel>
+        <FormLabel>{t.settings.agent}</FormLabel>
         <select
           value={selectedTemplateId}
           onChange={(e) => setSelectedTemplateId(e.target.value)}
           className="h-9 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:ring-1 focus:ring-ring"
         >
-          <option value="">Select agent...</option>
-          {templates.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name} {t.description ? `— ${t.description}` : ""}
+          <option value="">{t.settings.selectAgent}</option>
+          {templates.map((tmpl) => (
+            <option key={tmpl.id} value={tmpl.id}>
+              {tmpl.name} {tmpl.description ? `— ${tmpl.description}` : ""}
             </option>
           ))}
         </select>
         {templates.length === 0 && (
           <p className="mt-1 text-[10px] text-muted-foreground">
-            No agents registered. Go to Settings &gt; Agents to register one.
+            {t.settings.noAgentsRegistered}
           </p>
         )}
       </div>
@@ -602,9 +609,9 @@ function AddProjectForm({
       <div className="flex items-center gap-2 border-t pt-3">
         <Button size="sm" className="text-xs" onClick={handleSave} disabled={saving || !project.trim() || isDuplicate || !selectedTemplateId}>
           {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-          Create
+          {t.common.create}
         </Button>
-        <Button variant="ghost" size="sm" className="text-xs" onClick={onCancel}>Cancel</Button>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={onCancel}>{t.common.cancel}</Button>
       </div>
     </div>
   );

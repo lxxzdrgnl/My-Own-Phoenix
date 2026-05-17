@@ -1,9 +1,9 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import {
   getGapStatus,
-  getRecommendedAction,
   GAP_STATUS_COLORS,
   GapStatus,
 } from "@/lib/rmf-utils";
@@ -20,7 +20,20 @@ interface GapAnalysisProps {
   className?: string;
 }
 
+function getTranslatedAction(status: GapStatus, t: ReturnType<typeof useT>): string {
+  switch (status) {
+    case "NORMAL":
+      return t.measure.actionNormal;
+    case "WARNING":
+      return t.measure.actionWarning;
+    case "CRITICAL":
+      return t.measure.actionCritical;
+  }
+}
+
 export function GapAnalysis({ data, className }: GapAnalysisProps) {
+  const t = useT();
+
   // Sort worst-first: largest negative gap (evalScore - govScore) first
   const sorted = [...data].sort(
     (a, b) => (a.evalScore - a.govScore) - (b.evalScore - b.govScore)
@@ -32,7 +45,7 @@ export function GapAnalysis({ data, className }: GapAnalysisProps) {
 
   const chartOptions: Highcharts.Options = {
     chart: { type: "column" },
-    title: { text: "Gov Score vs Eval Score (worst first)" },
+    title: { text: t.measure.chartTitle },
     xAxis: {
       categories,
       labels: { rotation: -45 },
@@ -40,19 +53,19 @@ export function GapAnalysis({ data, className }: GapAnalysisProps) {
     yAxis: {
       min: 0,
       max: 100,
-      title: { text: "Score" },
+      title: { text: t.measure.score },
     },
     colors: ["#3b82f6", "#a1a1aa"],
     series: [
       {
         type: "column",
-        name: "Gov Score",
+        name: t.measure.govScoreLegend,
         data: govSeries,
         color: "#3b82f6",
       },
       {
         type: "column",
-        name: "Eval Score",
+        name: t.measure.evalScoreLegend,
         data: evalSeries,
         color: "#a1a1aa",
       },
@@ -73,31 +86,33 @@ export function GapAnalysis({ data, className }: GapAnalysisProps) {
           <thead>
             <tr className="border-b border-border bg-muted/50">
               <th className="px-3 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                RISK
+                {t.measure.risk}
               </th>
               <th className="px-3 py-2 text-right font-semibold text-xs uppercase tracking-wide" style={{ color: "#3b82f6" }}>
-                GOV SCORE
+                {t.measure.govScore}
               </th>
               <th className="px-3 py-2 text-right font-semibold text-xs uppercase tracking-wide" style={{ color: "#a1a1aa" }}>
-                EVAL SCORE
+                {t.measure.evalScore}
               </th>
               <th className="px-3 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                GAP
+                {t.measure.gap}
               </th>
               <th className="px-3 py-2 text-center font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                STATUS
+                {t.measure.status}
               </th>
               <th className="px-3 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                RECOMMENDED ACTION
+                {t.measure.recommendedAction}
               </th>
             </tr>
           </thead>
           <tbody>
             {sorted.map((item, idx) => {
-              const gap = item.evalScore - item.govScore;
-              const status: GapStatus = getGapStatus(gap);
-              const badgeColor = GAP_STATUS_COLORS[status];
-              const action = getRecommendedAction(status);
+              const noEvalData = item.evalScore === 0;
+              const gap = noEvalData ? 0 : item.evalScore - item.govScore;
+              const status: GapStatus = noEvalData ? "NORMAL" : getGapStatus(gap);
+              const badgeColor = noEvalData ? "#a1a1aa" : GAP_STATUS_COLORS[status];
+              const statusLabel = noEvalData ? "N/A" : status;
+              const action = noEvalData ? t.measure.noEvalData : getTranslatedAction(status, t);
 
               return (
                 <tr
@@ -114,17 +129,17 @@ export function GapAnalysis({ data, className }: GapAnalysisProps) {
                     {item.govScore.toFixed(1)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold" style={{ color: "#a1a1aa" }}>
-                    {item.evalScore.toFixed(1)}
+                    {noEvalData ? "N/A" : item.evalScore.toFixed(1)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                    {gap >= 0 ? "+" : ""}{gap.toFixed(1)}
+                    {noEvalData ? "\u2014" : `${gap >= 0 ? "+" : ""}${gap.toFixed(1)}`}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <span
                       className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold text-white"
                       style={{ backgroundColor: badgeColor }}
                     >
-                      {status}
+                      {statusLabel}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground max-w-xs">

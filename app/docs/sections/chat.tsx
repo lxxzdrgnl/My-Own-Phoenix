@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { ArrowUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Callout } from "../code-block";
+import { useT } from "@/lib/i18n";
 
 /** Scaled-down markdown components for the docs preview (smaller text) */
 const miniMarkdownComponents = {
@@ -129,39 +130,33 @@ function ChatPreview() {
 }
 
 export function Chat() {
+  const t = useT();
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-        Features
+        {t.docs.chat.groupLabel}
       </p>
-      <h1 className="text-2xl font-bold tracking-tight mb-2">Chat</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-2">{t.docs.chat.title}</h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Chat with your agent directly in the browser. Messages are relayed to
-        your local agent via the Connector — no deployment required.
+        {t.docs.chat.subtitle}
       </p>
 
       <div className="space-y-10">
         {/* Preview */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Chat interface</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.chat.chatInterface}</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Real-time conversation with your connected agent.
+            {t.docs.chat.chatInterfaceHelper}
           </p>
           <ChatPreview />
         </div>
 
         {/* Features */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Features</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.chat.features}</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            {[
-              "Real-time streaming responses via WebSocket relay",
-              "Automatic online/offline agent status detection",
-              "Thread management — create new conversations or continue existing ones",
-              "Model selector for agents with multiple model support",
-              "All conversations are traced and appear in your project traces",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-2.5">
+            {(t.docs.chat.featuresList as unknown as readonly string[]).map((item, i) => (
+              <li key={i} className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
                 {item}
               </li>
@@ -169,11 +164,8 @@ export function Chat() {
           </ul>
         </div>
 
-        <Callout title="Connector required">
-          Chat requires a connected agent via the Connector. See{" "}
-          <strong>Connector Setup</strong> to get started.
-          All chat messages are automatically traced — you can view them
-          in the project&apos;s trace viewer with full span details.
+        <Callout title={t.docs.chat.calloutTitle}>
+          {t.docs.chat.calloutText}
         </Callout>
       </div>
     </div>

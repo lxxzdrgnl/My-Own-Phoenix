@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useT } from "@/lib/i18n";
 import type { RmfScores } from "@/lib/rmf-utils";
 
 interface RmfFunctionCardsProps {
@@ -14,54 +15,56 @@ interface RmfFunctionCardsProps {
 
 interface FunctionDef {
   key: keyof RmfScores;
-  name: string;
-  label: string;
+  nameKey: "govern" | "map" | "measureName" | "manage";
+  labelKey: "governLabel" | "mapLabel" | "measureLabel" | "manageLabel";
+  descKey: "governDesc" | "mapDesc" | "measureDesc" | "manageDesc";
+  formulaKey: "governFormula" | "mapFormula" | "measureFormula" | "manageFormula";
   color: string;
-  description: string;
-  formula: string;
 }
 
 const RMF_FUNCTIONS: FunctionDef[] = [
   {
     key: "govern",
-    name: "GOVERN",
-    label: "Governance",
+    nameKey: "govern",
+    labelKey: "governLabel",
+    descKey: "governDesc",
+    formulaKey: "governFormula",
     color: "#3b82f6",
-    description: "AI policy, eval coverage, ethics principles, guardrail configuration",
-    formula: "Base 20 + eval coverage (max 40) + custom evals (+20) + 5+ evals (+10) + 8+ evals (+10)",
   },
   {
     key: "map",
-    name: "MAP",
-    label: "Risk Identification",
+    nameKey: "map",
+    labelKey: "mapLabel",
+    descKey: "mapDesc",
+    formulaKey: "mapFormula",
     color: "#7c3aed",
-    description: "Risk category coverage, eval type diversity, impact analysis",
-    formula: "Categories with green status / 8 total categories (Accuracy, Safety, Quality, Retrieval, Citation, Performance, Cost, Tool Usage)",
   },
   {
     key: "measure",
-    name: "MEASURE",
-    label: "Risk Measurement",
+    nameKey: "measureName",
+    labelKey: "measureLabel",
+    descKey: "measureDesc",
+    formulaKey: "measureFormula",
     color: "#10b981",
-    description: "12 performance metrics — all normalized 0-100%, higher is better",
-    formula: "Average of all metric values (factual_rate, safety_rate, qa_accuracy, retrieval_relevance, citation_accuracy, latency_score, success_rate, token_score, cost_score, etc.)",
   },
   {
     key: "manage",
-    name: "MANAGE",
-    label: "Risk Response",
+    nameKey: "manage",
+    labelKey: "manageLabel",
+    descKey: "manageDesc",
+    formulaKey: "manageFormula",
     color: "#14b8a6",
-    description: "Risk mitigation rate, incident response, remediation actions",
-    formula: "Mitigated risks / total risks × 100 − open incidents × 10 (max −30 penalty). 0% if no risks configured.",
   },
 ];
 
 export function RmfFunctionCards({ scores, measureScore, className }: RmfFunctionCardsProps) {
+  const t = useT();
+
   return (
     <div className={cn("grid grid-cols-4 gap-4 p-4", className)}>
       {RMF_FUNCTIONS.map((fn) => {
         const score = scores[fn.key] ?? (fn.key === "measure" ? measureScore : undefined);
-        const display = score !== undefined ? `${score}%` : "—";
+        const display = score !== undefined ? `${score}%` : "\u2014";
 
         return (
           <div
@@ -78,7 +81,7 @@ export function RmfFunctionCards({ scores, measureScore, className }: RmfFunctio
                   className="text-base font-bold tracking-wide"
                   style={{ color: fn.color }}
                 >
-                  {fn.name}
+                  {t.measure[fn.nameKey]}
                 </span>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -87,19 +90,19 @@ export function RmfFunctionCards({ scores, measureScore, className }: RmfFunctio
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs text-left">
-                    <p className="font-semibold mb-1">{fn.label}</p>
-                    <p className="text-[11px] leading-relaxed opacity-80">{fn.formula}</p>
+                    <p className="font-semibold mb-1">{t.measure[fn.labelKey]}</p>
+                    <p className="text-[11px] leading-relaxed opacity-80">{t.measure[fn.formulaKey]}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
               <span className="text-sm font-medium text-foreground">
-                {fn.label}
+                {t.measure[fn.labelKey]}
               </span>
               <span className="text-2xl font-bold tabular-nums text-foreground">
                 {display}
               </span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {fn.description}
+                {t.measure[fn.descKey]}
               </p>
             </div>
           </div>

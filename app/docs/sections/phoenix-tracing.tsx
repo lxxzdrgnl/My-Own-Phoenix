@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { CodeBlock, Callout, DocTable } from "../code-block";
+import { useT } from "@/lib/i18n";
 
 /* ── Mock trace data ── */
 const MOCK_ANNOTATIONS = [
@@ -410,33 +411,32 @@ function TracePreview() {
 /* ── Main ── */
 
 export function PhoenixTracing() {
+  const t = useT();
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-        Features
+        {t.docs.tracing.groupLabel}
       </p>
-      <h1 className="text-2xl font-bold tracking-tight mb-2">Tracing</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-2">{t.docs.tracing.title}</h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Every LLM call, tool invocation, and retrieval step is automatically
-        captured as a trace. Click through the example below to see how it
-        works.
+        {t.docs.tracing.subtitle}
       </p>
 
       <div className="space-y-10">
         {/* Interactive trace preview */}
         <div>
           <h3 className="text-sm font-semibold mb-4">
-            Example: Traced agent run
+            {t.docs.tracing.exampleTrace}
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Click any span in the tree to view its input and output.
+            {t.docs.tracing.exampleTraceHelper}
           </p>
           <TracePreview />
         </div>
 
         {/* What is captured */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">What data is captured</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.tracing.whatCaptured}</h3>
           <DocTable
             headers={["Field", "Description", "Example"]}
             rows={[
@@ -454,19 +454,15 @@ export function PhoenixTracing() {
 
         {/* Trace structure */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Trace structure</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.tracing.traceStructure}</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            A <strong className="text-foreground">trace</strong> represents one
-            complete agent execution. Each trace contains multiple{" "}
-            <strong className="text-foreground">spans</strong> — individual
-            operations like LLM calls, tool invocations, or retrieval steps.
-            Spans form a tree: parent spans contain child spans.
+            {t.docs.tracing.traceStructureDesc}
           </p>
         </div>
 
         {/* Supported frameworks */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Supported frameworks</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.tracing.supportedFrameworks}</h3>
           <DocTable
             headers={["Framework", "Instrumentor package"]}
             rows={[
@@ -496,7 +492,7 @@ export function PhoenixTracing() {
 
         {/* Framework examples */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Framework examples</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.tracing.frameworkExamples}</h3>
           <div className="space-y-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">
@@ -536,11 +532,8 @@ response = llm.invoke("Summarize this document.")`}
           </div>
         </div>
 
-        <Callout title="Automatic evaluations">
-          Every trace is automatically evaluated by 7 built-in templates
-          (hallucination, citation, QA, RAG relevance, tool calling,
-          guardrail, banned words). See the{" "}
-          <strong>Evaluations</strong> section for details.
+        <Callout title={t.docs.tracing.calloutTitle}>
+          {t.docs.tracing.calloutText}
         </Callout>
       </div>
     </div>

@@ -19,6 +19,7 @@ import { refreshBadgeLabels } from "@/components/annotation-badge";
 import { ModelSelector } from "@/components/model-selector";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
+import { useT } from "@/lib/i18n";
 import { NEW_EVAL_TEMPLATE } from "./eval-constants";
 import { EvalTestPanel } from "./eval-test-panel";
 import { EvalBackfillPanel } from "./eval-backfill-panel";
@@ -60,6 +61,7 @@ export function EvalEditor({
   onDeleted,
   onProjectConfigReload,
 }: EvalEditorProps) {
+  const t = useT();
   const confirm = useConfirm();
 
   // New eval form state
@@ -280,8 +282,8 @@ export function EvalEditor({
   if (creating && !selectedEval) {
     return (
       <div className="mx-auto max-w-lg p-8">
-        <h1 className="text-xl font-semibold tracking-tight mb-1">New Evaluation</h1>
-        <p className="text-sm text-muted-foreground mb-6">Create a custom evaluation to run on your agent traces.</p>
+        <h1 className="text-xl font-semibold tracking-tight mb-1">{t.evaluations.newEvaluation}</h1>
+        <p className="text-sm text-muted-foreground mb-6">{t.evaluations.newEvalDesc}</p>
 
         {/* Step 1: Mode selection (only for project-level, not globalMode) */}
         {effectiveCreateMode === null && (
@@ -292,9 +294,9 @@ export function EvalEditor({
                 className="rounded-lg border p-6 text-left transition-colors hover:bg-accent/50"
               >
                 <FileText className="size-5 mb-3 text-muted-foreground" />
-                <p className="text-sm font-semibold">From Template</p>
+                <p className="text-sm font-semibold">{t.evaluations.fromTemplate}</p>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Import from global templates already defined in settings.
+                  {t.evaluations.fromTemplateDesc}
                 </p>
               </button>
               <button
@@ -302,13 +304,13 @@ export function EvalEditor({
                 className="rounded-lg border p-6 text-left transition-colors hover:bg-accent/50"
               >
                 <PenLine className="size-5 mb-3 text-muted-foreground" />
-                <p className="text-sm font-semibold">Custom</p>
+                <p className="text-sm font-semibold">{t.evaluations.customCreate}</p>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Create a new evaluation from scratch.
+                  {t.evaluations.customCreateDesc}
                 </p>
               </button>
             </div>
-            <Button variant="ghost" onClick={onCancelCreate}>Cancel</Button>
+            <Button variant="ghost" onClick={onCancelCreate}>{t.common.cancel}</Button>
           </div>
         )}
 
@@ -320,14 +322,14 @@ export function EvalEditor({
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
             >
               <ArrowLeft className="size-3.5" />
-              Back
+              {t.common.back}
             </button>
             {loadingTemplates ? (
-              <p className="text-sm text-muted-foreground py-4">Loading templates...</p>
+              <p className="text-sm text-muted-foreground py-4">{t.evaluations.loadingTemplates}</p>
             ) : templates.length === 0 ? (
               <div className="rounded-lg border border-dashed px-5 py-8 text-center">
-                <p className="text-sm text-muted-foreground">No global templates available.</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Create templates in Global Settings &rarr; Evaluations.</p>
+                <p className="text-sm text-muted-foreground">{t.evaluations.noTemplates}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">{t.evaluations.noTemplatesDesc}</p>
               </div>
             ) : (
               templates.map((t) => (
@@ -351,7 +353,7 @@ export function EvalEditor({
                 </button>
               ))
             )}
-            <Button variant="ghost" onClick={onCancelCreate} className="mt-2">Cancel</Button>
+            <Button variant="ghost" onClick={onCancelCreate} className="mt-2">{t.common.cancel}</Button>
           </div>
         )}
 
@@ -364,11 +366,11 @@ export function EvalEditor({
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
             >
               <ArrowLeft className="size-3.5" />
-              Back
+              {t.common.back}
             </button>
           )}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Name</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">{t.evaluations.name}</label>
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -376,11 +378,11 @@ export function EvalEditor({
               className="text-sm"
               autoFocus
             />
-            <p className="text-[11px] text-muted-foreground mt-1">Lowercase, underscores. This becomes the annotation name.</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t.evaluations.nameHelp}</p>
           </div>
 
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Type</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">{t.evaluations.type}</label>
             <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => setNewType("llm_prompt")}
@@ -389,9 +391,9 @@ export function EvalEditor({
                   newType === "llm_prompt" ? "border-foreground bg-accent" : "hover:bg-accent/50"
                 )}
               >
-                <p className="text-sm font-semibold">LLM Prompt</p>
+                <p className="text-sm font-semibold">{t.evaluations.llmPrompt}</p>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Use an LLM to evaluate responses with a custom prompt. Best for subjective quality checks.
+                  {t.evaluations.llmPromptDesc}
                 </p>
               </button>
               <button
@@ -401,9 +403,9 @@ export function EvalEditor({
                   newType === "code_rule" ? "border-foreground bg-accent" : "hover:bg-accent/50"
                 )}
               >
-                <p className="text-sm font-semibold">Code Rule</p>
+                <p className="text-sm font-semibold">{t.evaluations.codeRule}</p>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Check text patterns, token limits, or metadata with rules. Fast, no LLM cost.
+                  {t.evaluations.codeRuleDesc}
                 </p>
               </button>
               <button
@@ -413,9 +415,9 @@ export function EvalEditor({
                   newType === "api" ? "border-foreground bg-accent" : "hover:bg-accent/50"
                 )}
               >
-                <p className="text-sm font-semibold">External API</p>
+                <p className="text-sm font-semibold">{t.evaluations.externalApi}</p>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Call an external HTTP endpoint for evaluation. Supports custom evaluator logic.
+                  {t.evaluations.externalApiDesc}
                 </p>
               </button>
             </div>
@@ -423,7 +425,7 @@ export function EvalEditor({
 
           {newType === "llm_prompt" && (
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Eval Model</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">{t.evaluations.evalModel}</label>
               <div className="w-64">
                 <ModelSelector value={newEvalModel} onChange={setNewEvalModel} />
               </div>
@@ -436,10 +438,10 @@ export function EvalEditor({
               disabled={!newName.trim()}
               className="flex-1"
             >
-              Create Evaluation
+              {t.evaluations.createEvaluation}
             </Button>
             <Button variant="ghost" onClick={onCancelCreate}>
-              Cancel
+              {t.common.cancel}
             </Button>
           </div>
         </div>
@@ -454,8 +456,8 @@ export function EvalEditor({
     return (
       <EmptyState
         icon={FlaskConical}
-        title="Select an evaluation"
-        description="Choose an evaluation from the list to edit its prompt."
+        title={t.evaluations.selectEval}
+        description={t.evaluations.selectEvalDesc}
         className="h-full"
       />
     );
@@ -484,21 +486,21 @@ export function EvalEditor({
                     disabled={saving}
                     className="gap-1 text-xs h-7"
                   >
-                    {saving ? "Saving..." : "Save"}
+                    {saving ? t.evaluations.saving : t.common.save}
                   </Button>
                 </RoleGate>
               )}
               {isBuiltIn && (
                 <RoleGate>
                   <Button size="sm" variant="ghost" onClick={handleResetDefault} className="gap-1 text-xs h-7">
-                    <RotateCcw className="size-3" /> Reset
+                    <RotateCcw className="size-3" /> {t.common.reset}
                   </Button>
                 </RoleGate>
               )}
               {!isBuiltIn && (
                 <RoleGate>
                   <Button size="sm" variant="outline" onClick={handleDelete} className="text-xs h-7">
-                    Delete
+                    {t.common.delete}
                   </Button>
                 </RoleGate>
               )}
@@ -519,12 +521,12 @@ export function EvalEditor({
         {editEvalType === "api" ? (
           <div className="mb-5 space-y-4">
             <div className="rounded-lg border p-4 bg-blue-50/50 dark:bg-blue-950/20">
-              <p className="text-xs font-semibold mb-2">External API Evaluator</p>
+              <p className="text-xs font-semibold mb-2">{t.evaluations.externalApiEvaluator}</p>
               <p className="text-[11px] text-muted-foreground mb-3">
-                This eval calls an external API endpoint for evaluation. The serve-agent must be running.
+                {t.evaluations.externalApiEvaluatorDesc}
               </p>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Endpoint</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.evaluations.endpoint}</label>
                 <input
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
                   value={(() => { try { return JSON.parse(editRuleConfig as any)?.endpoint ?? ''; } catch { return ''; } })()}
@@ -552,7 +554,7 @@ export function EvalEditor({
           <div className="mb-5">
             <div className="rounded-lg border border-dashed p-6 text-center">
               <p className="text-sm text-muted-foreground mb-3">
-                Using Phoenix built-in evaluator. No custom prompt needed.
+                {t.evaluations.usingBuiltinEvaluator}
               </p>
               <Button
                 size="sm"
@@ -575,14 +577,14 @@ Evaluate and respond with JSON only: {{"label": "pass" or "fail", "score": 0.0-1
                 }}
                 className="text-xs"
               >
-                Override with Custom Prompt
+                {t.evaluations.overrideWithCustomPrompt}
               </Button>
             </div>
           </div>
         ) : (
           <div className="mb-5">
             <div className="mb-4">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Eval Model</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.evaluations.evalModel}</span>
               <div className="mt-1 w-64">
                 <ModelSelector value={editModel} onChange={(m) => { setEditModel(m); setDirty(true); }} />
               </div>

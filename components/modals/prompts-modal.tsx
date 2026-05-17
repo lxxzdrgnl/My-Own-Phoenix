@@ -33,6 +33,7 @@ import { FormLabel, FormError } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n";
 
 interface VersionWithTags extends PromptVersion {
   tags: PromptTag[];
@@ -50,6 +51,7 @@ interface PromptsModalProps {
 }
 
 export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
+  const t = useT();
   const [prompts, setPrompts] = useState<PromptWithVersions[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -84,9 +86,9 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
 
   async function handleDelete(name: string) {
     const ok = await confirm({
-      title: "Delete prompt",
+      title: t.promptsModal.deletePrompt,
       description: `This will permanently delete "${name}" and all its versions.`,
-      confirmText: "Delete",
+      confirmText: t.common.delete,
     });
     if (!ok) return;
     try {
@@ -119,20 +121,20 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
 
   return (
     <Modal open={open} onClose={onClose} className="w-[720px]">
-      <ModalHeader onClose={onClose}>Prompts</ModalHeader>
+      <ModalHeader onClose={onClose}>{t.promptsModal.title}</ModalHeader>
       <ModalBody>
         <button
           onClick={() => setInnerModal("create")}
           className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
         >
           <Plus className="h-4 w-4" />
-          New Prompt
+          {t.promptsModal.newPrompt}
         </button>
 
         {loading && <LoadingState />}
 
         {!loading && prompts.length === 0 && (
-          <EmptyState icon={MessageSquare} title="No prompts yet" />
+          <EmptyState icon={MessageSquare} title={t.promptsModal.noPromptsYet} />
         )}
 
         <div className="flex flex-col gap-2">
@@ -165,14 +167,14 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
                 <button
                   onClick={() => handleEdit(p)}
                   className="rounded p-1.5 transition-colors hover:bg-muted"
-                  title="Add new version"
+                  title={t.promptsModal.addNewVersion}
                 >
                   <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
                 <button
                   onClick={() => handleDelete(p.info.name)}
                   className="rounded p-1.5 transition-colors hover:bg-red-500/10"
-                  title="Delete"
+                  title={t.common.delete}
                 >
                   <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
@@ -188,7 +190,7 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
                         </span>
                         {i === 0 && (
                           <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs font-medium">
-                            latest
+                            {t.promptsModal.latest}
                           </span>
                         )}
                         {v.tags.map((tag) => (
@@ -235,7 +237,7 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
                           }}
                           className="rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
                         >
-                          + tag
+                          + {t.promptsModal.tag}
                         </button>
                         <span className="text-xs text-muted-foreground">
                           {v.model_name} / temp{" "}
@@ -307,6 +309,7 @@ export function PromptFormModal({
   onClose,
   onSave,
 }: PromptFormModalProps) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [desc, setDesc] = useState(initial?.description ?? "");
   const [system, setSystem] = useState(initial?.system ?? "");
@@ -319,7 +322,7 @@ export function PromptFormModal({
 
   async function handleSave() {
     if (!name.trim() || !system.trim()) {
-      setError("Name and System prompt are required");
+      setError(t.promptsModal.nameRequired);
       return;
     }
     setSaving(true);
@@ -341,16 +344,16 @@ export function PromptFormModal({
   return (
     <Modal open onClose={onClose} z={60}>
       <ModalHeader onClose={onClose}>
-        {mode === "create" ? "New Prompt" : `Edit: ${name}`}
+        {mode === "create" ? t.promptsModal.newPrompt : `${t.common.edit}: ${name}`}
       </ModalHeader>
       <ModalBody className="flex flex-col gap-3">
         <div className="flex gap-3">
           <div className="flex-1">
-            <FormLabel>Model</FormLabel>
+            <FormLabel>{t.promptsModal.model}</FormLabel>
             <ModelSelector value={model} onChange={setModel} />
           </div>
           <div className="w-28">
-            <FormLabel>Temperature</FormLabel>
+            <FormLabel>{t.promptsModal.temperature}</FormLabel>
             <Input
               type="number"
               min={0}
@@ -363,7 +366,7 @@ export function PromptFormModal({
         </div>
         <div className="flex gap-3">
           <div className="flex-1">
-            <FormLabel>Name</FormLabel>
+            <FormLabel>{t.promptsModal.name}</FormLabel>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -372,17 +375,17 @@ export function PromptFormModal({
             />
           </div>
           <div className="flex-1">
-            <FormLabel>Description</FormLabel>
+            <FormLabel>{t.promptsModal.description}</FormLabel>
             <Input
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              placeholder="Prompt description"
+              placeholder={t.promptsModal.description}
             />
           </div>
         </div>
         {mode === "edit" && (
           <div>
-            <FormLabel>Version Label</FormLabel>
+            <FormLabel>{t.promptsModal.versionLabel}</FormLabel>
             <Input
               value={versionDesc}
               onChange={(e) => setVersionDesc(e.target.value)}
@@ -391,7 +394,7 @@ export function PromptFormModal({
           </div>
         )}
         <div>
-          <FormLabel>System Prompt</FormLabel>
+          <FormLabel>{t.promptsModal.systemPrompt}</FormLabel>
           <Textarea
             value={system}
             onChange={(e) => setSystem(e.target.value)}
@@ -399,11 +402,11 @@ export function PromptFormModal({
             placeholder="You are a Korean legal AI assistant..."
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            {"Use {{context}} and {{query}} as template variables"}
+            {t.promptsModal.templateVarsHint}
           </p>
         </div>
         <div>
-          <FormLabel>User Template</FormLabel>
+          <FormLabel>{t.promptsModal.userTemplate}</FormLabel>
           <Input
             value={user}
             onChange={(e) => setUser(e.target.value)}
@@ -413,10 +416,10 @@ export function PromptFormModal({
         <FormError message={error} />
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : mode === "create" ? "Create" : "Save New Version"}
+            {saving ? t.common.loading : mode === "create" ? t.common.create : t.promptsModal.saveNewVersion}
           </Button>
         </div>
       </ModalBody>

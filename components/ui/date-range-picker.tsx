@@ -7,6 +7,7 @@ import { enUS } from "date-fns/locale";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,20 +31,21 @@ function formatDateEn(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+const PRESET_KEYS = ["today", "days7", "days30"] as const;
 const PRESETS = [
-  { label: "Today", days: 1 },
-  { label: "7 Days", days: 7 },
-  { label: "30 Days", days: 30 },
+  { key: "today" as const, days: 1 },
+  { key: "days7" as const, days: 7 },
+  { key: "days30" as const, days: 30 },
 ] as const;
 
-function detectPreset(range: DateRange): string | null {
+function detectPreset(range: DateRange): typeof PRESET_KEYS[number] | null {
   for (const preset of PRESETS) {
     const expected = getPresetRange(preset.days);
     if (
       Math.abs(range.from.getTime() - expected.from.getTime()) < 60_000 &&
       Math.abs(range.to.getTime() - expected.to.getTime()) < 60_000
     ) {
-      return preset.label;
+      return preset.key;
     }
   }
   return null;
@@ -58,6 +60,7 @@ export interface DateRangePickerProps {
 }
 
 export function DateRangePicker({ value, onChange, className }: DateRangePickerProps) {
+  const t = useT();
   const [open, setOpen] = React.useState(false);
   const [selecting, setSelecting] = React.useState<DayPickerDateRange | undefined>(
     { from: value.from, to: value.to }
@@ -84,7 +87,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
   const activePreset = detectPreset(value);
 
   const displayLabel = activePreset
-    ? activePreset
+    ? t.dashboard[activePreset]
     : `${formatDateEn(value.from)} – ${formatDateEn(value.to)}`;
 
   function handlePreset(days: number) {
@@ -110,12 +113,12 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
       <div className="flex items-center gap-1">
         {PRESETS.map((preset) => (
           <Button
-            key={preset.label}
+            key={preset.key}
             size="sm"
-            variant={activePreset === preset.label ? "default" : "ghost"}
+            variant={activePreset === preset.key ? "default" : "ghost"}
             onClick={() => handlePreset(preset.days)}
           >
-            {preset.label}
+            {t.dashboard[preset.key]}
           </Button>
         ))}
         <Button

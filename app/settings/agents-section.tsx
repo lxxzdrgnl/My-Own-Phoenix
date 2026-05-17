@@ -13,6 +13,7 @@ import { FormLabel, FormError } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { AGENT_TYPES } from "@/lib/constants";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n";
 
 interface AgentEntry {
   id: string;
@@ -25,6 +26,7 @@ interface AgentEntry {
 }
 
 export function AgentsSection() {
+  const t = useT();
   const [agents, setAgents] = useState<AgentEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -46,9 +48,9 @@ export function AgentsSection() {
 
   async function handleDelete(agent: AgentEntry) {
     const ok = await confirm({
-      title: "Delete agent",
-      description: `"${agent.name}" will be deleted and all projects using it will be disconnected.`,
-      confirmText: "Delete",
+      title: t.settings.deleteAgent,
+      description: `"${agent.name}" ${t.settings.deleteAgentDesc}`,
+      confirmText: t.common.delete,
     });
     if (!ok) return;
     await apiFetch(`/api/agent-templates?id=${agent.id}`, { method: "DELETE" });
@@ -63,9 +65,9 @@ export function AgentsSection() {
     <div>
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">Agents</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{t.settings.agentsTitle}</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Register and manage agent templates for projects and dataset runs.
+          {t.settings.agentsDesc}
         </p>
       </div>
 
@@ -77,7 +79,7 @@ export function AgentsSection() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                Templates
+                {t.settings.templates}
               </h3>
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {agents.length}
@@ -140,18 +142,18 @@ export function AgentsSection() {
                       <div className="border-t bg-muted/5 px-4 py-3 space-y-3">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">Endpoint</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">{t.settings.endpoint}</p>
                             <p className="mt-1 font-mono text-xs text-foreground/80 break-all">{a.endpoint}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">Assistant ID</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">{t.settings.assistantId}</p>
                             <p className="mt-1 font-mono text-xs text-foreground/80">{a.assistantId}</p>
                           </div>
                         </div>
 
                         {promptKeys.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">Eval Prompts</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">{t.settings.evalPrompts}</p>
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               {promptKeys.map((key) => (
                                 <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
@@ -168,7 +170,7 @@ export function AgentsSection() {
               })}
 
               {agents.length === 0 && (
-                <EmptyState icon={Bot} title="No agents registered" description="Register an agent template to connect it to projects." />
+                <EmptyState icon={Bot} title={t.settings.noAgentsTitle} description={t.settings.noAgentsDesc} />
               )}
 
               <button
@@ -176,7 +178,7 @@ export function AgentsSection() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed py-3 text-sm text-muted-foreground/60 transition-colors hover:border-foreground/20 hover:text-foreground"
               >
                 <Plus className="h-4 w-4" />
-                Register New Agent
+                {t.settings.registerNewAgent}
               </button>
             </div>
           </section>
@@ -203,6 +205,7 @@ function AgentFormModal({ mode, initial, onClose, onSave }: {
   onClose: () => void;
   onSave: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [agentType, setAgentType] = useState(initial?.agentType ?? "langgraph");
@@ -226,8 +229,8 @@ function AgentFormModal({ mode, initial, onClose, onSave }: {
   }, [initial]);
 
   async function handleSave() {
-    if (!name.trim()) { setError("Name is required."); return; }
-    if (!endpoint.trim()) { setError("Endpoint is required."); return; }
+    if (!name.trim()) { setError(`${t.settings.agentName} required.`); return; }
+    if (!endpoint.trim()) { setError(`${t.settings.endpointUrl} required.`); return; }
     setError(undefined);
     setSaving(true);
 
@@ -256,50 +259,50 @@ function AgentFormModal({ mode, initial, onClose, onSave }: {
   return (
     <Modal open onClose={onClose} className="w-[560px]">
       <ModalHeader onClose={onClose}>
-        {mode === "create" ? "Register Agent" : `Edit: ${initial?.name}`}
+        {mode === "create" ? t.settings.registerAgent : `${t.settings.editAgent}: ${initial?.name}`}
       </ModalHeader>
       <ModalBody>
         <div className="space-y-4">
           <div>
-            <FormLabel>Agent Name</FormLabel>
+            <FormLabel>{t.settings.agentName}</FormLabel>
             <Input placeholder="e.g. Legal RAG, Dexter" value={name} onChange={(e) => setName(e.target.value)} disabled={mode === "edit"} />
           </div>
           <div>
-            <FormLabel>Description</FormLabel>
+            <FormLabel>{t.settings.description}</FormLabel>
             <Input placeholder="Short description" value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <FormLabel>Agent Type</FormLabel>
+              <FormLabel>{t.settings.agentType}</FormLabel>
               <select value={agentType} onChange={(e) => setAgentType(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring">
-                {AGENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                {AGENT_TYPES.map((at) => <option key={at.value} value={at.value}>{at.label}</option>)}
               </select>
             </div>
             <div>
-              <FormLabel>Assistant ID</FormLabel>
+              <FormLabel>{t.settings.assistantId}</FormLabel>
               <Input placeholder="agent" value={assistantId} onChange={(e) => setAssistantId(e.target.value)} />
             </div>
           </div>
           <div>
-            <FormLabel>Endpoint URL</FormLabel>
+            <FormLabel>{t.settings.endpointUrl}</FormLabel>
             <Input placeholder="http://localhost:2024" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} />
           </div>
           <div className="border-t pt-4">
-            <p className="text-sm font-medium mb-2">Eval Prompts</p>
+            <p className="text-sm font-medium mb-2">{t.settings.evalPrompts}</p>
             <p className="text-xs text-muted-foreground mb-3">
-              Custom eval prompts. Leave blank for defaults. Use {"{{context}}"}, {"{{response}}"}, {"{{query}}"}.
+              {t.settings.evalPromptsDesc} {"{{context}}"}, {"{{response}}"}, {"{{query}}"}.
             </p>
             <div className="space-y-3">
-              <div><FormLabel>Hallucination</FormLabel><Textarea rows={3} placeholder="Default" value={evalHallucination} onChange={(e) => setEvalHallucination(e.target.value)} /></div>
-              <div><FormLabel>Citation</FormLabel><Textarea rows={3} placeholder="Default" value={evalCitation} onChange={(e) => setEvalCitation(e.target.value)} /></div>
-              <div><FormLabel>Tool Calling</FormLabel><Textarea rows={3} placeholder="Default" value={evalToolCalling} onChange={(e) => setEvalToolCalling(e.target.value)} /></div>
+              <div><FormLabel>{t.settings.hallucination}</FormLabel><Textarea rows={3} placeholder="Default" value={evalHallucination} onChange={(e) => setEvalHallucination(e.target.value)} /></div>
+              <div><FormLabel>{t.settings.citation}</FormLabel><Textarea rows={3} placeholder="Default" value={evalCitation} onChange={(e) => setEvalCitation(e.target.value)} /></div>
+              <div><FormLabel>{t.settings.toolCalling}</FormLabel><Textarea rows={3} placeholder="Default" value={evalToolCalling} onChange={(e) => setEvalToolCalling(e.target.value)} /></div>
             </div>
           </div>
           {error && <FormError message={error} />}
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>{t.common.cancel}</Button>
             <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : mode === "create" ? "Register" : "Save"}
+              {saving ? t.settings.saving : mode === "create" ? t.settings.register : t.common.save}
             </Button>
           </div>
         </div>

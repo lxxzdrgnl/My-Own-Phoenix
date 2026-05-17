@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Check, ChevronRight, Settings2 } from "lucide-react";
 import { Sidebar, SidebarHeader, SidebarItem, SidebarItemDiv } from "@/components/ui/sidebar";
 import { RoleGate } from "@/components/ui/role-gate";
+import { useT } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ export function EvalList({
   globalMode,
   projectId,
 }: EvalListProps) {
+  const t = useT();
   const builtInEvals = globalPrompts.filter((p) => !p.isCustom);
   const customEvals = globalPrompts.filter((p) => p.isCustom);
 
@@ -126,7 +128,7 @@ export function EvalList({
   return (
     <Sidebar>
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
-        <SidebarHeader>{globalMode ? "Evaluation Templates" : "Active Evaluations"}</SidebarHeader>
+        <SidebarHeader>{globalMode ? t.evaluations.evalTemplates : t.evaluations.activeEvals}</SidebarHeader>
       </div>
 
       {selectedProject ? (
@@ -134,7 +136,7 @@ export function EvalList({
           {/* Built-in */}
           {globalMode && builtInEvals.length > 0 && (
             <div className="px-3 pt-1 pb-1">
-              <SidebarHeader>Default Evaluations</SidebarHeader>
+              <SidebarHeader>{t.evaluations.defaultEvals}</SidebarHeader>
             </div>
           )}
           <div className="px-2 pt-1">
@@ -147,7 +149,7 @@ export function EvalList({
           {customEvals.length > 0 && (
             <>
               <div className="px-3 pt-3 pb-1">
-                <SidebarHeader>{globalMode ? "Custom Templates" : "Custom"}</SidebarHeader>
+                <SidebarHeader>{globalMode ? t.evaluations.customTemplates : t.evaluations.custom}</SidebarHeader>
               </div>
               <div className="px-2">
                 {customEvals.map((p) => (
@@ -166,7 +168,7 @@ export function EvalList({
                 onClick={onStartCreating}
                 className="w-full gap-1.5 text-xs"
               >
-                <Plus className="size-3" /> Add Evaluation
+                <Plus className="size-3" /> {t.evaluations.addEval}
               </Button>
             </RoleGate>
           </div>
@@ -180,7 +182,7 @@ export function EvalList({
                   className="flex w-full items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Settings2 className="size-3" />
-                  Eval Settings
+                  {t.evaluations.evalSettings}
                 </button>
               </RoleGate>
             </div>
@@ -188,7 +190,7 @@ export function EvalList({
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Select a project
+          {t.evaluations.selectProject}
         </div>
       )}
     </Sidebar>

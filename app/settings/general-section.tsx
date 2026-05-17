@@ -7,9 +7,11 @@ import { LoadingState } from "@/components/ui/empty-state";
 import { CheckCircle, Copy, Check, RefreshCw, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/i18n";
 
 export function GeneralSection() {
   const { user } = useAuth();
+  const t = useT();
   const [hasKey, setHasKey] = useState(false);
   const [loading, setLoading] = useState(true);
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -97,9 +99,9 @@ export function GeneralSection() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">Account</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{t.settings.account}</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Your profile and connector key.
+          {t.settings.accountDesc}
         </p>
       </div>
 
@@ -111,22 +113,22 @@ export function GeneralSection() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                Profile
+                {t.settings.profileSection}
               </h3>
               <div className="h-px flex-1 bg-border" />
             </div>
             <div className="rounded-lg border px-5 py-4 space-y-3">
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Email</p>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t.settings.email}</p>
                 <p className="mt-0.5 text-sm">{user?.email}</p>
               </div>
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">Nickname</p>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">{t.settings.nickname}</p>
                 <div className="flex items-center gap-2">
                   <Input
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    placeholder="Enter a display name"
+                    placeholder={t.settings.nicknamePlaceholder}
                     className="max-w-xs"
                   />
                   <Button
@@ -135,7 +137,7 @@ export function GeneralSection() {
                     disabled={savingProfile || nickname.trim() === savedNickname}
                   >
                     {savingProfile && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-                    {profileSaved ? "Saved" : "Save"}
+                    {profileSaved ? t.settings.saved : t.common.save}
                   </Button>
                 </div>
               </div>
@@ -146,14 +148,13 @@ export function GeneralSection() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                Connector Key
+                {t.settings.connectorKey}
               </h3>
               <div className="h-px flex-1 bg-border" />
             </div>
             <div className="rounded-lg border px-5 py-4 space-y-3">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Your personal key for connecting local agents via the phoenix-connector CLI.
-                This key is unique to you — each team member has their own.
+                {t.settings.connectorKeyDesc}
               </p>
 
               {newKey ? (
@@ -168,7 +169,7 @@ export function GeneralSection() {
                   </div>
                   <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <CheckCircle className="h-3 w-3 text-emerald-500" />
-                    Save this key — it will not be shown again.
+                    {t.settings.saveKeyWarning}
                   </p>
                 </div>
               ) : (
@@ -180,20 +181,20 @@ export function GeneralSection() {
                       </code>
                       <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
                         {generating ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
-                        Regenerate
+                        {t.settings.regenerateKey}
                       </Button>
                     </>
                   ) : (
                     <Button size="sm" onClick={handleGenerate} disabled={generating}>
                       {generating ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
-                      Generate Key
+                      {t.settings.generateKey}
                     </Button>
                   )}
                 </div>
               )}
 
               <div className="mt-3 rounded-lg bg-muted/50 p-3">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">Usage</p>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">{t.settings.usage}</p>
                 <code className="text-xs text-muted-foreground font-mono leading-relaxed break-all">
                   phoenix-connector --key={newKey || "pc_..."} --agent=http://localhost:2024 --project=my-project
                 </code>

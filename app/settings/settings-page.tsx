@@ -5,10 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Settings2, Key, FlaskConical, ArrowLeft } from "lucide-react";
 import { Sidebar } from "@/components/ui/sidebar";
+import { Nav } from "@/components/nav";
 import { GeneralSection } from "./general-section";
 import { ProvidersSection } from "./providers-section";
 import { EvalTemplatesSection } from "./eval-templates-section";
 import { ChatSection } from "./chat-section";
+import { useT } from "@/lib/i18n";
 
 interface TabDef {
   id: string;
@@ -17,33 +19,35 @@ interface TabDef {
   desc: string;
 }
 
-const TAB_GROUPS: { label: string; tabs: TabDef[] }[] = [
-  {
-    label: "Account",
-    tabs: [
-      { id: "general", label: "Profile & Key", icon: Settings2, desc: "Account & connector key" },
-      { id: "providers", label: "Providers", icon: Key, desc: "LLM API keys" },
-    ],
-  },
-  {
-    label: "Templates",
-    tabs: [
-      { id: "eval-templates", label: "Evaluations", icon: FlaskConical, desc: "Global eval templates" },
-    ],
-  },
-];
-
-const ALL_TAB_IDS = TAB_GROUPS.flatMap((g) => g.tabs.map((t) => t.id));
-type TabId = string;
-
 export function SettingsPage() {
+  const t = useT();
   const searchParams = useSearchParams();
+
+  const TAB_GROUPS: { label: string; tabs: TabDef[] }[] = [
+    {
+      label: t.settings.accountGroup,
+      tabs: [
+        { id: "general", label: t.settings.profileAndKey, icon: Settings2, desc: t.settings.profileAndKeyDesc },
+        { id: "providers", label: t.settings.providersNav, icon: Key, desc: t.settings.providersNavDesc },
+      ],
+    },
+    {
+      label: t.settings.templatesGroup,
+      tabs: [
+        { id: "eval-templates", label: t.settings.evaluationsNav, icon: FlaskConical, desc: t.settings.evaluationsNavDesc },
+      ],
+    },
+  ];
+
+  const ALL_TAB_IDS = TAB_GROUPS.flatMap((g) => g.tabs.map((tab) => tab.id));
   const raw = searchParams.get("tab") ?? "general";
   const initialTab = ALL_TAB_IDS.includes(raw) ? raw : "general";
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen flex-col">
+      <Nav fullWidth />
+      <div className="flex flex-1 min-h-0">
       <Sidebar className="py-4 bg-card">
         <div className="px-4 mb-5">
           <button
@@ -51,9 +55,9 @@ export function SettingsPage() {
             className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" />
-            Back
+            {t.settings.back}
           </button>
-          <h2 className="mt-3 text-sm font-semibold">Global Settings</h2>
+          <h2 className="mt-3 text-sm font-semibold">{t.settings.globalSettings}</h2>
         </div>
 
         {TAB_GROUPS.map((group, gi) => (
@@ -95,7 +99,7 @@ export function SettingsPage() {
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-muted-foreground/50 transition-colors hover:bg-accent/50 hover:text-foreground"
           >
             <div className="min-w-0">
-              <p className="text-[13px] font-medium leading-tight">Docs</p>
+              <p className="text-[13px] font-medium leading-tight">{t.settings.docs}</p>
             </div>
           </a>
         </div>
@@ -110,6 +114,7 @@ export function SettingsPage() {
             {activeTab === "providers" && <ProvidersSection />}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

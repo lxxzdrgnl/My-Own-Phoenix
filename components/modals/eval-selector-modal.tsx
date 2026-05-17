@@ -10,6 +10,7 @@ import { Plus, ChevronRight, Check, RotateCcw } from "lucide-react";
 import { PromptBuilder } from "@/components/prompt-builder";
 import { RuleBuilder, DEFAULT_RULE_CONFIG, type RuleConfig } from "@/components/rule-builder";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ interface EvalSelectorModalProps {
 }
 
 export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, evalOverrides, onConfirm }: EvalSelectorModalProps) {
+  const t = useT();
   const confirmDialog = useConfirm();
   const [evals, setEvals] = useState<EvalItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -254,7 +256,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
 
   return (
     <Modal open={open} onClose={onClose} className="w-[960px] h-[600px]">
-      <ModalHeader onClose={onClose}>Evaluations</ModalHeader>
+      <ModalHeader onClose={onClose}>{t.evaluations.title}</ModalHeader>
       <div className="flex min-h-0 flex-1">
         {/* Left: eval list */}
         <div className="flex w-72 shrink-0 flex-col border-r overflow-hidden">
@@ -361,7 +363,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
                 onClick={() => setCreating(true)}
                 className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-2.5 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
               >
-                <Plus className="size-3.5" /> Add Evaluation
+                <Plus className="size-3.5" /> {t.evaluations.addEval}
               </button>
             ) : (
               <div className="space-y-2">
@@ -514,8 +516,8 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
           {selected.size} evaluation{selected.size !== 1 ? "s" : ""} selected
         </p>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={onClose} className="text-xs">Cancel</Button>
-          <Button onClick={handleConfirm} className="text-xs">Confirm</Button>
+          <Button variant="ghost" onClick={onClose} className="text-xs">{t.common.cancel}</Button>
+          <Button onClick={handleConfirm} className="text-xs">{t.common.confirm}</Button>
         </div>
       </div>
     </Modal>

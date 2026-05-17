@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { MEASURE_METRICS, MetricValue, STATUS_COLORS } from "@/lib/rmf-utils";
 
 interface MeasureGridProps {
@@ -8,7 +9,39 @@ interface MeasureGridProps {
   className?: string;
 }
 
+const METRIC_LABEL_KEYS: Record<string, string> = {
+  factual_rate: "hallucinationEval",
+  safety_rate: "toxicityEval",
+  qa_accuracy: "qaEval",
+  retrieval_relevance: "relevanceEval",
+  latency_score: "spanDuration",
+  success_rate: "statusCode",
+  token_score: "tokenCount",
+  cost_score: "llmCost",
+  user_satisfaction: "feedbackEval",
+  tool_calling_accuracy: "toolCallingEval",
+  guardrail_pass: "guardrailEval",
+  citation_accuracy: "citationEval",
+};
+
+const METRIC_DESC_KEYS: Record<string, string> = {
+  factual_rate: "factualRateDesc",
+  safety_rate: "safetyRateDesc",
+  qa_accuracy: "qaAccuracyDesc",
+  retrieval_relevance: "retrievalRelevanceDesc",
+  latency_score: "latencyScoreDesc",
+  success_rate: "successRateDesc",
+  token_score: "tokenScoreDesc",
+  cost_score: "costScoreDesc",
+  user_satisfaction: "userSatisfactionDesc",
+  tool_calling_accuracy: "toolCallingDesc",
+  guardrail_pass: "guardrailPassDesc",
+  citation_accuracy: "citationAccuracyDesc",
+};
+
 export function MeasureGrid({ metrics, className }: MeasureGridProps) {
+  const t = useT();
+
   return (
     <div className={cn("grid grid-cols-4 gap-4 p-4", className)}>
       {metrics.map((metric) => {
@@ -16,6 +49,11 @@ export function MeasureGrid({ metrics, className }: MeasureGridProps) {
         if (!def) return null;
 
         const dotColor = STATUS_COLORS[metric.status];
+        const labelKey = METRIC_LABEL_KEYS[metric.id];
+        const descKey = METRIC_DESC_KEYS[metric.id];
+        const measureT = t.measure as Record<string, string>;
+        const label = labelKey ? measureT[labelKey] : def.engLabel;
+        const description = descKey ? measureT[descKey] : def.description;
 
         return (
           <div
@@ -33,7 +71,7 @@ export function MeasureGrid({ metrics, className }: MeasureGridProps) {
                 }}
               />
               <span className="text-sm font-semibold text-foreground truncate">
-                {def.engLabel}
+                {label}
               </span>
             </div>
 
@@ -49,7 +87,7 @@ export function MeasureGrid({ metrics, className }: MeasureGridProps) {
 
             {/* Description */}
             <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-              {def.description}
+              {description}
             </p>
           </div>
         );
