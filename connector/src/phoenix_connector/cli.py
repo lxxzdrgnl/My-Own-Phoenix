@@ -60,13 +60,18 @@ def main(key, agent, project, agent_type, assistant_id, saas_url):
         return
 
     if not saas_url:
-        saas_url = click.prompt("  SaaS URL", default="wss://phoenix.rheon.kr")
+        saas_url = "wss://phoenix.rheon.kr"
 
     if not agent:
         agent = click.prompt("  Agent URL", default="http://localhost:2024")
 
     if not agent_type:
-        agent_type = click.prompt("  Agent type", type=click.Choice(["langgraph", "rest"]), default="langgraph")
+        click.echo("")
+        click.echo("  Agent type:")
+        click.echo("    1. langgraph")
+        click.echo("    2. rest")
+        choice = click.prompt("  Select", type=int, default=1)
+        agent_type = "rest" if choice == 2 else "langgraph"
 
     if agent_type == "langgraph" and not assistant_id:
         assistant_id = click.prompt("  Assistant ID", default="agent")

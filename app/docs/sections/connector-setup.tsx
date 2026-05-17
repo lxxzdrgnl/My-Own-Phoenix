@@ -123,22 +123,31 @@ export function ConnectorSetup() {
             filename="terminal"
             code={`pip install phoenix-connector
 
-# Option 1: Interactive project selection (recommended)
-phoenix-connector \\
-  --key=pc_your_connector_key \\
-  --agent=http://localhost:2024
+# Interactive mode (recommended) — just run:
+phoenix-connector
 
-# The CLI will fetch your projects and prompt you to select:
+# The CLI will guide you step by step:
+#   Connector key (pc_*): pc_your_key
+#   Agent URL [http://localhost:2024]:
+#   Agent type:
+#     1. langgraph
+#     2. rest
+#   Select: 1
+#   Fetching projects...
 #   Available projects:
 #     1. my-project [owner]
 #     2. team-project [editor]
 #   Select project: 1
+#
+#   Agent:   http://localhost:2024 (langgraph)
+#   Project: my-project
+#   ✓ Connected
 
-# Option 2: Specify project directly
+# Or pass all flags at once:
 phoenix-connector \\
-  --key=pc_your_connector_key \\
+  --key=pc_your_key \\
   --agent=http://localhost:2024 \\
-  --project=my-project-slug`}
+  --type=rest`}
           />
         </div>
 

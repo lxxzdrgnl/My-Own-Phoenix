@@ -119,43 +119,91 @@ function Badge({ name, score, label, pass }: { name: string; score?: number; lab
   );
 }
 
+/* ── Column type ── */
+interface ColumnState {
+  id: number;
+  label: string;
+  promptLabel: string;
+  running: boolean;
+  result: string | null;
+  contextOpen: boolean;
+}
+
+const PROMPT_OPTIONS = [
+  "legal-rag-answer / v4 — structured response",
+  "legal-rag-answer / v4 — concise summary",
+  "legal-rag-answer / v3 — bullet points",
+  "news-summarizer / v2 — key takeaways",
+  "qa-responder / v1 — brief answer",
+];
+
 /* ── Playground Preview ── */
 function PlaygroundPreview() {
   const [selectedId, setSelectedId] = useState("t1");
   const selected = MOCK_TRACES.find((t) => t.id === selectedId)!;
   const [contextOpen, setContextOpen] = useState(false);
-  const [p1ContextOpen, setP1ContextOpen] = useState(false);
-  const [p1Running, setP1Running] = useState(false);
-  const [p1Result, setP1Result] = useState<string | null>(null);
-  const [p2Running, setP2Running] = useState(false);
-  const [p2Result, setP2Result] = useState<string | null>(null);
+  const [nextId, setNextId] = useState(3);
+  const [columns, setColumns] = useState<ColumnState[]>([
+    { id: 1, label: "Prompt 1", promptLabel: PROMPT_OPTIONS[0], running: false, result: null, contextOpen: false },
+    { id: 2, label: "Prompt 2", promptLabel: PROMPT_OPTIONS[1], running: false, result: null, contextOpen: false },
+  ]);
 
-  const runColumn = useCallback((col: 1 | 2) => {
-    const results = MOCK_RESULTS[selectedId] || MOCK_RESULTS["t1"];
-    if (col === 1) {
-      setP1Running(true);
-      setP1Result(null);
-      setTimeout(() => { setP1Running(false); setP1Result(results[0]); }, 1200);
-    } else {
-      setP2Running(true);
-      setP2Result(null);
-      setTimeout(() => { setP2Running(false); setP2Result(results[1]); }, 1600);
-    }
-  }, [selectedId]);
+  const generateMockResult = useCallback((colIndex: number, traceId: string): string => {
+    const results = MOCK_RESULTS[traceId] || MOCK_RESULTS["t1"];
+    if (colIndex < results.length) return results[colIndex];
+    // Generate a synthetic result for additional columns
+    const query = MOCK_TRACES.find((t) => t.id === traceId)?.query || "query";
+    return `**Generated Response (Column ${colIndex + 1})**\n\nBased on the query "${query}", here is an alternative perspective:\n\n- This response was generated using a different prompt template\n- The output structure and emphasis varies from other columns\n- Useful for comparing how different prompts handle the same input\n\n**Tokens used:** ${120 + colIndex * 30}`;
+  }, []);
+
+  const runColumn = useCallback((colId: number) => {
+    setColumns((prev) => prev.map((c) =>
+      c.id === colId ? { ...c, running: true, result: null } : c
+    ));
+    const colIndex = columns.findIndex((c) => c.id === colId);
+    const delay = 1000 + Math.random() * 800;
+    setTimeout(() => {
+      setColumns((prev) => prev.map((c) =>
+        c.id === colId ? { ...c, running: false, result: generateMockResult(colIndex, selectedId) } : c
+      ));
+    }, delay);
+  }, [columns, selectedId, generateMockResult]);
 
   const runAll = useCallback(() => {
-    runColumn(1);
-    runColumn(2);
-  }, [runColumn]);
+    columns.forEach((c) => runColumn(c.id));
+  }, [columns, runColumn]);
+
+  const addColumn = useCallback(() => {
+    if (columns.length >= 6) return;
+    const newCol: ColumnState = {
+      id: nextId,
+      label: `Prompt ${nextId}`,
+      promptLabel: PROMPT_OPTIONS[Math.min(nextId - 1, PROMPT_OPTIONS.length - 1)],
+      running: false,
+      result: null,
+      contextOpen: false,
+    };
+    setColumns((prev) => [...prev, newCol]);
+    setNextId((n) => n + 1);
+  }, [columns.length, nextId]);
+
+  const removeColumn = useCallback((colId: number) => {
+    setColumns((prev) => prev.filter((c) => c.id !== colId));
+  }, []);
+
+  const toggleColContext = useCallback((colId: number) => {
+    setColumns((prev) => prev.map((c) =>
+      c.id === colId ? { ...c, contextOpen: !c.contextOpen } : c
+    ));
+  }, []);
 
   // Reset results when trace changes
   const handleSelectTrace = (id: string) => {
     setSelectedId(id);
-    setP1Result(null);
-    setP2Result(null);
-    setP1Running(false);
-    setP2Running(false);
+    setColumns((prev) => prev.map((c) => ({ ...c, result: null, running: false })));
   };
+
+  const anyRunning = columns.some((c) => c.running);
 
   return (
     <div className="rounded-xl border overflow-hidden bg-background" style={{ height: 560 }}>
@@ -209,7 +257,7 @@ function PlaygroundPreview() {
         </div>
 
         {/* ── ORIGINAL column ── */}
-        <div className="flex flex-col border-r" style={{ flex: "1 0 240px" }}>
+        <div className="flex flex-col border-r" style={{ flex: "1 0 200px" }}>
           <div className="shrink-0 border-b bg-muted/10 px-3 pt-3 pb-2">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -250,173 +298,104 @@ function PlaygroundPreview() {
           </div>
         </div>
 
-        {/* ── PROMPT 1 column ── */}
-        <div className="flex flex-col border-r" style={{ flex: "1 0 240px" }}>
-          <div className="shrink-0 border-b bg-muted/5 px-3 pt-3 pb-2">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Prompt 1
-              </span>
-              <div className="flex items-center gap-1">
-                <button className="flex items-center rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground">
-                  <Pencil className="h-3 w-3" />
-                </button>
-                <button className="flex items-center rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-destructive">
-                  <X className="h-3 w-3" />
+        {/* ── Dynamic prompt columns ── */}
+        {columns.map((col) => (
+          <div key={col.id} className="flex flex-col border-r" style={{ flex: "1 0 200px" }}>
+            <div className="shrink-0 border-b bg-muted/5 px-3 pt-3 pb-2">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {col.label}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button className="flex items-center rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground">
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => removeColumn(col.id)}
+                    className="flex items-center rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+              <select className="h-8 w-full rounded-lg border bg-background px-2.5 text-sm outline-none">
+                <option>{col.promptLabel}</option>
+              </select>
+              <div className="mt-2">
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Query
+                </label>
+                <textarea
+                  value={selected.query}
+                  readOnly
+                  rows={2}
+                  className="w-full resize-none rounded-lg border bg-background px-2.5 py-1.5 text-sm leading-relaxed outline-none"
+                />
+              </div>
+              <div className="mt-1">
+                <button
+                  onClick={() => toggleColContext(col.id)}
+                  className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
+                >
+                  <ChevronDown className={`h-3 w-3 transition-transform ${col.contextOpen ? "rotate-180" : ""}`} />
+                  Context (4,003 chars)
                 </button>
               </div>
-            </div>
-            <select className="h-8 w-full rounded-lg border bg-background px-2.5 text-sm outline-none">
-              <option>legal-rag-answer / v4 — structured response</option>
-            </select>
-            <div className="mt-2">
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Query
-              </label>
-              <textarea
-                value={selected.query}
-                readOnly
-                rows={2}
-                className="w-full resize-none rounded-lg border bg-background px-2.5 py-1.5 text-sm leading-relaxed outline-none"
-              />
-            </div>
-            <div className="mt-1">
               <button
-                onClick={() => setP1ContextOpen(!p1ContextOpen)}
-                className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
+                onClick={() => runColumn(col.id)}
+                disabled={col.running}
+                className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-foreground text-sm font-medium text-background transition hover:bg-foreground/90 disabled:opacity-50"
               >
-                <ChevronDown className={`h-3 w-3 transition-transform ${p1ContextOpen ? "rotate-180" : ""}`} />
-                Context (4,003 chars)
+                {col.running ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                )}
+                {col.running ? "Running..." : "Run"}
               </button>
             </div>
-            {/* Run button — prominent bg-foreground */}
-            <button
-              onClick={() => runColumn(1)}
-              disabled={p1Running}
-              className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-foreground text-sm font-medium text-background transition hover:bg-foreground/90 disabled:opacity-50"
-            >
-              {p1Running ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Play className="h-3.5 w-3.5 fill-current" />
-              )}
-              {p1Running ? "Running..." : "Run"}
-            </button>
-          </div>
-          {/* Result area */}
-          <div className="flex-1 overflow-y-auto">
-            {p1Running ? (
-              <div className="flex items-center gap-2 px-3 py-6 text-muted-foreground">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Generating...</span>
-              </div>
-            ) : p1Result ? (
-              <div className="px-3 py-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Result
-                  </span>
-                  <span className="text-[10px] tabular-nums text-muted-foreground">
-                    247 tokens
-                  </span>
+            {/* Result area */}
+            <div className="flex-1 overflow-y-auto">
+              {col.running ? (
+                <div className="flex items-center gap-2 px-3 py-6 text-muted-foreground">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Generating...</span>
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{p1Result}</p>
-              </div>
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-2 opacity-20">
-                <Inbox className="h-6 w-6" />
-                <span className="text-xs">No result yet</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── PROMPT 2 column ── */}
-        <div className="flex flex-col border-r" style={{ flex: "1 0 240px" }}>
-          <div className="shrink-0 border-b bg-muted/5 px-3 pt-3 pb-2">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Prompt 2
-              </span>
-              <div className="flex items-center gap-1">
-                <button className="flex items-center rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground">
-                  <Pencil className="h-3 w-3" />
-                </button>
-                <button className="flex items-center rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-destructive">
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-            <select className="h-8 w-full rounded-lg border bg-background px-2.5 text-sm outline-none">
-              <option>legal-rag-answer / v4 — concise summary</option>
-            </select>
-            <div className="mt-2">
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Query
-              </label>
-              <textarea
-                value={selected.query}
-                readOnly
-                rows={2}
-                className="w-full resize-none rounded-lg border bg-background px-2.5 py-1.5 text-sm leading-relaxed outline-none"
-              />
-            </div>
-            <div className="mt-1">
-              <button className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition hover:text-foreground">
-                <ChevronDown className="h-3 w-3" />
-                Context (4,003 chars)
-              </button>
-            </div>
-            {/* Run button — prominent bg-foreground */}
-            <button
-              onClick={() => runColumn(2)}
-              disabled={p2Running}
-              className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-foreground text-sm font-medium text-background transition hover:bg-foreground/90 disabled:opacity-50"
-            >
-              {p2Running ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Play className="h-3.5 w-3.5 fill-current" />
-              )}
-              {p2Running ? "Running..." : "Run"}
-            </button>
-          </div>
-          {/* Result area */}
-          <div className="flex-1 overflow-y-auto">
-            {p2Running ? (
-              <div className="flex items-center gap-2 px-3 py-6 text-muted-foreground">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Generating...</span>
-              </div>
-            ) : p2Result ? (
-              <div className="px-3 py-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Result
-                  </span>
-                  <span className="text-[10px] tabular-nums text-muted-foreground">
-                    183 tokens
-                  </span>
+              ) : col.result ? (
+                <div className="px-3 py-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Result
+                    </span>
+                    <span className="text-[10px] tabular-nums text-muted-foreground">
+                      {150 + col.id * 40} tokens
+                    </span>
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{col.result}</p>
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{p2Result}</p>
-              </div>
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-2 opacity-20">
-                <Inbox className="h-6 w-6" />
-                <span className="text-xs">No result yet</span>
-              </div>
-            )}
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-2 opacity-20">
+                  <Inbox className="h-6 w-6" />
+                  <span className="text-xs">No result yet</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        ))}
 
         {/* ── Right action bar ── */}
         <div className="flex shrink-0 flex-col items-center gap-3 border-l bg-muted/5 px-3 pt-3">
-          <button className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background text-muted-foreground transition hover:bg-accent hover:text-foreground" title="Add prompt column">
+          <button
+            onClick={addColumn}
+            disabled={columns.length >= 6}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-40"
+            title="Add prompt column"
+          >
             <Plus className="h-4 w-4" />
           </button>
           <button
             onClick={runAll}
-            disabled={p1Running || p2Running}
+            disabled={anyRunning}
             className="flex h-9 w-9 items-center justify-center rounded-lg bg-foreground text-background shadow-sm transition hover:bg-foreground/90 disabled:opacity-50"
             title="Run all columns"
           >

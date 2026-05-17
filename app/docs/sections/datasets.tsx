@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Download, Upload, Play, ChevronDown } from "lucide-react";
+import { Pencil, Download, Upload, Play, Plus, FileSpreadsheet } from "lucide-react";
 import { Callout } from "../code-block";
 
 /* ── Mock data matching real Dataset UI ── */
@@ -11,12 +11,12 @@ const MOCK_DATASETS = [
 ];
 
 const MOCK_RUNS = [
-  { name: "V2 + 7", date: "May 8, 05:45" },
-  { name: "V2 ver2", date: "May 8, 05:09" },
-  { name: "Base ver2", date: "May 8, 04:39" },
-  { name: "V4", date: "May 7, 03:45" },
-  { name: "V2", date: "May 7, 03:17" },
-  { name: "Base", date: "May 7, 03:06" },
+  { name: "V2 + 7", date: "May 8, 05:45", status: "completed" },
+  { name: "V2 ver2", date: "May 8, 05:09", status: "completed" },
+  { name: "Base ver2", date: "May 8, 04:39", status: "completed" },
+  { name: "V4", date: "May 7, 03:45", status: "completed" },
+  { name: "V2", date: "May 7, 03:17", status: "completed" },
+  { name: "Base", date: "May 7, 03:06", status: "completed" },
 ];
 
 const MOCK_EVALS = [
@@ -52,29 +52,32 @@ function DatasetPreview() {
   const [selectedDataset, setSelectedDataset] = useState(0);
 
   return (
-    <div className="rounded-xl border overflow-hidden bg-background" style={{ height: 520 }}>
+    <div className="rounded-xl border overflow-hidden bg-background" style={{ height: 560 }}>
       <div className="flex h-full">
         {/* ── LEFT: Dataset sidebar ── */}
-        <div className="w-[160px] shrink-0 flex flex-col border-r">
-          <div className="flex items-center justify-between border-b px-3 py-2.5">
+        <div className="w-60 shrink-0 flex flex-col border-r">
+          <div className="flex items-center justify-between px-3 pt-3 pb-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Datasets
             </span>
-            <button className="text-[10px] text-muted-foreground hover:text-foreground">
-              + Dataset
+            <button className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+              <Plus className="h-3 w-3" /> Dataset
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto px-2">
             {MOCK_DATASETS.map((d, i) => (
               <button
                 key={d.name}
                 onClick={() => setSelectedDataset(i)}
-                className={`flex w-full flex-col px-3 py-2.5 text-left border-b transition-colors ${
-                  selectedDataset === i ? "bg-accent" : "hover:bg-accent/50"
+                className={`group flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors ${
+                  selectedDataset === i ? "bg-accent font-medium" : "hover:bg-accent/50 text-muted-foreground"
                 }`}
               >
-                <span className="text-xs font-medium truncate">{d.name}</span>
-                <span className="text-[9px] text-muted-foreground">{d.count}</span>
+                <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-sm">{d.name}</span>
+                  <span className="text-[10px] text-muted-foreground">{d.count}</span>
+                </div>
               </button>
             ))}
           </div>
@@ -82,54 +85,58 @@ function DatasetPreview() {
 
         {/* ── RIGHT: Main area ── */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Header */}
-          <div className="border-b px-4 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h3 className="text-sm font-bold">hallucination-50q</h3>
-                <span className="text-[10px] text-muted-foreground">50 prompts &middot; 7 columns</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[10px] font-medium hover:bg-accent">
-                  <Download className="h-3 w-3" /> Export
-                </button>
-                <button className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[10px] font-medium hover:bg-accent">
-                  <Upload className="h-3 w-3" /> Import
-                </button>
-              </div>
+          {/* Toolbar: title + actions */}
+          <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
+            <div>
+              <h3 className="text-xl font-semibold tracking-tight">hallucination-50q</h3>
+              <span className="text-[10px] text-muted-foreground">50 prompts &middot; 7 columns</span>
             </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="text-muted-foreground">Agent</span>
-              <select className="h-7 rounded-md border bg-background px-2 text-xs outline-none">
-                <option>Select.</option>
-              </select>
-              <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
-                <Play className="h-3 w-3" /> Generate
+            <div className="flex items-center gap-1.5">
+              <button className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">
+                <Download className="h-3 w-3" /> Export
+              </button>
+              <button className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">
+                <Upload className="h-3 w-3" /> Import
               </button>
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[10px] text-muted-foreground">Evals</span>
+          </div>
+
+          {/* Agent row */}
+          <div className="flex items-center gap-3 border-b px-5 py-2.5">
+            <span className="text-xs text-muted-foreground">Agent</span>
+            <select className="h-7 rounded-md border bg-background px-2 text-xs outline-none">
+              <option>Select...</option>
+            </select>
+            <button className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">
+              <Play className="h-3 w-3" /> Generate
+            </button>
+          </div>
+
+          {/* Evals row */}
+          <div className="flex items-center gap-2 border-b px-5 py-2.5">
+            <span className="text-xs text-muted-foreground">Evals</span>
+            <div className="flex flex-wrap items-center gap-1.5">
               {MOCK_EVALS.map((e) => (
                 <span key={e.name} className="rounded-md bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
                   {e.name}
                 </span>
               ))}
-              <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
-                <Pencil className="h-3 w-3" /> Edit
-              </button>
-              <button className="ml-auto flex items-center gap-1 rounded-md bg-foreground px-3 py-1 text-[10px] font-medium text-background">
-                <Play className="h-3 w-3" /> Evaluate
-              </button>
             </div>
+            <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
+              <Pencil className="h-3 w-3" /> Edit
+            </button>
+            <button className="ml-auto flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[10px] font-medium text-background">
+              <Play className="h-3 w-3" /> Evaluate
+            </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b px-4">
+          <div className="flex border-b px-5">
             {(["prompts", "results"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors ${
                   tab === t
                     ? "border-b-2 border-foreground text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -144,103 +151,120 @@ function DatasetPreview() {
           </div>
 
           {tab === "results" ? (
-            <div className="flex flex-1 min-h-0">
-              {/* Run list */}
-              <div className="w-[130px] shrink-0 border-r overflow-y-auto">
-                <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+              {/* Run list sidebar */}
+              <div className="w-52 shrink-0 border-r overflow-y-auto">
+                <p className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b">
                   Runs
-                </div>
+                </p>
                 {MOCK_RUNS.map((run, i) => (
-                  <button
+                  <div
                     key={run.name}
                     onClick={() => setSelectedRun(i)}
-                    className={`flex w-full flex-col px-3 py-2 text-left border-b transition-colors ${
+                    className={`group flex cursor-pointer items-center gap-2 border-b px-3 py-2.5 transition-colors last:border-b-0 ${
                       selectedRun === i ? "bg-accent" : "hover:bg-accent/50"
                     }`}
                   >
-                    <div className="flex items-center gap-1.5">
-                      <div className={`h-1.5 w-1.5 rounded-full ${i === 0 ? "bg-foreground/40" : "bg-foreground/20"}`} />
-                      <span className="text-xs font-medium">{run.name}</span>
+                    <div className="size-1.5 shrink-0 rounded-full bg-[#3b82f6]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{run.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{run.date}</p>
                     </div>
-                    <span className="text-[9px] text-muted-foreground ml-3">{run.date}</span>
-                  </button>
+                  </div>
                 ))}
               </div>
 
-              {/* Results table */}
-              <div className="flex-1 flex flex-col min-w-0 overflow-auto">
-                {/* Eval bar summary */}
-                <div className="border-b p-3 space-y-1.5">
-                  <div className="grid grid-cols-3 gap-3 mb-2">
-                    <div className="rounded-lg border p-3">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-widest">Rows</div>
-                      <div className="text-lg font-bold">50</div>
+              {/* Results content */}
+              <div className="flex-1 overflow-y-auto px-5 py-4">
+                <div className="space-y-4">
+                  {/* Summary cards */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg border px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rows</p>
+                      <p className="text-2xl font-bold tabular-nums">50</p>
                     </div>
-                    <div className="rounded-lg border p-3">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-widest">Avg Latency</div>
-                      <div className="text-lg font-bold">8.5s</div>
+                    <div className="rounded-lg border px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Avg Latency</p>
+                      <p className="text-2xl font-bold tabular-nums">8.5s</p>
                     </div>
-                    <div className="rounded-lg border p-3">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-widest">P95 Latency</div>
-                      <div className="text-lg font-bold">21.2s</div>
+                    <div className="rounded-lg border px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">p95 Latency</p>
+                      <p className="text-2xl font-bold tabular-nums">21.2s</p>
                     </div>
                   </div>
-                  {MOCK_EVALS.map((e) => (
-                    <div key={e.name} className="flex items-center gap-3">
-                      <span className="w-32 text-xs font-medium truncate">{e.name}</span>
-                      <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-[#3b82f6]" style={{ width: `${e.score}%` }} />
-                      </div>
-                      <span className="text-xs font-bold tabular-nums w-10 text-right">{e.score}%</span>
-                      <span className="text-[10px] text-muted-foreground tabular-nums w-10">{e.count}</span>
-                    </div>
-                  ))}
-                </div>
 
-                {/* Data rows */}
-                <div className="flex-1 overflow-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b bg-muted/10 sticky top-0">
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground w-8">#</th>
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Query</th>
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Response</th>
-                        {MOCK_EVALS.map((e) => (
-                          <th key={e.name} className="px-2 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">
-                            {e.name.replace("_", " ")}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {MOCK_ROWS.map((row) => (
-                        <tr key={row.id} className="border-b hover:bg-accent/10">
-                          <td className="px-3 py-2 text-muted-foreground">{row.id}</td>
-                          <td className="px-3 py-2 truncate max-w-[180px]">{row.query}</td>
-                          <td className="px-3 py-2 truncate max-w-[220px] text-muted-foreground">{row.response}</td>
-                          {row.evals.map((ev, i) => {
-                            const isError = ev.startsWith("incorrect");
-                            return (
-                              <td key={i} className={`px-2 py-2 text-[10px] font-mono whitespace-nowrap ${isError ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
-                                {ev}
+                  {/* Eval progress bars */}
+                  <div className="rounded-lg border divide-y">
+                    {MOCK_EVALS.map((e) => (
+                      <div key={e.name} className="flex items-center gap-3 px-4 py-2.5">
+                        <p className="w-32 shrink-0 truncate text-xs font-medium">{e.name}</p>
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ backgroundColor: "#3b82f6", width: `${e.score}%` }}
+                          />
+                        </div>
+                        <span className="w-12 text-right text-xs font-bold tabular-nums">{e.score}%</span>
+                        <span className="w-16 text-right text-[10px] text-muted-foreground tabular-nums">{e.count}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Results table */}
+                  <div className="rounded-lg border">
+                    <div className="overflow-auto">
+                      <table className="w-full text-xs" style={{ tableLayout: "fixed" }}>
+                        <thead className="sticky top-0 z-10 border-b bg-background">
+                          <tr>
+                            <th className="w-10 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">#</th>
+                            <th className="w-[180px] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Query</th>
+                            <th className="w-[200px] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Response</th>
+                            {MOCK_EVALS.map((e) => (
+                              <th key={e.name} className="w-[120px] px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                                {e.name}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {MOCK_ROWS.map((row) => (
+                            <tr key={row.id} className="hover:bg-muted/20">
+                              <td className="px-3 py-3 tabular-nums text-muted-foreground">{row.id}</td>
+                              <td className="w-[180px] max-w-[180px] px-3 py-3">
+                                <p className="truncate text-muted-foreground">{row.query}</p>
                               </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              <td className="w-[200px] max-w-[200px] px-3 py-3">
+                                <p className="truncate">{row.response}</p>
+                              </td>
+                              {row.evals.map((ev, i) => {
+                                const isError = ev.startsWith("incorrect");
+                                return (
+                                  <td key={i} className="px-3 py-3 text-center">
+                                    <span className="inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-[10px] font-medium">
+                                      <span className={`size-1.5 rounded-full ${isError ? "bg-muted-foreground/40" : "bg-[#3b82f6]"}`} />
+                                      {ev.split(" ")[0]}
+                                    </span>
+                                    <span className="ml-1 font-mono text-[10px] text-muted-foreground">{ev.split(" ")[1]}</span>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           ) : (
             /* Prompts tab */
             <div className="flex-1 overflow-y-auto">
-              <div className="px-4 py-2 text-[10px] text-muted-foreground">
+              <div className="px-5 py-2 text-[10px] text-muted-foreground">
                 Select rows to run on a subset
               </div>
               {MOCK_PROMPTS.map((p, i) => (
-                <div key={i} className="flex items-start gap-3 border-b px-4 py-3 hover:bg-accent/10">
+                <div key={i} className="flex items-start gap-3 border-b px-5 py-3 hover:bg-muted/20">
                   <input type="checkbox" className="mt-1 rounded" />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium">{p.query}</div>
