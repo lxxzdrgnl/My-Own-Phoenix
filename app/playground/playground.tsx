@@ -99,7 +99,9 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
       const saved = localStorage.getItem(filterKey(pid));
       if (saved) {
         const { kinds, content } = JSON.parse(saved);
-        setSpanKinds(new Set(kinds ?? []));
+        // Migrate old default: ["LLM"] → [] (show all root spans)
+        const migratedKinds = Array.isArray(kinds) && kinds.length === 1 && kinds[0] === "LLM" ? [] : (kinds ?? []);
+        setSpanKinds(new Set(migratedKinds));
         setContentFilter(content ?? "ALL");
         return;
       }
