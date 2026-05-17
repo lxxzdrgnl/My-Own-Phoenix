@@ -317,7 +317,7 @@ export function Evaluations() {
 
       <div className="space-y-10">
         <div>
-          <h3 className="text-sm font-semibold mb-3">Evaluation editor</h3>
+          <h3 className="text-sm font-semibold mb-4">Evaluation editor</h3>
           <p className="text-xs text-muted-foreground mb-3">
             Click an evaluation to view its config. Toggle between Form View
             and Raw Prompt to see the generated template.
@@ -334,10 +334,10 @@ export function Evaluations() {
                 <span className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-foreground text-background">LLM</span>
                 <span className="text-xs font-semibold">LLM-as-Judge</span>
               </div>
-              <ul className="space-y-1.5 text-xs text-muted-foreground">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 {["Uses an LLM to evaluate trace quality", "Supports nuanced judgment (context, reasoning)", "Score (0.0-1.0) or Binary (pass/fail) output", "Customizable prompt templates via form builder", "Requires LLM Provider API key"].map((item) => (
-                  <li key={item} className="flex items-start gap-2">
-                    <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
+                  <li key={item} className="flex items-start gap-2.5">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
                     {item}
                   </li>
                 ))}
@@ -348,10 +348,10 @@ export function Evaluations() {
                 <span className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-muted text-muted-foreground">RULE</span>
                 <span className="text-xs font-semibold">Code Rule</span>
               </div>
-              <ul className="space-y-1.5 text-xs text-muted-foreground">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 {["Pattern matching on response content", "Keyword detection (banned words, required terms)", "Token/latency thresholds", "Instant — no LLM call needed", "Binary output only (match/clean)"].map((item) => (
-                  <li key={item} className="flex items-start gap-2">
-                    <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-foreground/30" />
+                  <li key={item} className="flex items-start gap-2.5">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
                     {item}
                   </li>
                 ))}
@@ -362,7 +362,7 @@ export function Evaluations() {
 
         {/* How it works */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">How evaluations work</h3>
+          <h3 className="text-sm font-semibold mb-4">How evaluations work</h3>
           <ol className="text-sm text-muted-foreground space-y-3 leading-relaxed">
             {[
               <><strong className="text-foreground">Trace arrives</strong> — your agent sends a trace via the Trace API Key</>,

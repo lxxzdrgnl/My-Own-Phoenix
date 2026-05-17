@@ -112,7 +112,7 @@ function KeyCard({ info, isActive, onClick }: { info: KeyInfo; isActive: boolean
 function KeyDetail({ info }: { info: KeyInfo }) {
   const Icon = info.icon;
   return (
-    <div className="rounded-xl border bg-muted/10 p-5 h-full">
+    <div className="rounded-xl border overflow-hidden bg-background p-5 h-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5 pb-4 border-b">
         <div className={cn("flex size-10 items-center justify-center rounded-xl text-background", info.color)}>
@@ -167,9 +167,7 @@ function KeyDetail({ info }: { info: KeyInfo }) {
           </div>
         )}
 
-        <div className="pt-1">
-          <Callout>{info.note}</Callout>
-        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed pt-1">{info.note}</p>
       </div>
     </div>
   );
@@ -223,8 +221,8 @@ function FlowDiagram() {
 
 function WhichKeys() {
   return (
-    <div className="grid gap-3 grid-cols-2">
-      <div className="rounded-xl border p-5">
+    <div className="grid gap-px grid-cols-2 rounded-xl border overflow-hidden bg-border">
+      <div className="bg-card p-5">
         <div className="flex items-center gap-2 mb-3">
           <div className="flex size-6 items-center justify-center rounded-md bg-muted text-muted-foreground text-[10px] font-bold">
             1
@@ -243,7 +241,7 @@ function WhichKeys() {
           </li>
         </ul>
       </div>
-      <div className="rounded-xl border border-foreground/20 p-5">
+      <div className="bg-card p-5">
         <div className="flex items-center gap-2 mb-3">
           <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background text-[10px] font-bold">
             3
@@ -316,34 +314,43 @@ export function ApiKeys() {
         My Own Phoenix uses three types of API keys. Each serves a different purpose.
       </p>
 
-      {/* Key selector + detail */}
-      <div className="flex gap-4 mb-10">
-        <div className="w-[280px] shrink-0 space-y-2">
-          {KEYS.map((k, i) => (
-            <KeyCard key={k.name} info={k} isActive={activeKey === i} onClick={() => setActiveKey(i)} />
-          ))}
+      <div className="space-y-10">
+        {/* Key selector + detail */}
+        <div className="rounded-xl border overflow-hidden bg-background">
+          <div className="flex gap-4 p-4">
+            <div className="w-[280px] shrink-0 space-y-2">
+              {KEYS.map((k, i) => (
+                <KeyCard key={k.name} info={k} isActive={activeKey === i} onClick={() => setActiveKey(i)} />
+              ))}
+            </div>
+            <div className="flex-1 min-w-0">
+              <KeyDetail info={KEYS[activeKey]} />
+            </div>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <KeyDetail info={KEYS[activeKey]} />
+
+        {/* Flow */}
+        <div>
+          <h3 className="text-sm font-semibold mb-4">How keys are used</h3>
+          <FlowDiagram />
         </div>
-      </div>
 
-      {/* Flow */}
-      <div className="mb-10">
-        <h3 className="text-sm font-semibold mb-4">How keys are used</h3>
-        <FlowDiagram />
-      </div>
+        {/* Which keys */}
+        <div>
+          <h3 className="text-sm font-semibold mb-4">Which keys do I need?</h3>
+          <WhichKeys />
+        </div>
 
-      {/* Which keys */}
-      <div className="mb-10">
-        <h3 className="text-sm font-semibold mb-4">Which keys do I need?</h3>
-        <WhichKeys />
-      </div>
+        {/* Setup */}
+        <div>
+          <h3 className="text-sm font-semibold mb-4">Quick Setup</h3>
+          <SetupExamples />
+        </div>
 
-      {/* Setup */}
-      <div>
-        <h3 className="text-sm font-semibold mb-4">Quick Setup</h3>
-        <SetupExamples />
+        {/* Callout at bottom */}
+        <Callout>
+          Trace keys are per-project and stored encrypted. Connector keys are per-user and required only for interactive features (Chat, Playground, Dataset testing). LLM provider keys can be set globally or overridden per-project by editors/owners.
+        </Callout>
       </div>
     </div>
   );

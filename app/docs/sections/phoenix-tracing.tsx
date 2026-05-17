@@ -297,7 +297,7 @@ function TracePreview() {
   const style = KIND_STYLES[span.kind] || KIND_STYLES.CHAIN;
 
   return (
-    <div className="rounded-xl border overflow-hidden">
+    <div className="rounded-xl border overflow-hidden bg-background">
       {/* Trace header */}
       <div className="border-b bg-muted/20 px-4 py-3">
         <div className="flex items-center gap-2 mb-2">
@@ -454,7 +454,7 @@ export function PhoenixTracing() {
 
         {/* Trace structure */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">Trace structure</h3>
+          <h3 className="text-sm font-semibold mb-4">Trace structure</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
             A <strong className="text-foreground">trace</strong> represents one
             complete agent execution. Each trace contains multiple{" "}

@@ -143,7 +143,7 @@ export function Chat() {
       <div className="space-y-10">
         {/* Preview */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">Chat interface</h3>
+          <h3 className="text-sm font-semibold mb-4">Chat interface</h3>
           <p className="text-xs text-muted-foreground mb-3">
             Real-time conversation with your connected agent.
           </p>
@@ -152,7 +152,7 @@ export function Chat() {
 
         {/* Features */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">Features</h3>
+          <h3 className="text-sm font-semibold mb-4">Features</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {[
               "Real-time streaming responses via WebSocket relay",

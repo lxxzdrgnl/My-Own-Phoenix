@@ -8,6 +8,16 @@ import {
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { GripVertical, Settings2, X, Plus } from "lucide-react";
+
+/* ── Color presets (from real widget-grid.tsx) ── */
+const PAIR_PRESETS: { name: string; colors: [string, string] }[] = [
+  { name: "Default", colors: ["oklch(0.65 0.15 250)", "oklch(0.70 0.12 195)"] },
+  { name: "Ocean", colors: ["oklch(0.60 0.14 230)", "oklch(0.72 0.10 200)"] },
+  { name: "Sunset", colors: ["oklch(0.65 0.18 25)", "oklch(0.72 0.15 55)"] },
+  { name: "Forest", colors: ["oklch(0.60 0.14 150)", "oklch(0.72 0.10 170)"] },
+  { name: "Purple", colors: ["oklch(0.58 0.18 290)", "oklch(0.70 0.12 310)"] },
+  { name: "Mono", colors: ["oklch(0.45 0.00 0)", "oklch(0.65 0.00 0)"] },
+];
 import { Callout } from "../code-block";
 
 /* ── Widget definitions ── */
@@ -27,10 +37,10 @@ const INITIAL_WIDGETS: WidgetDef[] = [
 ];
 
 const INITIAL_LAYOUT: LayoutItem[] = [
-  { i: "hal", x: 0, y: 0, w: 1, h: 2 },
-  { i: "qa", x: 1, y: 0, w: 1, h: 2 },
-  { i: "total", x: 0, y: 2, w: 1, h: 1 },
-  { i: "latency", x: 1, y: 2, w: 1, h: 1 },
+  { i: "hal", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+  { i: "qa", x: 2, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+  { i: "total", x: 0, y: 2, w: 2, h: 1, minW: 1, minH: 1 },
+  { i: "latency", x: 2, y: 2, w: 2, h: 1, minW: 1, minH: 1 },
 ];
 
 const EXTRA_WIDGETS: WidgetDef[] = [
@@ -40,10 +50,47 @@ const EXTRA_WIDGETS: WidgetDef[] = [
   { id: "tok", title: "Token Efficiency", value: "1,245", label: "AVG TOKENS/CALL" },
 ];
 
-/* ── WidgetCard (real UI replica) ── */
+type ViewMode = "summary" | "trend" | "detail";
+const VIEW_LABELS: Record<ViewMode, string> = { summary: "Summary", trend: "Trend", detail: "Detail" };
+const VIEW_ORDER: ViewMode[] = ["summary", "trend", "detail"];
+
+/* Mock trend data per widget */
+const TREND_DATA: Record<string, number[]> = {
+  hal: [72, 68, 65, 70, 63, 65, 60, 65],
+  qa: [95, 98, 100, 97, 100, 100, 100, 100],
+  total: [3, 5, 4, 7, 6, 8, 5, 4],
+  latency: [5200, 6100, 5800, 7200, 6389, 5900, 6800, 6389],
+  rag: [80, 82, 85, 83, 87, 85, 84, 85],
+  cost: [8, 10, 11, 9, 12, 14, 13, 12],
+  err: [2, 1, 0, 1, 0, 0, 0, 0],
+  tok: [1100, 1050, 1200, 1300, 1180, 1245, 1150, 1245],
+};
+
+const DETAIL_DATA: Record<string, { label: string; value: string }[]> = {
+  hal: [{ label: "Total evaluated", value: "2" }, { label: "Factual", value: "1" }, { label: "Hallucinated", value: "1" }, { label: "Avg score", value: "0.65" }],
+  qa: [{ label: "Total evaluated", value: "4" }, { label: "Correct", value: "4" }, { label: "Incorrect", value: "0" }, { label: "Accuracy", value: "100%" }],
+  total: [{ label: "LLM spans", value: "28" }, { label: "TOOL spans", value: "8" }, { label: "CHAIN spans", value: "6" }, { label: "Total", value: "42" }],
+  latency: [{ label: "p50", value: "4.2s" }, { label: "p90", value: "5.8s" }, { label: "p95", value: "6.4s" }, { label: "p99", value: "8.1s" }],
+  rag: [{ label: "Relevant", value: "85%" }, { label: "Partial", value: "10%" }, { label: "Irrelevant", value: "5%" }, { label: "Avg score", value: "0.85" }],
+  cost: [{ label: "Today", value: "$1.80" }, { label: "7 days", value: "$12.40" }, { label: "30 days", value: "$48.20" }, { label: "Avg/query", value: "$0.30" }],
+  err: [{ label: "Total errors", value: "0" }, { label: "Timeouts", value: "0" }, { label: "Rate limits", value: "0" }, { label: "Success rate", value: "100%" }],
+  tok: [{ label: "Avg input", value: "980" }, { label: "Avg output", value: "265" }, { label: "Avg total", value: "1,245" }, { label: "Max", value: "3,820" }],
+};
+
+/* ── WidgetCard (matches real widget-grid.tsx WidgetCard) ── */
 function WidgetCard({ widget, onRemove }: { widget: WidgetDef; onRemove: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
   const [sizeClass, setSizeClass] = useState<"tiny" | "small" | "normal" | "large">("normal");
+  const [narrow, setNarrow] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("summary");
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [colors, setColors] = useState<[string, string]>([...PAIR_PRESETS[0].colors]);
+
+  const cycleMode = () => {
+    const idx = VIEW_ORDER.indexOf(viewMode);
+    setViewMode(VIEW_ORDER[(idx + 1) % VIEW_ORDER.length]);
+  };
 
   useEffect(() => {
     let el: HTMLElement | null = containerRef.current;
@@ -55,10 +102,22 @@ function WidgetCard({ widget, onRemove }: { widget: WidgetDef; onRemove: () => v
       else if (width < 250 || height < 160) setSizeClass("small");
       else if (width > 450 && height > 300) setSizeClass("large");
       else setSizeClass("normal");
+      setNarrow(width < 240);
     });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!optionsOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
+        setOptionsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [optionsOpen]);
 
   const styles = {
     tiny: { value: "text-lg", label: "text-[9px]", gap: "gap-0.5" },
@@ -73,46 +132,164 @@ function WidgetCard({ widget, onRemove }: { widget: WidgetDef; onRemove: () => v
       ref={containerRef}
       className="group relative h-full overflow-visible rounded-2xl border border-border/60 bg-card shadow-sm transition-shadow hover:shadow-md"
     >
-      {/* Header (drag handle) */}
-      <div className="widget-drag-handle relative flex cursor-grab items-center gap-1.5 border-b border-border/40 px-4 py-2.5">
+      {/* Header (drag handle) — matches real widget-grid.tsx */}
+      <div className={`widget-drag-handle relative flex cursor-grab items-center gap-1.5 border-b border-border/40 ${narrow ? "px-2 py-1.5" : "px-4 py-2.5"}`}>
         <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/30 opacity-0 transition-opacity group-hover:opacity-100" />
-        <span className="text-sm font-semibold tracking-tight truncate">
+        <span className={`${narrow ? "text-xs" : "text-sm"} font-semibold tracking-tight truncate`}>
           {widget.title}
         </span>
-        <button className="shrink-0 rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-          Summary
+        <button
+          onClick={cycleMode}
+          className={`shrink-0 rounded-md border border-border/50 bg-muted/50 ${narrow ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs"} font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted hover:text-foreground`}
+        >
+          {narrow ? VIEW_LABELS[viewMode][0] : VIEW_LABELS[viewMode]}
         </button>
+
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
-          <button className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground">
-            <Settings2 className="h-3.5 w-3.5" />
-          </button>
+          {/* Settings dropdown — matches real widget-grid.tsx */}
+          <div className="relative" ref={optionsRef}>
+            <button
+              onClick={() => setOptionsOpen(!optionsOpen)}
+              className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+            </button>
+            {optionsOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl border bg-popover p-1 shadow-xl">
+                {/* View mode selector */}
+                {VIEW_ORDER.map((vm) => (
+                  <button
+                    key={vm}
+                    onClick={() => { setViewMode(vm); setOptionsOpen(false); }}
+                    className={`flex w-full items-center rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                      viewMode === vm ? "bg-accent text-accent-foreground" : "hover:bg-accent"
+                    }`}
+                  >
+                    {VIEW_LABELS[vm]} View
+                  </button>
+                ))}
+                <div className="my-1 border-t border-border/40" />
+
+                {/* Color presets */}
+                <div className="px-2.5 py-1.5">
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Colors
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {PAIR_PRESETS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        title={preset.name}
+                        onClick={() => setColors([...preset.colors])}
+                        className={`flex items-center gap-1 rounded-md border p-1 transition-colors ${
+                          colors[0] === preset.colors[0] && colors[1] === preset.colors[1]
+                            ? "border-foreground bg-accent"
+                            : "border-transparent hover:bg-muted"
+                        }`}
+                      >
+                        <span className="h-3.5 w-3.5 rounded-full" style={{ background: preset.colors[0] }} />
+                        <span className="h-3.5 w-3.5 rounded-full" style={{ background: preset.colors[1] }} />
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Individual color pickers */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {colors.map((c, i) => (
+                      <label key={i} className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <span className="font-medium">C{i + 1}</span>
+                        <div className="relative">
+                          <span className="block h-5 w-5 rounded-full border border-border/60" style={{ background: c }} />
+                          <input
+                            type="color"
+                            value={c.startsWith("#") ? c : "#888888"}
+                            onChange={(e) => {
+                              const next: [string, string] = [...colors];
+                              next[i] = e.target.value;
+                              setColors(next);
+                            }}
+                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          />
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="my-1 border-t border-border/40" />
+                <button
+                  onClick={() => { onRemove(); setOptionsOpen(false); }}
+                  className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10"
+                >
+                  Remove Widget
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="rounded-lg p-1 text-muted-foreground/30 opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+            className="rounded-lg p-1 text-muted-foreground/50 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Content: StatCard */}
-      <div className={`flex h-[calc(100%-2.75rem)] w-full flex-col items-center justify-center ${s.gap} overflow-hidden px-2 py-1`}>
-        <span
-          className={`${s.value} font-black tabular-nums tracking-tighter truncate max-w-full`}
-          style={{ fontFamily: "'Geist Mono', 'SF Mono', 'Fira Code', monospace" }}
-        >
-          {widget.value}
-        </span>
-        <div className="flex flex-col items-center gap-0.5 max-w-full overflow-hidden">
-          <span className={`${s.label} font-semibold uppercase tracking-widest text-muted-foreground/70 truncate max-w-full`}>
-            {widget.label}
-          </span>
-          {widget.trend && sizeClass !== "tiny" && (
-            <span className="text-xs px-2.5 py-0.5 rounded-full border border-border/50 bg-muted/50 font-medium tabular-nums text-muted-foreground truncate max-w-full">
-              {widget.trend}
+      {/* Content — switches by viewMode */}
+      <div className="h-[calc(100%-2.75rem)] w-full overflow-hidden">
+        {viewMode === "summary" && (
+          <div className={`flex h-full w-full flex-col items-center justify-center ${s.gap} px-2 py-1`}>
+            <span
+              className={`${s.value} font-black tabular-nums tracking-tighter truncate max-w-full`}
+              style={{ fontFamily: "'Geist Mono', 'SF Mono', 'Fira Code', monospace" }}
+            >
+              {widget.value}
             </span>
-          )}
-        </div>
+            <div className="flex flex-col items-center gap-0.5 max-w-full overflow-hidden">
+              <span className={`${s.label} font-semibold uppercase tracking-widest text-muted-foreground/70 truncate max-w-full`}>
+                {widget.label}
+              </span>
+              {widget.trend && sizeClass !== "tiny" && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full border border-border/50 bg-muted/50 font-medium tabular-nums text-muted-foreground truncate max-w-full">
+                  {widget.trend}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        {viewMode === "trend" && (() => {
+          const data = TREND_DATA[widget.id] ?? [50, 60, 55, 70, 65, 72, 68, 75];
+          const max = Math.max(...data);
+          return (
+            <div className="flex h-full flex-col px-3 py-2">
+              <div className="flex items-end gap-[3px] flex-1">
+                {data.map((v, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-t"
+                    style={{ height: `${(v / max) * 100}%`, backgroundColor: colors[0], opacity: 0.5 + (i / data.length) * 0.5 }}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-[8px] text-muted-foreground">7d ago</span>
+                <span className="text-[8px] text-muted-foreground">now</span>
+              </div>
+            </div>
+          );
+        })()}
+        {viewMode === "detail" && (
+          <div className="flex h-full flex-col justify-center px-3 py-2">
+            <div className="space-y-1.5">
+              {(DETAIL_DATA[widget.id] ?? []).map((row) => (
+                <div key={row.label} className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">{row.label}</span>
+                  <span className="text-xs font-semibold tabular-nums">{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -148,7 +325,7 @@ function DashboardPreview() {
   const handleAdd = useCallback((ew: WidgetDef) => {
     setWidgets((prev) => [...prev, ew]);
     const maxY = layout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
-    setLayout((prev) => [...prev, { i: ew.id, x: 0, y: maxY, w: 1, h: 1 }]);
+    setLayout((prev) => [...prev, { i: ew.id, x: 0, y: maxY, w: 1, h: 1, minW: 1, minH: 1 }]);
     setMenuOpen(false);
   }, [layout]);
 
@@ -214,7 +391,8 @@ function DashboardPreview() {
             className="layout"
             layout={layout}
             width={containerWidth - 40}
-            gridConfig={{ cols: 2, rowHeight: 160 }}
+            gridConfig={{ cols: 4, rowHeight: Math.floor((containerWidth - 40) / 4) }}
+            dragConfig={{ handle: ".widget-drag-handle" }}
             onLayoutChange={(newLayout) => setLayout([...newLayout] as LayoutItem[])}
             onDragStop={(newLayout) => setLayout([...newLayout] as LayoutItem[])}
             onResizeStop={(newLayout) => setLayout([...newLayout] as LayoutItem[])}
@@ -279,7 +457,7 @@ export function Dashboard() {
       <div className="space-y-10">
         {/* Interactive widget dashboard */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">Widget dashboard</h3>
+          <h3 className="text-sm font-semibold mb-4">Widget dashboard</h3>
           <p className="text-xs text-muted-foreground mb-3">
             Try it: drag the grip icon to move widgets, drag the bottom-right
             corner to resize. Hover to see X (remove) and + Add Widget to add

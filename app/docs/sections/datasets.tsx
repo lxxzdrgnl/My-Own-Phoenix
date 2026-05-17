@@ -159,7 +159,7 @@ function DatasetPreview() {
   const currentRun = runs[selectedRun];
 
   return (
-    <div className="rounded-xl border overflow-hidden bg-background" style={{ height: 560 }}>
+    <div className="rounded-xl border overflow-hidden bg-background" style={{ height: 640 }}>
       <div className="flex h-full">
         {/* ── LEFT: Dataset sidebar ── */}
         <div className="w-60 shrink-0 flex flex-col border-r">
@@ -213,6 +213,7 @@ function DatasetPreview() {
             <span className="text-xs text-muted-foreground">Agent</span>
             <select className="h-7 rounded-md border bg-background px-2 text-xs outline-none">
               <option>Select...</option>
+              <option>financial-qa-agent (online)</option>
             </select>
             <button
               onClick={handleGenerate}
@@ -439,16 +440,17 @@ export function Datasets() {
 
       <div className="space-y-10">
         <div>
-          <h3 className="text-sm font-semibold mb-3">Dataset interface</h3>
+          <h3 className="text-sm font-semibold mb-4">Dataset interface</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Switch between Prompts (raw dataset rows) and Results (agent
-            responses with eval scores). Click a run to view its results.
+            Try it: click Generate to run the agent on all rows, then
+            Evaluate to score each response. Switch between Prompts and
+            Results tabs.
           </p>
           <DatasetPreview />
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold mb-3">Features</h3>
+          <h3 className="text-sm font-semibold mb-4">Features</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {[
               "CSV import with column mapping (query, context, expected answer)",

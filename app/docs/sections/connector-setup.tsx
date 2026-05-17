@@ -174,25 +174,6 @@ Phoenix Connector v0.1.1
   );
 }
 
-// ─── Step Card ─────────────────────────────────────────────────────────
-
-function StepCard({ num, title, children }: { num: number; title: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-4">
-      <div className="flex flex-col items-center">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-bold">
-          {num}
-        </div>
-        <div className="w-px flex-1 bg-border mt-2" />
-      </div>
-      <div className="pb-8">
-        <h4 className="text-sm font-semibold mb-1">{title}</h4>
-        <div className="text-[13px] text-muted-foreground leading-relaxed">{children}</div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Component ────────────────────────────────────────────────────
 
 export function ConnectorSetup() {
@@ -204,22 +185,17 @@ export function ConnectorSetup() {
       <h1 className="text-2xl font-bold tracking-tight mb-2">
         Connector Setup
       </h1>
-      <p className="text-sm text-muted-foreground mb-8">
+      <p className="text-sm text-muted-foreground mb-10">
         Connect your local agent to the platform for{" "}
         <strong className="text-foreground">Chat</strong>,{" "}
         <strong className="text-foreground">Playground</strong>, and{" "}
         <strong className="text-foreground">Dataset testing</strong> — no
-        deployment required.
+        deployment required. If you only need trace collection and monitoring,
+        skip this section — the connector is required only for interactive
+        features.
       </p>
 
-      <Callout title="Tracing works without a connector">
-        If you only need trace collection and monitoring, skip this section.
-        The connector is required only for interactive features (Chat,
-        Playground, Dataset runs). See the <strong>Tracing</strong> section
-        for trace-only setup.
-      </Callout>
-
-      <div className="mt-10 space-y-10">
+      <div className="space-y-10">
         {/* Architecture */}
         <div>
           <h3 className="text-sm font-semibold mb-4">How it works</h3>
@@ -234,44 +210,60 @@ export function ConnectorSetup() {
 
         {/* Prerequisites */}
         <div>
-          <h3 className="text-sm font-semibold mb-5">Prerequisites</h3>
-          <StepCard num={1} title="Create a project">
-            Go to the{" "}
-            <strong className="text-foreground">Projects</strong> page and create a
-            new project (or use an existing one).
-          </StepCard>
-          <StepCard num={2} title="Get your Connector Key">
-            Go to{" "}
-            <strong className="text-foreground">
-              Global Settings → Profile &amp; Key
-            </strong>{" "}
-            and click <strong className="text-foreground">Generate Key</strong>.
-            You'll get a personal key (
-            <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-              pc_*
-            </code>
-            ). Copy it — each team member has their own key.
-          </StepCard>
-          <StepCard num={3} title="Start your agent">
-            Your agent must be serving HTTP on localhost. For example:{" "}
-            <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-              langgraph dev --port 2024
-            </code>
-          </StepCard>
+          <h3 className="text-sm font-semibold mb-4">Prerequisites</h3>
+          <ol className="text-sm text-muted-foreground space-y-3 leading-relaxed">
+            {[
+              <>
+                <strong className="text-foreground">Create a project</strong> —
+                Go to the Projects page and create a new project (or use an
+                existing one).
+              </>,
+              <>
+                <strong className="text-foreground">Get your Connector Key</strong> —
+                Go to{" "}
+                <strong className="text-foreground">
+                  Global Settings → Profile &amp; Key
+                </strong>{" "}
+                and click Generate Key. You&apos;ll get a personal key (
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+                  pc_*
+                </code>
+                ). Copy it — each team member has their own key.
+              </>,
+              <>
+                <strong className="text-foreground">Start your agent</strong> —
+                Your agent must be serving HTTP on localhost. For example:{" "}
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+                  langgraph dev --port 2024
+                </code>
+              </>,
+            ].map((step, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold">
+                  {i + 1}
+                </span>
+                <span className="pt-0.5">{step}</span>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/* Install & Run */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">Install &amp; Run</h3>
+          <h3 className="text-sm font-semibold mb-4">Install &amp; Run</h3>
           <div className="mb-4">
             <CodeBlock filename="terminal" code="pip install phoenix-connector" />
           </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Toggle between interactive and flag-based modes to see both usage
+            styles.
+          </p>
           <CLIPreview />
         </div>
 
         {/* Options Table */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">CLI Options</h3>
+          <h3 className="text-sm font-semibold mb-4">CLI Options</h3>
           <p className="text-xs text-muted-foreground mb-3">
             All flags are optional — the CLI will prompt for any missing values interactively.
           </p>
@@ -314,9 +306,7 @@ export function ConnectorSetup() {
 
         {/* Agent Types */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">
-            Agent Types
-          </h3>
+          <h3 className="text-sm font-semibold mb-4">Agent Types</h3>
           <div className="grid gap-3 grid-cols-2">
             <div className="rounded-xl border p-5">
               <div className="flex items-center gap-2 mb-2">
@@ -330,14 +320,14 @@ export function ConnectorSetup() {
                 Uses the LangGraph SDK HTTP API. Best for agents built with{" "}
                 <code className="rounded bg-muted px-1 py-0.5 text-[10px] font-mono">langgraph dev</code>.
               </p>
-              <div className="space-y-1">
-                <div className="rounded-md bg-muted/30 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">
-                  POST /threads
-                </div>
-                <div className="rounded-md bg-muted/30 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">
-                  POST /threads/&#123;id&#125;/runs/stream
-                </div>
-              </div>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {["POST /threads", "POST /threads/{id}/runs/stream"].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
+                    <code className="text-[10px] font-mono">{item}</code>
+                  </li>
+                ))}
+              </ul>
             </div>
             <div className="rounded-xl border p-5">
               <div className="flex items-center gap-2 mb-2">
@@ -350,21 +340,24 @@ export function ConnectorSetup() {
                 Simple REST endpoint with Server-Sent Events. For custom agents with a{" "}
                 <code className="rounded bg-muted px-1 py-0.5 text-[10px] font-mono">/chat</code> route.
               </p>
-              <div className="space-y-1">
-                <div className="rounded-md bg-muted/30 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">
-                  POST /chat
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Body: <code className="font-mono">&#123;messages, thread_id&#125;</code> → SSE stream
-                </p>
-              </div>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {[
+                  "POST /chat",
+                  "Body: {messages, thread_id} → SSE stream",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
+                    <code className="text-[10px] font-mono">{item}</code>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
 
         {/* Code Examples */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">LangGraph Example</h3>
+          <h3 className="text-sm font-semibold mb-4">LangGraph Example</h3>
           <CodeBlock
             filename="agent.py"
             code={`from langgraph.graph import StateGraph, MessagesState, START, END
@@ -392,7 +385,7 @@ phoenix-connector --key=pc_... --agent=http://localhost:2024`}
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold mb-3">REST SSE Example</h3>
+          <h3 className="text-sm font-semibold mb-4">REST SSE Example</h3>
           <CodeBlock
             filename="rest_agent.py"
             code={`from fastapi import FastAPI, Request

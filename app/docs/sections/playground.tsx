@@ -233,7 +233,7 @@ function PlaygroundPreview() {
   const anyRunning = columns.some((c) => c.running);
 
   return (
-    <div className="rounded-xl border overflow-hidden bg-background" style={{ height: 560 }}>
+    <div className="rounded-xl border overflow-hidden bg-background" style={{ height: 520 }}>
       <div className="flex h-full min-h-0">
         {/* ── LEFT: Trace sidebar ── */}
         <div className="w-[200px] shrink-0 flex flex-col border-r">
@@ -457,7 +457,7 @@ export function Playground() {
 
       <div className="space-y-10">
         <div>
-          <h3 className="text-sm font-semibold mb-3">Playground interface</h3>
+          <h3 className="text-sm font-semibold mb-4">Playground interface</h3>
           <p className="text-xs text-muted-foreground mb-3">
             Click a trace on the left to load it. Press Run on each column or use the Play button on the right action bar to run all columns at once.
           </p>
@@ -465,7 +465,7 @@ export function Playground() {
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold mb-3">Features</h3>
+          <h3 className="text-sm font-semibold mb-4">Features</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {[
               "Browse traces from any project with filters (span kind, annotations, latency)",
