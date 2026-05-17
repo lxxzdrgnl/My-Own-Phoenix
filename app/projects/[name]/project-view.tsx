@@ -45,7 +45,7 @@ function buildLatencyChartOptions(traces: Trace[]): Highcharts.Options {
     },
     yAxis: { title: { text: "ms" } },
     series: [
-      { name: "Latency", type: "area", data: sorted.map((t) => Math.round(t.latency)) },
+      { name: "Latency", type: "area", data: sorted.map((t) => Math.round(t.latency)), color: "#3b82f6", fillOpacity: 0.15 },
     ],
   };
 }
@@ -67,7 +67,7 @@ function buildScoreChartOptions(traces: Trace[]): Highcharts.Options {
     title: { text: "Avg Score by Annotation", style: { fontSize: "14px" } },
     xAxis: { categories },
     yAxis: { title: { text: "Score" }, min: 0, max: 1 },
-    series: [{ name: "Avg Score", type: "column", data: avgScores }],
+    series: [{ name: "Avg Score", type: "column", data: avgScores, color: "#3b82f6" }],
   };
 }
 
@@ -89,8 +89,8 @@ function buildPassFailChartOptions(traces: Trace[]): Highcharts.Options {
     yAxis: { title: { text: "Count" } },
     plotOptions: { bar: { stacking: "normal" } },
     series: [
-      { name: "Pass", type: "bar", data: categories.map((n) => byName[n].pass), color: "#d4d4d4" },
-      { name: "Fail", type: "bar", data: categories.map((n) => byName[n].fail), color: "#171717" },
+      { name: "Pass", type: "bar", data: categories.map((n) => byName[n].pass), color: "#3b82f6" },
+      { name: "Fail", type: "bar", data: categories.map((n) => byName[n].fail), color: "#a1a1aa" },
     ],
   };
 }
