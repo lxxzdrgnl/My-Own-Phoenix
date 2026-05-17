@@ -2,6 +2,32 @@
 
 LLM observability and evaluation platform. Monitor traces, run automated evaluations, manage datasets, and collaborate on AI projects.
 
+**Live:** https://phoenix.rheon.kr
+**Docs:** https://phoenix.rheon.kr/docs
+
+## Documentation
+
+The `/docs` page provides interactive guides with live UI previews for every feature.
+
+### Getting Started
+
+| Section | Description |
+|---------|-------------|
+| Quick Start (Tracing) | Instrument your agent and collect traces in under 2 minutes. Code examples for OpenAI, LangChain, and custom agents. |
+| Connector Setup | Connect your local agent via WebSocket for Chat, Playground, and Dataset testing. LangGraph and REST SSE examples. |
+| API Keys | Three key types: Trace Key (`pt_*`), Connector Key (`pc_*`), LLM Provider Key. |
+
+### Features
+
+| Section | Description |
+|---------|-------------|
+| Tracing | Interactive trace viewer with span tree, Input/Output tabs, annotation badges, and span graph. |
+| Evaluations | 7 built-in templates (HAL, CIT, TOOL, QA, RAG, GRD, BAN). LLM-as-Judge and code rule types with form builder. |
+| Dashboard | Drag-and-drop widgets with Summary/Trend/Detail views, color customization, and NIST AI RMF metrics. |
+| Datasets | Test datasets with agent runs and automated evaluation. Interactive Generate and Evaluate simulation. |
+| Chat | Real-time chat with connected agents. All messages are automatically traced. |
+| Playground | Side-by-side prompt comparison with up to 6 columns against the same traces. |
+
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router) + TypeScript
@@ -68,7 +94,7 @@ prisma/            # Schema + migrations
 
 ## API Documentation
 
-Visit `/docs` in the running app for the full API reference covering all endpoints.
+Visit [phoenix.rheon.kr/docs](https://phoenix.rheon.kr/docs) for interactive documentation with live UI previews, or [/api/docs](https://phoenix.rheon.kr/api/docs) for the Swagger API reference.
 
 ## Environment Variables
 
