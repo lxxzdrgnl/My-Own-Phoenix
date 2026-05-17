@@ -71,12 +71,12 @@ import { RoleGate } from "@/components/ui/role-gate";
 
 // ─── Span colors for timeline bar ──
 const SPAN_BAR_COLORS: Record<string, string> = {
-  LLM: "#171717",
-  CHAIN: "#525252",
-  RETRIEVER: "#737373",
-  TOOL: "#404040",
-  AGENT: "#0a0a0a",
-  PROMPT: "#616161",
+  LLM: "#2e7d32",
+  CHAIN: "#3555c4",
+  RETRIEVER: "#b0446e",
+  TOOL: "#b57530",
+  AGENT: "#171717",
+  PROMPT: "#7b40a0",
 };
 
 /** Timeline bar showing how each direct child span contributed to total time */
@@ -496,10 +496,11 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
           <RoleGate>
             <button
               onClick={(e) => { e.stopPropagation(); setDatasetModalOpen(true); }}
-              className="rounded p-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent hover:text-foreground"
+              className="flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title="Add to dataset"
             >
-              <Database className="size-3.5" />
+              <Database className="size-3" />
+              Dataset
             </button>
           </RoleGate>
           {onDeleteTrace && (
