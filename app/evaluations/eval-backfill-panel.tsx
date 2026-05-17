@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
 import { apiFetch } from "@/lib/api-client";
+import { useT } from "@/lib/i18n";
 
 interface BackfillResult {
   evaluated: number;
@@ -24,6 +25,7 @@ export function EvalBackfillPanel({
   selectedProject,
   editTemplate,
 }: EvalBackfillPanelProps) {
+  const t = useT();
   const [backfillRange, setBackfillRange] = useState<DateRange>(() => getPresetRange(7));
   const [backfilling, setBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
@@ -61,10 +63,10 @@ export function EvalBackfillPanel({
               backfilling && "animate-spin"
             )}
           />
-          <span className="text-xs font-semibold">Run on Existing Traces</span>
+          <span className="text-xs font-semibold">{t.evaluations.runOnExistingTraces}</span>
           {backfillResult && (
             <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">
-              {backfillResult.evaluated} evaluated, {backfillResult.skipped} skipped /{" "}
+              {backfillResult.evaluated} {t.evaluations.evaluated}, {backfillResult.skipped} {t.evaluations.skipped} /{" "}
               {backfillResult.total}
             </span>
           )}
@@ -78,7 +80,7 @@ export function EvalBackfillPanel({
             disabled={backfilling || !editTemplate}
             className="gap-1.5 text-xs h-8 shrink-0"
           >
-            {backfilling ? "Running..." : "Run"}
+            {backfilling ? t.common.running : t.common.run}
           </Button>
         </div>
       </div>

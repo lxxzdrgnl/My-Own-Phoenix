@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { Button } from "@/components/ui/button";
-import { AuthModal } from "@/components/modals/auth-modal";
+import { Nav } from "@/components/nav";
+import { useT } from "@/lib/i18n";
 
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [showAuth, setShowAuth] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     if (!loading && user) {
@@ -19,54 +19,49 @@ export default function Home() {
 
   if (loading || user) return null;
 
+  const features = [
+    { num: "01", title: t.landing.collectTitle, desc: t.landing.collectDesc },
+    { num: "02", title: t.landing.evaluateTitle, desc: t.landing.evaluateDesc },
+    { num: "03", title: t.landing.testTitle, desc: t.landing.testDesc },
+  ];
+
+  const stats = [
+    { label: t.landing.totalTraces, value: "12,847", sub: "+2.4K today" },
+    { label: t.landing.avgLatency, value: "1.23s", sub: "p99: 3.41s" },
+    { label: t.landing.passRate, value: "94.2%", sub: "1,201 evaluated" },
+    { label: t.landing.estCost, value: "$127.50", sub: "~$18/day" },
+  ];
+
   // Not logged in → Landing page
   return (
     <>
-      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
       <div className="min-h-screen bg-background">
-        {/* Nav */}
-        <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-            <span className="text-sm font-bold tracking-tight">My Own Phoenix</span>
-            <div className="flex items-center gap-4">
-              <a href="/docs" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                Docs
-              </a>
-              <button
-                onClick={() => setShowAuth(true)}
-                className="rounded-lg bg-foreground px-4 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80"
-              >
-                Sign in
-              </button>
-            </div>
-          </div>
-        </nav>
+        <Nav />
 
         {/* Hero */}
-        <section className="mx-auto max-w-6xl px-6 pt-32 pb-8">
+        <section className="mx-auto max-w-6xl px-6 pt-16 pb-8">
           <div className="max-w-3xl animate-[fadeUp_0.6s_ease-out_both]">
             <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              LLM Observability Platform
+              {t.landing.badge}
             </p>
             <h1 className="text-5xl font-bold tracking-tight leading-[1.1]">
-              Monitor, Evaluate &
+              {t.landing.heroTitle1}
               <br />
-              <span className="text-muted-foreground/30">Test Your AI Agents</span>
+              <span className="text-muted-foreground/30">{t.landing.heroTitle2}</span>
             </h1>
             <p className="mt-6 max-w-lg text-base text-muted-foreground leading-relaxed">
-              Real-time trace collection, automated evaluations, and integrated agent
-              testing with WebSocket relay — no deployment required.
+              {t.landing.heroDesc}
             </p>
             <div className="mt-10 flex items-center gap-5">
               <button
-                onClick={() => setShowAuth(true)}
+                onClick={() => router.push("/login")}
                 className="group rounded-lg bg-foreground px-7 py-3 text-sm font-medium text-background transition-all hover:opacity-90"
               >
-                Get started free
+                {t.landing.getStarted}
                 <span className="ml-2 inline-block transition-transform group-hover:translate-x-0.5">→</span>
               </button>
               <a href="/docs" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-                Read the docs
+                {t.landing.readDocs}
               </a>
             </div>
           </div>
@@ -77,7 +72,7 @@ export default function Home() {
           <div className="rounded-2xl border bg-card shadow-lg shadow-black/[0.03] overflow-hidden">
             <div className="flex min-h-[340px]">
               <div className="w-52 border-r p-5 hidden md:flex flex-col">
-                <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">Navigate</p>
+                <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">{t.landing.navigate}</p>
                 <div className="space-y-0.5">
                   {["Chat", "Playground", "Dashboard", "Requests", "Evaluations", "Datasets"].map((item, i) => (
                     <div key={item} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${i === 2 ? "bg-accent font-semibold" : "text-muted-foreground"}`}>
@@ -98,12 +93,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                  {[
-                    { label: "Total Traces", value: "12,847", sub: "+2.4K today" },
-                    { label: "Avg Latency", value: "1.23s", sub: "p99: 3.41s" },
-                    { label: "Pass Rate", value: "94.2%", sub: "1,201 evaluated" },
-                    { label: "Est. Cost", value: "$127.50", sub: "~$18/day" },
-                  ].map((s) => (
+                  {stats.map((s) => (
                     <div key={s.label} className="rounded-xl border p-4">
                       <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{s.label}</p>
                       <p className="mt-1.5 text-2xl font-bold tabular-nums">{s.value}</p>
@@ -112,7 +102,7 @@ export default function Home() {
                   ))}
                 </div>
                 <div className="rounded-xl border p-4">
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-3">Requests (7 days)</p>
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-3">{t.landing.requests7d}</p>
                   <div className="flex items-end gap-1 h-16">
                     {[35, 42, 58, 45, 67, 55, 72, 48, 63, 80, 70, 56, 45, 62, 78, 85, 60, 42, 55, 70, 65, 50, 48, 72, 88, 76, 65, 58].map((h, i) => (
                       <div key={i} className="flex-1 rounded-sm bg-foreground/10 transition-colors hover:bg-foreground/20" style={{ height: `${h}%` }} />
@@ -127,14 +117,10 @@ export default function Home() {
         {/* Features */}
         <section className="border-t">
           <div className="mx-auto max-w-6xl px-6 py-24">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">Everything you need</p>
-            <h2 className="text-2xl font-bold tracking-tight mb-12">From first trace to production</h2>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">{t.landing.everythingYouNeed}</p>
+            <h2 className="text-2xl font-bold tracking-tight mb-12">{t.landing.fromFirstTrace}</h2>
             <div className="grid gap-px md:grid-cols-3 rounded-2xl border overflow-hidden bg-border">
-              {[
-                { num: "01", title: "Collect", desc: "OTel-based trace ingestion. Add 3 lines to your agent — traces flow to your dashboard automatically." },
-                { num: "02", title: "Evaluate", desc: "Automated quality checks with LLM-as-judge and rule-based evaluations. Hallucination, relevance, safety." },
-                { num: "03", title: "Test", desc: "Chat with local agents through the browser. WebSocket relay — no public URL or deployment required." },
-              ].map((f) => (
+              {features.map((f) => (
                 <div key={f.num} className="bg-card p-8">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">{f.num}</span>
                   <h3 className="mt-3 text-base font-semibold">{f.title}</h3>
@@ -150,12 +136,12 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-6 py-24">
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight">Start in 2 minutes</h2>
+                <h2 className="text-2xl font-bold tracking-tight">{t.landing.startIn2Min}</h2>
                 <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-sm">
-                  Install the SDK, set two environment variables, and your agent traces appear in the dashboard.
+                  {t.landing.startIn2MinDesc}
                 </p>
-                <button onClick={() => setShowAuth(true)} className="mt-6 text-sm font-medium transition-colors hover:text-muted-foreground">
-                  Get your API key →
+                <button onClick={() => router.push("/login")} className="mt-6 text-sm font-medium transition-colors hover:text-muted-foreground">
+                  {t.landing.getApiKey} →
                 </button>
               </div>
               <div className="rounded-xl bg-[#0f0f17] p-6 font-mono text-[13px] text-[#c8ccd4] overflow-x-auto leading-relaxed">
@@ -186,10 +172,10 @@ export default function Home() {
         {/* CTA */}
         <section className="border-t">
           <div className="mx-auto max-w-6xl px-6 py-24 text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Ready to monitor your agents?</h2>
-            <p className="mt-3 text-sm text-muted-foreground">Free to start. No credit card required.</p>
-            <button onClick={() => setShowAuth(true)} className="mt-8 rounded-lg bg-foreground px-8 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90">
-              Get started free →
+            <h2 className="text-3xl font-bold tracking-tight">{t.landing.readyToMonitor}</h2>
+            <p className="mt-3 text-sm text-muted-foreground">{t.landing.freeToStart}</p>
+            <button onClick={() => router.push("/login")} className="mt-8 rounded-lg bg-foreground px-8 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90">
+              {t.landing.getStartedFree} →
             </button>
           </div>
         </section>
@@ -198,7 +184,7 @@ export default function Home() {
         <footer className="border-t">
           <div className="mx-auto max-w-6xl px-6 py-6 flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground/50">My Own Phoenix</span>
-            <a href="/docs" className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors">Documentation</a>
+            <a href="/docs" className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors">{t.landing.documentation}</a>
           </div>
         </footer>
       </div>

@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   LayoutDashboard,
-  BarChart3,
   List,
   MessageSquare,
   FlaskConical,
@@ -15,7 +14,6 @@ import {
   Database,
   ShieldAlert,
   Shield,
-  ClipboardCheck,
   Settings2,
   Settings,
   LogOut,
@@ -25,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/i18n";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -33,41 +32,42 @@ interface ProjectSidebarProps {
   projectName: string;
 }
 
-const NAV_GROUPS = [
-  {
-    label: "Develop",
-    items: [
-      { href: "chat", label: "Chat", icon: MessageSquare },
-      { href: "playground", label: "Playground", icon: FlaskConical },
-    ],
-  },
-  {
-    label: "Analytics",
-    items: [
-      { href: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "overview", label: "Requests", icon: List },
-      { href: "evaluations", label: "Evaluations", icon: SlidersHorizontal },
-      { href: "measure", label: "Measure", icon: Gauge },
-    ],
-  },
-  {
-    label: "Quality",
-    items: [
-      { href: "datasets", label: "Datasets", icon: Database },
-      { href: "pii-guard", label: "PII Guard", icon: Shield },
-      { href: "risks", label: "Risks", icon: ShieldAlert },
-    ],
-  },
-];
-
 const LS_KEY = "sidebar_collapsed";
 
 export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const t = useT();
   const segments = pathname.split("/").filter(Boolean);
   const currentPage = segments.length > 1 ? segments[1] : "chat";
   const [collapsed, setCollapsed] = useState(false);
+
+  const NAV_GROUPS = [
+    {
+      label: t.projects.develop ?? "Develop",
+      items: [
+        { href: "chat", label: t.chat.title, icon: MessageSquare },
+        { href: "playground", label: t.playground.title, icon: FlaskConical },
+      ],
+    },
+    {
+      label: t.projects.analytics ?? "Analytics",
+      items: [
+        { href: "dashboard", label: t.dashboard.title, icon: LayoutDashboard },
+        { href: "overview", label: t.projects.requests ?? "Requests", icon: List },
+        { href: "evaluations", label: t.evaluations.title, icon: SlidersHorizontal },
+        { href: "measure", label: t.projects.measureNav ?? "Measure", icon: Gauge },
+      ],
+    },
+    {
+      label: t.projects.quality ?? "Quality",
+      items: [
+        { href: "datasets", label: t.datasets.title, icon: Database },
+        { href: "pii-guard", label: t.projects.piiGuard ?? "PII Guard", icon: Shield },
+        { href: "risks", label: t.projects.risksNav ?? "Risks", icon: ShieldAlert },
+      ],
+    },
+  ];
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(LS_KEY) === "true");
@@ -83,16 +83,14 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
   if (collapsed) {
     return (
       <div className="flex w-14 shrink-0 flex-col items-center border-r bg-card py-4">
-        {/* Toggle */}
         <button
           onClick={toggle}
           className="mb-4 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          title="Expand sidebar"
+          title={t.projects.expandSidebar ?? "Expand sidebar"}
         >
           <PanelLeft className="h-4 w-4" />
         </button>
 
-        {/* Nav icons */}
         <div className="flex-1 space-y-1">
           {NAV_GROUPS.flatMap((g) => g.items).map(({ href, label, icon: Icon }) => {
             const active = currentPage === href;
@@ -114,7 +112,6 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
           })}
         </div>
 
-        {/* Bottom icons */}
         <div className="space-y-1">
           <Link
             href={`/${slug}/settings`}
@@ -124,7 +121,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
                 ? "bg-accent text-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
-            title="Project Settings"
+            title={t.projects.projectSettings ?? "Project Settings"}
           >
             <Settings2 className="h-4 w-4" />
           </Link>
@@ -133,7 +130,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
             <button
               onClick={() => signOut(auth).then(() => window.location.href = "/")}
               className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              title="Sign out"
+              title={t.nav.signOut}
             >
               <LogOut className="h-3.5 w-3.5" />
             </button>
@@ -154,12 +151,12 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
             className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" />
-            Projects
+            {t.projects.title}
           </Link>
           <button
             onClick={toggle}
             className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            title="Collapse sidebar"
+            title={t.projects.collapseSidebar ?? "Collapse sidebar"}
           >
             <PanelLeftClose className="h-3.5 w-3.5" />
           </button>
@@ -211,7 +208,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
             )}
           >
             <Settings2 className="h-4 w-4" />
-            Project Settings
+            {t.projects.projectSettings ?? "Project Settings"}
           </Link>
         </div>
         <div className="border-t pt-2 space-y-0.5">
@@ -220,14 +217,14 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
             className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted-foreground/50 transition-colors hover:bg-accent hover:text-muted-foreground"
           >
             <FileText className="h-4 w-4" />
-            Docs
+            {t.nav.docs}
           </Link>
           <Link
             href="/settings"
             className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted-foreground/50 transition-colors hover:bg-accent hover:text-muted-foreground"
           >
             <Settings className="h-4 w-4" />
-            Global Settings
+            {t.projects.globalSettings ?? "Global Settings"}
           </Link>
         </div>
 
@@ -243,7 +240,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
               <button
                 onClick={() => signOut(auth).then(() => window.location.href = "/")}
                 className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                title="Sign out"
+                title={t.nav.signOut}
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>

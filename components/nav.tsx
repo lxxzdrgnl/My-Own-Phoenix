@@ -1,108 +1,94 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  MessageSquare,
-  FlaskConical,
-  FolderOpen,
-  LayoutDashboard,
-  LogOut,
-  SlidersHorizontal,
-  Database,
-  Settings2,
-  FileText,
-} from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { LogOut, Globe, ChevronDown } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useI18n, type Locale } from "@/lib/i18n";
 import { AuthModal } from "@/components/modals/auth-modal";
 
-const links = [
-  { href: "/", label: "Chat", icon: MessageSquare, public: true },
-  { href: "/playground", label: "Playground", icon: FlaskConical, public: false },
-  { href: "/projects", label: "Projects", icon: FolderOpen, public: false },
-  { href: "/evaluations", label: "Evaluations", icon: SlidersHorizontal, public: false },
-  { href: "/datasets", label: "Datasets", icon: Database, public: false },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, public: false },
-  { href: "/settings", label: "Settings", icon: Settings2, public: false },
-];
-
-export function Nav() {
-  const pathname = usePathname();
+export function Nav({ fullWidth }: { fullWidth?: boolean } = {}) {
   const { user } = useAuth();
+  const { locale, setLocale, t } = useI18n();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement>(null);
   const dismissedRef = useRef(false);
+
+  useEffect(() => {
+    if (!langOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [langOpen]);
 
   const handleModalClose = useCallback(() => {
     setShowAuthModal(false);
     dismissedRef.current = true;
   }, []);
 
-  const handleProtectedClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (!user && !dismissedRef.current) {
-        e.preventDefault();
-        setShowAuthModal(true);
-      }
-    },
-    [user],
-  );
-
   return (
     <>
       <AuthModal open={showAuthModal} onClose={handleModalClose} />
-      <nav className="flex items-center gap-1 border-b px-3 py-2">
-        <Link href="/" className="mr-3 text-lg font-bold tracking-tight hover:opacity-80 transition-opacity">
-          My Own Phenix
-        </Link>
-        {links.map(({ href, label, icon: Icon, public: isPublic }) => {
-          const active =
-            href === "/" ? pathname === "/" : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={!isPublic ? handleProtectedClick : undefined}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-base font-medium transition-colors ${
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          );
-        })}
-        <div className="ml-auto flex items-center gap-1">
-          {user ? (
-            <>
-              <a
-                href="/api/docs"
-                target="_blank"
-                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      <nav className="border-b bg-background/80 backdrop-blur-sm">
+        <div className={`flex items-center justify-between px-6 py-3.5 ${fullWidth ? "" : "mx-auto max-w-6xl"}`}>
+          <Link href="/" className="text-sm font-bold tracking-tight hover:opacity-80 transition-opacity">
+            My Own Phoenix
+          </Link>
+          <div className="flex items-center gap-3">
+            {/* Language selector (custom dropdown) */}
+            <div className="relative" ref={langRef}>
+              <button
+                onClick={() => setLangOpen(!langOpen)}
+                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <FileText className="h-4 w-4" />
-                API
-              </a>
+                <Globe className="h-3.5 w-3.5" />
+                {locale === "ko" ? "한국어" : "English"}
+                <ChevronDown className={`h-3 w-3 transition-transform ${langOpen ? "rotate-180" : ""}`} />
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1 w-32 rounded-lg border bg-popover p-1 shadow-lg">
+                  {([["ko", "한국어"], ["en", "English"]] as const).map(([code, label]) => (
+                    <button
+                      key={code}
+                      onClick={() => { setLocale(code); setLangOpen(false); }}
+                      className={`flex w-full items-center rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                        locale === code ? "bg-accent text-accent-foreground" : "hover:bg-accent"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Link
+              href="/docs"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t.nav.docs}
+            </Link>
+            {user ? (
               <button
                 onClick={() => signOut(auth)}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <LogOut className="h-4 w-4" />
-                Sign out
+                <LogOut className="h-3.5 w-3.5" />
+                {t.nav.signOut}
               </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-base font-medium text-background transition-colors hover:bg-foreground/90"
-            >
-              Sign in
-            </button>
-          )}
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="rounded-lg bg-foreground px-4 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80"
+              >
+                {t.nav.signIn}
+              </button>
+            )}
+          </div>
         </div>
       </nav>
     </>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CodeBlock, Callout, DocTable } from "../code-block";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 // ─── Animated Architecture Diagram ─────────────────────────────────────
 
@@ -177,72 +178,45 @@ Phoenix Connector v0.1.1
 // ─── Main Component ────────────────────────────────────────────────────
 
 export function ConnectorSetup() {
+  const t = useT();
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-        Getting Started
+        {t.docs.connectorSetup.groupLabel}
       </p>
       <h1 className="text-2xl font-bold tracking-tight mb-2">
-        Connector Setup
+        {t.docs.connectorSetup.title}
       </h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Connect your local agent to the platform for{" "}
-        <strong className="text-foreground">Chat</strong>,{" "}
-        <strong className="text-foreground">Playground</strong>, and{" "}
-        <strong className="text-foreground">Dataset testing</strong> — no
-        deployment required. If you only need trace collection and monitoring,
-        skip this section — the connector is required only for interactive
-        features.
+        {t.docs.connectorSetup.subtitle}
       </p>
 
       <div className="space-y-10">
         {/* Architecture */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">How it works</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.connectorSetup.howItWorks}</h3>
           <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-            The connector creates a{" "}
-            <strong className="text-foreground">reverse WebSocket tunnel</strong>{" "}
-            from your machine to the platform. Your agent stays on localhost —
-            no public URL, no port forwarding, no firewall changes.
+            {t.docs.connectorSetup.howItWorksDesc}
           </p>
           <ArchDiagram />
         </div>
 
         {/* Prerequisites */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Prerequisites</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.connectorSetup.prerequisites}</h3>
           <ol className="text-sm text-muted-foreground space-y-3 leading-relaxed">
             {[
-              <>
-                <strong className="text-foreground">Create a project</strong> —
-                Go to the Projects page and create a new project (or use an
-                existing one).
-              </>,
-              <>
-                <strong className="text-foreground">Get your Connector Key</strong> —
-                Go to{" "}
-                <strong className="text-foreground">
-                  Global Settings → Profile &amp; Key
-                </strong>{" "}
-                and click Generate Key. You&apos;ll get a personal key (
-                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-                  pc_*
-                </code>
-                ). Copy it — each team member has their own key.
-              </>,
-              <>
-                <strong className="text-foreground">Start your agent</strong> —
-                Your agent must be serving HTTP on localhost. For example:{" "}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-                  langgraph dev --port 2024
-                </code>
-              </>,
+              { action: t.docs.connectorSetup.prereqStep1Action, detail: t.docs.connectorSetup.prereqStep1Detail },
+              { action: t.docs.connectorSetup.prereqStep2Action, detail: t.docs.connectorSetup.prereqStep2Detail },
+              { action: t.docs.connectorSetup.prereqStep3Action, detail: t.docs.connectorSetup.prereqStep3Detail },
             ].map((step, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold">
                   {i + 1}
                 </span>
-                <span className="pt-0.5">{step}</span>
+                <span className="pt-0.5">
+                  <strong className="text-foreground">{step.action}</strong> — {step.detail}
+                </span>
               </li>
             ))}
           </ol>
@@ -250,54 +224,53 @@ export function ConnectorSetup() {
 
         {/* Install & Run */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Install &amp; Run</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.connectorSetup.installAndRun}</h3>
           <div className="mb-4">
             <CodeBlock filename="terminal" code="pip install phoenix-connector" />
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Toggle between interactive and flag-based modes to see both usage
-            styles.
+            {t.docs.connectorSetup.installAndRunHelper}
           </p>
           <CLIPreview />
         </div>
 
         {/* Options Table */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">CLI Options</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.connectorSetup.options}</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            All flags are optional — the CLI will prompt for any missing values interactively.
+            {t.docs.connectorSetup.optionsHelper}
           </p>
           <DocTable
             headers={["Flag", "Description", "Default"]}
             rows={[
               [
                 <code key="k" className="text-xs font-mono">--key</code>,
-                "Connector key (pc_*)",
-                <span key="kd" className="text-muted-foreground/60">prompts</span>,
+                t.docs.connectorSetup.optionKeyDesc,
+                <span key="kd" className="text-muted-foreground/60">{t.docs.connectorSetup.optionKeyDefault}</span>,
               ],
               [
                 <code key="a" className="text-xs font-mono">--agent</code>,
-                "Local agent URL",
+                t.docs.connectorSetup.optionAgentDesc,
                 <code key="ad" className="text-xs font-mono text-muted-foreground/60">localhost:2024</code>,
               ],
               [
                 <code key="p" className="text-xs font-mono">--project</code>,
-                "Project slug (omit to select from list)",
-                <span key="pd" className="text-muted-foreground/60">selects</span>,
+                t.docs.connectorSetup.optionProjectDesc,
+                <span key="pd" className="text-muted-foreground/60">{t.docs.connectorSetup.optionProjectDefault}</span>,
               ],
               [
                 <code key="t" className="text-xs font-mono">--type</code>,
-                "Agent type (langgraph | rest)",
+                t.docs.connectorSetup.optionTypeDesc,
                 <code key="td" className="text-xs font-mono text-muted-foreground/60">langgraph</code>,
               ],
               [
                 <code key="ai" className="text-xs font-mono">--assistant-id</code>,
-                "LangGraph assistant ID",
+                t.docs.connectorSetup.optionAssistantDesc,
                 <code key="aid" className="text-xs font-mono text-muted-foreground/60">agent</code>,
               ],
               [
                 <code key="s" className="text-xs font-mono">--saas-url</code>,
-                "Platform WebSocket URL",
+                t.docs.connectorSetup.optionSaasDesc,
                 <code key="sd" className="text-xs font-mono text-muted-foreground/60">wss://phoenix.rheon.kr</code>,
               ],
             ]}
@@ -306,7 +279,7 @@ export function ConnectorSetup() {
 
         {/* Agent Types */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Agent Types</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.connectorSetup.agentTypes}</h3>
           <div className="grid gap-3 grid-cols-2">
             <div className="rounded-xl border p-5">
               <div className="flex items-center gap-2 mb-2">
@@ -317,8 +290,7 @@ export function ConnectorSetup() {
                 <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">default</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
-                Uses the LangGraph SDK HTTP API. Best for agents built with{" "}
-                <code className="rounded bg-muted px-1 py-0.5 text-[10px] font-mono">langgraph dev</code>.
+                {t.docs.connectorSetup.langgraphDesc}
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 {["POST /threads", "POST /threads/{id}/runs/stream"].map((item) => (
@@ -337,8 +309,7 @@ export function ConnectorSetup() {
                 <span className="text-xs font-semibold">REST SSE</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
-                Simple REST endpoint with Server-Sent Events. For custom agents with a{" "}
-                <code className="rounded bg-muted px-1 py-0.5 text-[10px] font-mono">/chat</code> route.
+                {t.docs.connectorSetup.restDesc}
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 {[
@@ -357,7 +328,7 @@ export function ConnectorSetup() {
 
         {/* Code Examples */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">LangGraph Example</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.connectorSetup.langgraphExample}</h3>
           <CodeBlock
             filename="agent.py"
             code={`from langgraph.graph import StateGraph, MessagesState, START, END
@@ -385,7 +356,7 @@ phoenix-connector --key=pc_... --agent=http://localhost:2024`}
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold mb-4">REST SSE Example</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.connectorSetup.restExample}</h3>
           <CodeBlock
             filename="rest_agent.py"
             code={`from fastapi import FastAPI, Request
@@ -424,11 +395,8 @@ phoenix-connector --key=pc_... --agent=http://localhost:2024 --type=rest`}
           </div>
         </div>
 
-        <Callout title="What the connector unlocks">
-          Once connected, you can <strong>Chat</strong> with your agent in the
-          browser, test prompts in the <strong>Playground</strong>, and run{" "}
-          <strong>Dataset evaluations</strong> against your agent — all while it
-          stays on your local machine.
+        <Callout title={t.docs.connectorSetup.calloutTitle}>
+          {t.docs.connectorSetup.calloutText}
         </Callout>
       </div>
     </div>

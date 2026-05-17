@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Pencil, Download, Upload, Play, Plus, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { Callout } from "../code-block";
+import { useT } from "@/lib/i18n";
 
 /* ── Mock data ── */
 const MOCK_DATASETS = [
@@ -425,42 +426,31 @@ function DatasetPreview() {
 /* ── Main ── */
 
 export function Datasets() {
+  const t = useT();
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-        Features
+        {t.docs.datasets.groupLabel}
       </p>
-      <h1 className="text-2xl font-bold tracking-tight mb-2">Datasets</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-2">{t.docs.datasets.title}</h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Create test datasets, run your agent against them, and evaluate
-        results automatically. Requires a{" "}
-        <strong className="text-foreground">connected agent</strong> via the
-        Connector.
+        {t.docs.datasets.subtitle}
       </p>
 
       <div className="space-y-10">
         <div>
-          <h3 className="text-sm font-semibold mb-4">Dataset interface</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.datasets.datasetInterface}</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Try it: click Generate to run the agent on all rows, then
-            Evaluate to score each response. Switch between Prompts and
-            Results tabs.
+            {t.docs.datasets.datasetInterfaceHelper}
           </p>
           <DatasetPreview />
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold mb-4">Features</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.datasets.features}</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            {[
-              "CSV import with column mapping (query, context, expected answer)",
-              "Row-level CRUD — add, edit, delete individual rows",
-              "Run agent against all rows with live progress tracking",
-              "Select which evaluations to run per dataset",
-              "Compare multiple runs side-by-side with eval bar summaries",
-              "Export results as CSV for external analysis",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-2.5">
+            {(t.docs.datasets.featuresList as unknown as readonly string[]).map((item, i) => (
+              <li key={i} className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
                 {item}
               </li>
@@ -468,9 +458,8 @@ export function Datasets() {
           </ul>
         </div>
 
-        <Callout title="Connector required">
-          Dataset runs send queries to your connected agent via the Connector.
-          Make sure your agent is connected before running a dataset test.
+        <Callout title={t.docs.datasets.calloutTitle}>
+          {t.docs.datasets.calloutText}
         </Callout>
       </div>
     </div>

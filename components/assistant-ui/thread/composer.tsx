@@ -11,8 +11,10 @@ import {
 } from "@/components/assistant-ui/attachment";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/i18n";
 
 const ComposerAction: FC = () => {
+  const t = useT();
   return (
     <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
@@ -20,13 +22,13 @@ const ComposerAction: FC = () => {
       <AssistantIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
-            tooltip="Send message"
+            tooltip={t.chat.sendTooltip}
             side="bottom"
             type="submit"
             variant="default"
             size="icon"
             className="aui-composer-send size-8 rounded-full"
-            aria-label="Send message"
+            aria-label={t.chat.sendTooltip}
           >
             <ArrowUpIcon className="aui-composer-send-icon size-4" />
           </TooltipIconButton>
@@ -40,7 +42,7 @@ const ComposerAction: FC = () => {
             variant="default"
             size="icon"
             className="aui-composer-cancel size-8 rounded-full"
-            aria-label="Stop generating"
+            aria-label={t.chat.stopGenerating}
           >
             <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
           </Button>
@@ -51,6 +53,7 @@ const ComposerAction: FC = () => {
 };
 
 export const Composer: FC = () => {
+  const t = useT();
   const { user } = useAuth();
   const thread = useThread();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -80,7 +83,7 @@ export const Composer: FC = () => {
         <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
           <ComposerAttachments />
           <ComposerPrimitive.Input
-            placeholder="Send a message..."
+            placeholder={t.chat.sendMessage}
             className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
             rows={1}
             autoFocus={!!user}

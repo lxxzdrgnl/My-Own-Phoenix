@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { fetchProjects, type Project } from "@/lib/phoenix";
 import { LoadingState } from "@/components/ui/empty-state";
 import { Sidebar, SidebarHeader, SidebarItem } from "@/components/ui/sidebar";
+import { useT } from "@/lib/i18n";
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from "@/components/rule-builder";
 import { EvalList, type EvalPrompt, type ProjectEvalConfig } from "./eval-list";
 import { EvalEditor } from "./eval-editor";
@@ -13,6 +14,7 @@ import { EvalSettingsPanel } from "./eval-settings-panel";
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fixedProject?: string; projectId?: string; globalMode?: boolean } = {}) {
+  const t = useT();
   // Data
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalPrompts, setGlobalPrompts] = useState<EvalPrompt[]>([]);
@@ -142,7 +144,7 @@ export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fi
       {!fixedProject && !globalMode && (
         <Sidebar>
           <div className="px-3 pt-3 pb-1">
-            <SidebarHeader>Projects</SidebarHeader>
+            <SidebarHeader>{t.nav.projects}</SidebarHeader>
           </div>
           <div className="flex-1 overflow-y-auto px-2">
             {projects.map((p) => (

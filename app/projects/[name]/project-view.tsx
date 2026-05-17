@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { FAIL_LABELS } from "@/lib/constants";
@@ -95,6 +96,7 @@ function buildPassFailChartOptions(traces: Trace[]): Highcharts.Options {
 }
 
 export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = false }: { projectName: string; defaultTab?: "traces" | "measure" | "risk"; hideTabBar?: boolean }) {
+  const t = useT();
   const [traces, setTraces] = useState<Trace[]>([]);
   const [traceTrees, setTraceTrees] = useState<TraceTree[]>([]);
   const [tracesLoading, setTracesLoading] = useState(false);
@@ -128,23 +130,23 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
   // ── Filtering ──
   const GOOD_LABELS = ["factual", "correct", "clean", "relevant"];
 
-  const filteredTraces = traces.filter((t) => {
+  const filteredTraces = traces.filter((tr) => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      if (!t.query.toLowerCase().includes(q) && !t.response.toLowerCase().includes(q)) return false;
+      if (!tr.query.toLowerCase().includes(q) && !tr.response.toLowerCase().includes(q)) return false;
     }
     if (annotationFilter === "none") {
-      if (t.annotations.length > 0) return false;
+      if (tr.annotations.length > 0) return false;
     } else if (annotationFilter === "pass") {
-      if (t.annotations.length === 0) return false;
-      if (!t.annotations.every((a) => GOOD_LABELS.includes(a.label) || a.score >= 0.8)) return false;
+      if (tr.annotations.length === 0) return false;
+      if (!tr.annotations.every((a) => GOOD_LABELS.includes(a.label) || a.score >= 0.8)) return false;
     } else if (annotationFilter === "fail") {
-      if (t.annotations.length === 0) return false;
-      if (!t.annotations.some((a) => !GOOD_LABELS.includes(a.label) && a.score < 0.8)) return false;
+      if (tr.annotations.length === 0) return false;
+      if (!tr.annotations.some((a) => !GOOD_LABELS.includes(a.label) && a.score < 0.8)) return false;
     }
-    if (latencyFilter === "fast" && t.latency >= 1000) return false;
-    if (latencyFilter === "medium" && (t.latency < 1000 || t.latency >= 3000)) return false;
-    if (latencyFilter === "slow" && t.latency < 3000) return false;
+    if (latencyFilter === "fast" && tr.latency >= 1000) return false;
+    if (latencyFilter === "medium" && (tr.latency < 1000 || tr.latency >= 3000)) return false;
+    if (latencyFilter === "slow" && tr.latency < 3000) return false;
     return true;
   });
 
@@ -289,7 +291,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
             {!hideTabBar && (
               <div>
                 <h1 className="text-xl font-semibold tracking-tight">{projectName}</h1>
-                <p className="text-sm text-muted-foreground">Project overview</p>
+                <p className="text-sm text-muted-foreground">{t.projects.projectOverview}</p>
               </div>
             )}
             <DateRangePicker value={dateRange} onChange={setDateRange} />
@@ -307,7 +309,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              {{ traces: "Traces", measure: "Measure", risk: "Risk Management" }[tab]}
+              {{ traces: t.projects.traces, measure: t.projects.measure, risk: t.projects.riskManagement }[tab]}
             </button>
           ))}
           </div>
@@ -322,22 +324,22 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
               <div className="rounded-xl border bg-card h-28">
                 <StatCard
                   value={traceCount.toLocaleString()}
-                  label="Total Traces"
-                  trend={latencies.length > 0 ? `${latencies.length} with latency` : undefined}
+                  label={t.projects.totalTraces}
+                  trend={latencies.length > 0 ? `${latencies.length} ${t.projects.withLatency}` : undefined}
                 />
               </div>
               <div className="rounded-xl border bg-card h-28">
                 <StatCard
                   value={formatMs(avgLatency)}
-                  label="Avg Latency"
+                  label={t.projects.avgLatency}
                   trend={latencies.length > 0 ? `max ${formatMs(Math.max(...latencies))}` : undefined}
                 />
               </div>
               <div className="rounded-xl border bg-card h-28">
                 <StatCard
                   value={hasAnnotations ? avgScore.toFixed(2) : "-"}
-                  label="Avg Score"
-                  trend={hasAnnotations ? `${scores.length} annotations` : undefined}
+                  label={t.projects.avgScore}
+                  trend={hasAnnotations ? `${scores.length} ${t.projects.annotations}` : undefined}
                 />
               </div>
               <div className="rounded-xl border bg-card h-28">
@@ -348,12 +350,12 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                     const passed = withAnns.filter((t) => !t.rootSpan.annotations.some((a) => FAIL_LABELS.has(a.label))).length;
                     return `${Math.round((passed / withAnns.length) * 100)}%`;
                   })()}
-                  label="Pass Rate"
+                  label={t.projects.passRate}
                   trend={(() => {
                     const withAnns = traceTrees.filter((t) => t.rootSpan.annotations.length > 0);
                     if (withAnns.length === 0) return undefined;
                     const passed = withAnns.filter((t) => !t.rootSpan.annotations.some((a) => FAIL_LABELS.has(a.label))).length;
-                    return `${passed} / ${withAnns.length} traces`;
+                    return `${passed} / ${withAnns.length} ${t.projects.tracesCount}`;
                   })()}
                 />
               </div>
@@ -382,11 +384,11 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
             <div className="mb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold">Traces</h2>
+                  <h2 className="text-lg font-semibold">{t.projects.traces}</h2>
                   <p className="text-sm text-muted-foreground">
                     {hasActiveFilters
-                      ? `${filteredTraces.length} / ${traces.length} traces`
-                      : "Recent requests and responses"}
+                      ? `${filteredTraces.length} / ${traces.length} ${t.projects.tracesCount}`
+                      : t.projects.recentRequests}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -396,7 +398,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                     <Input
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search traces..."
+                      placeholder={t.projects.searchTraces}
                       className="h-8 w-48 pl-8 text-xs"
                     />
                     {searchQuery && (
@@ -413,7 +415,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                     }`}
                   >
                     <Filter className="h-3 w-3" />
-                    Filter
+                    {t.common.filter}
                     {hasActiveFilters && (
                       <span className="rounded bg-primary px-1 text-[10px] font-bold text-primary-foreground">
                         {[annotationFilter !== "all", latencyFilter !== "all"].filter(Boolean).length}
@@ -425,7 +427,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                       onClick={() => { setSearchQuery(""); setAnnotationFilter("all"); setLatencyFilter("all"); }}
                       className="text-xs text-muted-foreground hover:text-foreground"
                     >
-                      Clear
+                      {t.projects.clear}
                     </button>
                   )}
                 </div>
@@ -436,7 +438,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                 <div className="mt-3 flex flex-wrap items-center gap-4 rounded-lg border bg-muted/20 px-4 py-3">
                   {/* Annotation */}
                   <div>
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Annotation</p>
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.projects.annotation}</p>
                     <div className="flex gap-1">
                       {(["all", "pass", "fail", "none"] as const).map((v) => (
                         <button
@@ -448,17 +450,17 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                               : "hover:bg-muted"
                           }`}
                         >
-                          {v === "all" ? "All" : v === "pass" ? "Pass" : v === "fail" ? "Fail" : "No Annot."}
+                          {v === "all" ? t.projects.all : v === "pass" ? t.projects.pass : v === "fail" ? t.projects.fail : t.projects.noAnnotation}
                         </button>
                       ))}
                     </div>
                   </div>
                   {/* Latency */}
                   <div>
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Latency</p>
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.projects.latency}</p>
                     <div className="flex gap-1">
                       {([
-                        { v: "all", l: "All" },
+                        { v: "all", l: t.projects.all },
                         { v: "fast", l: "<1s" },
                         { v: "medium", l: "1-3s" },
                         { v: "slow", l: ">3s" },
@@ -484,8 +486,8 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
             {traceTrees.length === 0 ? (
               <EmptyState
                 icon={Search}
-                title={traces.length === 0 ? "No traces found" : "No traces match the current filters"}
-                description={traces.length === 0 ? "This project has no traces yet." : "Try adjusting your filters."}
+                title={traces.length === 0 ? t.projects.noTracesFound : t.projects.noTracesMatch}
+                description={traces.length === 0 ? t.projects.noTracesYet : t.projects.adjustFilters}
                 className="py-12"
               />
             ) : (

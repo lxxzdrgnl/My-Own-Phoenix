@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Check, ChevronDown, FolderOpen, Plus, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface ProjectSelectorProps {
   project: string;
@@ -12,6 +13,7 @@ interface ProjectSelectorProps {
 }
 
 export function ProjectSelector({ project, projects, onChange, onAdd, size = "md" }: ProjectSelectorProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -39,7 +41,7 @@ export function ProjectSelector({ project, projects, onChange, onAdd, size = "md
     setAdding(false);
   };
 
-  // Adding mode: trigger area becomes an inline input with ✓ and ✕
+  // Adding mode: trigger area becomes an inline input with check and X
   if (adding) {
     return (
       <div className="relative" ref={ref}>
@@ -52,7 +54,7 @@ export function ProjectSelector({ project, projects, onChange, onAdd, size = "md
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Escape") { setAdding(false); setNewName(""); } }}
-            placeholder="프로젝트 이름"
+            placeholder={t.projects.projectName}
             autoFocus
             className={`flex-1 min-w-0 rounded-lg border border-border bg-background font-medium placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/30 ${isSm ? "px-2.5 py-2 text-xs" : "px-3 py-1.5 text-sm"}`}
           />
@@ -112,7 +114,7 @@ export function ProjectSelector({ project, projects, onChange, onAdd, size = "md
                 className={`flex w-full items-center gap-2 px-3 py-2 ${isSm ? "text-xs" : "text-sm"} font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground`}
               >
                 <Plus className="h-3 w-3" />
-                <span>새 프로젝트</span>
+                <span>{t.projects.newProjectShort}</span>
               </button>
             </>
           )}

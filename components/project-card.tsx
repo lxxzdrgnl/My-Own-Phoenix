@@ -5,6 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight, FolderOpen, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/lib/i18n";
 
 interface ProjectCardProps {
   name: string;
@@ -15,6 +16,7 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ name, slug, role, createdAt, onRename }: ProjectCardProps) {
+  const { locale, t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,7 +65,7 @@ export function ProjectCard({ name, slug, role, createdAt, onRename }: ProjectCa
                 />
               </form>
               <p className="mt-0.5 text-[11px] text-muted-foreground">
-                {new Date(createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                {new Date(createdAt).toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", { year: "numeric", month: locale === "ko" ? "long" : "short", day: "numeric" })}
               </p>
             </div>
           </div>
@@ -75,7 +77,7 @@ export function ProjectCard({ name, slug, role, createdAt, onRename }: ProjectCa
             role === "editor" ? "bg-foreground/5 text-foreground/60" :
             "bg-muted text-muted-foreground"
           )}>
-            {role}
+            {role === "owner" ? t.projects.owner : role === "editor" ? t.projects.editor : t.projects.viewer}
           </span>
         </div>
       </div>
@@ -104,14 +106,14 @@ export function ProjectCard({ name, slug, role, createdAt, onRename }: ProjectCa
                     setEditing(true);
                   }}
                   className="rounded-md p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-                  title="Rename project"
+                  title={t.projectCard.renameProject}
                 >
                   <Pencil className="h-3 w-3 text-muted-foreground" />
                 </button>
               )}
             </div>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {new Date(createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              {new Date(createdAt).toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", { year: "numeric", month: locale === "ko" ? "long" : "short", day: "numeric" })}
             </p>
           </div>
         </div>

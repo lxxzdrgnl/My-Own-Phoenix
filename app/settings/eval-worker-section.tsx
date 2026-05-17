@@ -6,6 +6,7 @@ import { LoadingState } from "@/components/ui/empty-state";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
 import { useSettingsForm } from "@/lib/hooks";
+import { useT } from "@/lib/i18n";
 
 const DEFAULTS = {
   evalWorkerEnabled: "true",
@@ -16,6 +17,7 @@ const DEFAULTS = {
 };
 
 export function EvalWorkerSection() {
+  const t = useT();
   const { settings, loading, saving, saved, dirty, update, save } = useSettingsForm(DEFAULTS);
 
   const isEnabled = settings.evalWorkerEnabled === "true";
@@ -24,9 +26,9 @@ export function EvalWorkerSection() {
     <div>
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">Eval Worker</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{t.settings.evalWorker}</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Configure the background worker that auto-evaluates new traces from Phoenix.
+          {t.settings.evalWorkerDesc}
         </p>
       </div>
 
@@ -38,7 +40,7 @@ export function EvalWorkerSection() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                Status
+                {t.settings.status}
               </h3>
               <div className="h-px flex-1 bg-border" />
             </div>
@@ -46,17 +48,17 @@ export function EvalWorkerSection() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">Worker</p>
+                    <p className="text-sm font-medium">{t.settings.worker}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       isEnabled ? "bg-[#10b981] text-white" : "bg-muted text-muted-foreground"
                     }`}>
-                      {isEnabled ? "Running" : "Paused"}
+                      {isEnabled ? t.settings.running : t.settings.paused}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {isEnabled
-                      ? "Polling Phoenix projects for new traces to evaluate."
-                      : "Worker is paused. No automatic evaluations will run."}
+                      ? t.settings.workerRunningDesc
+                      : t.settings.workerPausedDesc}
                   </p>
                 </div>
                 <button
@@ -79,7 +81,7 @@ export function EvalWorkerSection() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                Configuration
+                {t.settings.configuration}
               </h3>
               <div className="h-px flex-1 bg-border" />
             </div>
@@ -88,9 +90,9 @@ export function EvalWorkerSection() {
               <div className="rounded-lg border px-5 py-4">
                 <div className="flex items-center justify-between gap-6">
                   <div>
-                    <p className="text-sm font-medium">Default Model</p>
+                    <p className="text-sm font-medium">{t.settings.defaultModel}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Fallback model when an eval has no specific model set.
+                      {t.settings.defaultModelDesc}
                     </p>
                   </div>
                   <div className="w-56 shrink-0">
@@ -106,9 +108,9 @@ export function EvalWorkerSection() {
               <div className="rounded-lg border px-5 py-4">
                 <div className="flex items-center justify-between gap-6">
                   <div>
-                    <p className="text-sm font-medium">Polling Interval</p>
+                    <p className="text-sm font-medium">{t.settings.pollingInterval}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Seconds between checks for new traces. Lower = faster, higher = less load.
+                      {t.settings.pollingIntervalDesc}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -129,9 +131,9 @@ export function EvalWorkerSection() {
               <div className="rounded-lg border px-5 py-4">
                 <div className="flex items-center justify-between gap-6">
                   <div>
-                    <p className="text-sm font-medium">Lookback Window</p>
+                    <p className="text-sm font-medium">{t.settings.lookbackWindow}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      How far back to search for unevaluated traces on startup.
+                      {t.settings.lookbackWindowDesc}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -152,9 +154,9 @@ export function EvalWorkerSection() {
               <div className="rounded-lg border px-5 py-4">
                 <div className="flex items-center justify-between gap-6">
                   <div>
-                    <p className="text-sm font-medium">Max LLM Evals / Trace</p>
+                    <p className="text-sm font-medium">{t.settings.maxLlmEvalsPerTrace}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Cap on LLM-based eval calls per trace to control API costs.
+                      {t.settings.maxLlmEvalsPerTraceDesc}
                     </p>
                   </div>
                   <Input
@@ -174,16 +176,16 @@ export function EvalWorkerSection() {
           <div className="flex items-center gap-3 border-t pt-5">
             <Button onClick={save} disabled={saving || !dirty} size="sm">
               {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-              Save Changes
+              {t.settings.saveChanges}
             </Button>
             {saved && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CheckCircle className="h-3.5 w-3.5 text-[#10b981]" />
-                Saved. Restart the eval worker to apply.
+                {t.settings.savedRestart}
               </span>
             )}
             {dirty && !saved && (
-              <span className="text-xs text-muted-foreground/50">Unsaved changes</span>
+              <span className="text-xs text-muted-foreground/50">{t.settings.unsavedChanges}</span>
             )}
           </div>
         </div>

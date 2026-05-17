@@ -3,6 +3,7 @@
 import { RefreshCw, Play, Pencil, Inbox, ChevronDown, X, MessageSquarePlus } from "lucide-react";
 import { PromptVersion } from "@/lib/phoenix";
 import { Column, VersionOption } from "./hooks/use-playground-columns";
+import { useT } from "@/lib/i18n";
 
 interface PromptColumnProps {
   col: Column;
@@ -27,6 +28,7 @@ export function PromptColumn({
   onEditPrompt,
   onAnnotate,
 }: PromptColumnProps) {
+  const t = useT();
   const sel = versionOptions.find((o) => o.version.id === col.promptId);
 
   return (
@@ -44,7 +46,7 @@ export function PromptColumn({
       <div className="shrink-0 border-b bg-muted/5 px-3 pt-3 pb-2">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Prompt {idx + 1}
+            {t.playground.prompt} {idx + 1}
           </span>
           <div className="flex items-center gap-1">
             {sel && (
@@ -83,13 +85,13 @@ export function PromptColumn({
         {/* Query */}
         <div className="mt-2">
           <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Query
+            {t.playground.query}
           </label>
           <textarea
             value={col.query}
             onChange={(e) => onUpdate(col.id, { query: e.target.value })}
             rows={2}
-            placeholder="Enter query…"
+            placeholder={t.playground.enterQuery}
             className="w-full resize-none rounded-lg border bg-background px-2.5 py-1.5 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring/40"
           />
         </div>
@@ -105,7 +107,7 @@ export function PromptColumn({
             <ChevronDown
               className={`h-3 w-3 transition-transform ${col.contextOpen ? "rotate-180" : ""}`}
             />
-            Context ({col.context.length.toLocaleString()} chars)
+            {t.playground.context} ({col.context.length.toLocaleString()} chars)
           </button>
           {col.contextOpen && (
             <textarea
@@ -129,7 +131,7 @@ export function PromptColumn({
           ) : (
             <Play className="h-3.5 w-3.5" />
           )}
-          {col.running ? "Running…" : "Run"}
+          {col.running ? t.common.running : t.common.run}
         </button>
       </div>
 
@@ -139,7 +141,7 @@ export function PromptColumn({
           <div className="h-full px-3 py-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Result
+                {t.playground.result}
               </span>
               <div className="flex items-center gap-1.5">
                 {!col.result.loading && col.result.tokens > 0 && (
@@ -161,7 +163,7 @@ export function PromptColumn({
             {col.result.loading ? (
               <div className="flex items-center gap-2 py-6 text-muted-foreground">
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Generating…</span>
+                <span className="text-sm">{t.playground.generating}</span>
               </div>
             ) : (
               <p className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -172,7 +174,7 @@ export function PromptColumn({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 opacity-20">
             <Inbox className="h-6 w-6" />
-            <span className="text-xs">No result yet</span>
+            <span className="text-xs">{t.playground.noResult}</span>
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { Inbox, Plus } from "lucide-react";
 import { Trace } from "@/lib/phoenix";
 import { AnnotationBadges } from "@/components/annotation-badge";
 import { formatDateTime } from "@/lib/date-utils";
+import { useT } from "@/lib/i18n";
 
 interface TraceListProps {
   traces: Trace[];
@@ -28,12 +29,13 @@ export function TraceList({
   onToggleSelect,
   onAnnotate,
 }: TraceListProps) {
+  const t = useT();
   if (traces.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2">
         <Inbox className="h-8 w-8 text-muted-foreground/20" />
         <span className="text-xs text-muted-foreground/50">
-          {loading ? "Loading…" : "No traces"}
+          {loading ? t.common.loading : t.tracing.noTraces}
         </span>
       </div>
     );

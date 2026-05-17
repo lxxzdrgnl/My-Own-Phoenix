@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Callout, CodeBlock } from "../code-block";
 import { Key, Plug, Bot, Shield, Check, Minus } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 // ─── Key Card ──────────────────────────────────────────────────────────
 
@@ -21,61 +22,64 @@ interface KeyInfo {
   steps: { action: string; detail: string }[];
 }
 
-const KEYS: KeyInfo[] = [
-  {
-    icon: Shield,
-    name: "Trace Key",
-    prefix: "pt_*",
-    color: "bg-foreground",
-    purpose: "Authenticates trace data sent from your agent to a specific project.",
-    location: "Project Settings → API Keys → Generate Trace Key",
-    usedBy: "Your agent code via PHOENIX_API_KEY environment variable.",
-    scope: "Per-project — each project has its own trace key.",
-    envVar: "PHOENIX_API_KEY",
-    note: "The key is stored encrypted and always visible in Project Settings. Regenerating invalidates the old key.",
-    steps: [
-      { action: "Open your project", detail: "Click on the project from the Projects page" },
-      { action: "Go to Project Settings", detail: "Click \"Project Settings\" in the sidebar" },
-      { action: "Select API Keys tab", detail: "You'll see Trace Key and LLM Provider Keys sections" },
-      { action: "Click Generate Trace Key", detail: "The key and .env setup guide will appear. Copy both." },
-    ],
-  },
-  {
-    icon: Plug,
-    name: "Connector Key",
-    prefix: "pc_*",
-    color: "bg-foreground/80",
-    purpose: "Authenticates the WebSocket connection between your local agent and the platform.",
-    location: "Global Settings → Profile & Key → Generate Key",
-    usedBy: "phoenix-connector CLI tool (--key flag or interactive prompt).",
-    scope: "Per-user — your personal key works across all your projects.",
-    envVar: undefined,
-    note: "Required only for interactive features: Chat, Playground, Dataset testing. Not needed for trace-only monitoring.",
-    steps: [
-      { action: "Go to Global Settings", detail: "Click \"Global Settings\" in the sidebar or top bar" },
-      { action: "Profile & Key tab", detail: "This is the default tab when you open settings" },
-      { action: "Click Generate Key", detail: "Your personal connector key (pc_*) will appear" },
-      { action: "Copy the key", detail: "Use it with phoenix-connector CLI or save it somewhere safe" },
-    ],
-  },
-  {
-    icon: Bot,
-    name: "LLM Provider Key",
-    prefix: "sk-*, key-*",
-    color: "bg-foreground/60",
-    purpose: "Calls LLM models (OpenAI, Anthropic, Google, xAI) for evaluations and playground.",
-    location: "Global Settings → Providers, or Project Settings → API Keys",
-    usedBy: "Platform's eval worker and playground features.",
-    scope: "Global keys auto-copy to new projects. Project-level keys override globals.",
-    envVar: undefined,
-    note: "Project members with editor/owner role can add project-level keys that override the global ones.",
-    steps: [
-      { action: "Global key: Global Settings → Providers", detail: "Add your OpenAI/Anthropic/Google/xAI API key. Auto-applied to new projects." },
-      { action: "Project key: Project Settings → API Keys", detail: "Add a project-specific key that overrides the global one for this project only." },
-      { action: "Click Add Key next to provider", detail: "Paste your API key and click Save" },
-    ],
-  },
-];
+function useKeys(): KeyInfo[] {
+  const t = useT();
+  return [
+    {
+      icon: Shield,
+      name: t.docs.apiKeys.traceKeyName,
+      prefix: "pt_*",
+      color: "bg-foreground",
+      purpose: t.docs.apiKeys.traceKeyPurpose,
+      location: t.docs.apiKeys.traceKeyLocation,
+      usedBy: t.docs.apiKeys.traceKeyUsedBy,
+      scope: t.docs.apiKeys.traceKeyScope,
+      envVar: "PHOENIX_API_KEY",
+      note: t.docs.apiKeys.traceKeyNote,
+      steps: [
+        { action: t.docs.apiKeys.traceKeyStep1Action, detail: t.docs.apiKeys.traceKeyStep1Detail },
+        { action: t.docs.apiKeys.traceKeyStep2Action, detail: t.docs.apiKeys.traceKeyStep2Detail },
+        { action: t.docs.apiKeys.traceKeyStep3Action, detail: t.docs.apiKeys.traceKeyStep3Detail },
+        { action: t.docs.apiKeys.traceKeyStep4Action, detail: t.docs.apiKeys.traceKeyStep4Detail },
+      ],
+    },
+    {
+      icon: Plug,
+      name: t.docs.apiKeys.connectorKeyName,
+      prefix: "pc_*",
+      color: "bg-foreground/80",
+      purpose: t.docs.apiKeys.connectorKeyPurpose,
+      location: t.docs.apiKeys.connectorKeyLocation,
+      usedBy: t.docs.apiKeys.connectorKeyUsedBy,
+      scope: t.docs.apiKeys.connectorKeyScope,
+      envVar: undefined,
+      note: t.docs.apiKeys.connectorKeyNote,
+      steps: [
+        { action: t.docs.apiKeys.connectorKeyStep1Action, detail: t.docs.apiKeys.connectorKeyStep1Detail },
+        { action: t.docs.apiKeys.connectorKeyStep2Action, detail: t.docs.apiKeys.connectorKeyStep2Detail },
+        { action: t.docs.apiKeys.connectorKeyStep3Action, detail: t.docs.apiKeys.connectorKeyStep3Detail },
+        { action: t.docs.apiKeys.connectorKeyStep4Action, detail: t.docs.apiKeys.connectorKeyStep4Detail },
+      ],
+    },
+    {
+      icon: Bot,
+      name: t.docs.apiKeys.llmKeyName,
+      prefix: "sk-*, key-*",
+      color: "bg-foreground/60",
+      purpose: t.docs.apiKeys.llmKeyPurpose,
+      location: t.docs.apiKeys.llmKeyLocation,
+      usedBy: t.docs.apiKeys.llmKeyUsedBy,
+      scope: t.docs.apiKeys.llmKeyScope,
+      envVar: undefined,
+      note: t.docs.apiKeys.llmKeyNote,
+      steps: [
+        { action: t.docs.apiKeys.llmKeyStep1Action, detail: t.docs.apiKeys.llmKeyStep1Detail },
+        { action: t.docs.apiKeys.llmKeyStep2Action, detail: t.docs.apiKeys.llmKeyStep2Detail },
+        { action: t.docs.apiKeys.llmKeyStep3Action, detail: t.docs.apiKeys.llmKeyStep3Detail },
+      ],
+    },
+  ];
+}
 
 function KeyCard({ info, isActive, onClick }: { info: KeyInfo; isActive: boolean; onClick: () => void }) {
   const Icon = info.icon;
@@ -110,6 +114,7 @@ function KeyCard({ info, isActive, onClick }: { info: KeyInfo; isActive: boolean
 // ─── Detail Panel ──────────────────────────────────────────────────────
 
 function KeyDetail({ info }: { info: KeyInfo }) {
+  const t = useT();
   const Icon = info.icon;
   return (
     <div className="rounded-xl border overflow-hidden bg-background p-5 h-full">
@@ -126,15 +131,15 @@ function KeyDetail({ info }: { info: KeyInfo }) {
 
       {/* Fields */}
       <div className="space-y-4">
-        <DetailRow label="Purpose" value={info.purpose} />
-        <DetailRow label="Where to get" value={info.location} />
-        <DetailRow label="Used by" value={info.usedBy} />
-        <DetailRow label="Scope" value={info.scope} />
+        <DetailRow label={t.docs.apiKeys.purposeLabel} value={info.purpose} />
+        <DetailRow label={t.docs.apiKeys.whereToGetLabel} value={info.location} />
+        <DetailRow label={t.docs.apiKeys.usedByLabel} value={info.usedBy} />
+        <DetailRow label={t.docs.apiKeys.scopeLabel} value={info.scope} />
 
         {/* Step-by-step guide */}
         <div>
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-            How to get it
+            {t.docs.apiKeys.howToGetItLabel}
           </span>
           <div className="mt-2 space-y-0">
             {info.steps.map((step, i) => (
@@ -157,7 +162,7 @@ function KeyDetail({ info }: { info: KeyInfo }) {
         {info.envVar && (
           <div>
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-              Environment Variable
+              {t.docs.apiKeys.envVarLabel}
             </span>
             <div className="mt-1.5 rounded-lg bg-[#0f0f17] px-3.5 py-2">
               <code className="text-[12px] font-mono text-[#c3e88d]">{info.envVar}</code>
@@ -187,13 +192,14 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 // ─── Flow Diagram ──────────────────────────────────────────────────────
 
 function FlowDiagram() {
+  const t = useT();
   return (
     <div className="rounded-xl border bg-card p-5 overflow-hidden">
       <div className="flex items-stretch gap-0">
         {[
-          { label: "Your Agent", key: "pt_*", desc: "Sends traces", icon: "→" },
-          { label: "Connector", key: "pc_*", desc: "WebSocket relay", icon: "→" },
-          { label: "Platform", key: "sk-*", desc: "Evals & Playground", icon: null },
+          { label: t.docs.apiKeys.flowYourAgent, key: "pt_*", desc: t.docs.apiKeys.flowSendsTraces, icon: "→" },
+          { label: t.docs.apiKeys.flowConnector, key: "pc_*", desc: t.docs.apiKeys.flowWebSocketRelay, icon: "→" },
+          { label: t.docs.apiKeys.flowPlatform, key: "sk-*", desc: t.docs.apiKeys.flowEvalsPlayground, icon: null },
         ].map((item, i) => (
           <div key={item.label} className="flex items-center">
             <div className="flex-1 text-center px-3">
@@ -220,6 +226,7 @@ function FlowDiagram() {
 // ─── Which Keys Table ──────────────────────────────────────────────────
 
 function WhichKeys() {
+  const t = useT();
   return (
     <div className="grid gap-px grid-cols-2 rounded-xl border overflow-hidden bg-border">
       <div className="bg-card p-5">
@@ -227,7 +234,7 @@ function WhichKeys() {
           <div className="flex size-6 items-center justify-center rounded-md bg-muted text-muted-foreground text-[10px] font-bold">
             1
           </div>
-          <span className="text-xs font-semibold">Tracing Only</span>
+          <span className="text-xs font-semibold">{t.docs.apiKeys.tracingOnly}</span>
         </div>
         <ul className="space-y-2 text-xs text-muted-foreground">
           <li className="flex items-center gap-2">
@@ -246,7 +253,7 @@ function WhichKeys() {
           <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background text-[10px] font-bold">
             3
           </div>
-          <span className="text-xs font-semibold">Full Platform</span>
+          <span className="text-xs font-semibold">{t.docs.apiKeys.fullSetup}</span>
           <span className="rounded bg-foreground/5 px-1.5 py-0.5 text-[9px] text-muted-foreground">recommended</span>
         </div>
         <ul className="space-y-2 text-xs text-muted-foreground">
@@ -268,10 +275,11 @@ function WhichKeys() {
 // ─── Setup Examples ────────────────────────────────────────────────────
 
 function SetupExamples() {
+  const t = useT();
   return (
     <div className="space-y-4">
       <div>
-        <h4 className="text-xs font-semibold mb-2">Agent Trace Setup</h4>
+        <h4 className="text-xs font-semibold mb-2">{t.docs.apiKeys.agentTraceSetup}</h4>
         <CodeBlock
           filename="terminal"
           code={`# In your agent's .env file:
@@ -283,7 +291,7 @@ PHOENIX_API_KEY=pt_your_trace_key
         />
       </div>
       <div>
-        <h4 className="text-xs font-semibold mb-2">Connector Setup</h4>
+        <h4 className="text-xs font-semibold mb-2">{t.docs.apiKeys.connectorSetupLabel}</h4>
         <CodeBlock
           filename="terminal"
           code={`pip install phoenix-connector
@@ -302,16 +310,18 @@ phoenix-connector --key=pc_your_key --agent=http://localhost:2024`}
 // ─── Main Component ────────────────────────────────────────────────────
 
 export function ApiKeys() {
+  const t = useT();
+  const KEYS = useKeys();
   const [activeKey, setActiveKey] = useState(0);
 
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-        Getting Started
+        {t.docs.apiKeys.groupLabel}
       </p>
-      <h1 className="text-2xl font-bold tracking-tight mb-2">API Keys</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-2">{t.docs.apiKeys.title}</h1>
       <p className="text-sm text-muted-foreground mb-10">
-        My Own Phoenix uses three types of API keys. Each serves a different purpose.
+        {t.docs.apiKeys.subtitle}
       </p>
 
       <div className="space-y-10">
@@ -331,25 +341,25 @@ export function ApiKeys() {
 
         {/* Flow */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">How keys are used</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.apiKeys.howKeysUsed}</h3>
           <FlowDiagram />
         </div>
 
         {/* Which keys */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Which keys do I need?</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.apiKeys.whichKeys}</h3>
           <WhichKeys />
         </div>
 
         {/* Setup */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Quick Setup</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.apiKeys.quickSetup}</h3>
           <SetupExamples />
         </div>
 
         {/* Callout at bottom */}
         <Callout>
-          Trace keys are per-project and stored encrypted. Connector keys are per-user and required only for interactive features (Chat, Playground, Dataset testing). LLM provider keys can be set globally or overridden per-project by editors/owners.
+          {t.docs.apiKeys.calloutText}
         </Callout>
       </div>
     </div>

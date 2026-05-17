@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { ProviderIcon } from "@/components/provider-icon";
 import { LLM_PROVIDERS } from "@/lib/model-registry";
+import { useT } from "@/lib/i18n";
 
 
 export function ModelSelector({
@@ -14,6 +15,7 @@ export function ModelSelector({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export function ModelSelector({
               ref={inputRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search models..."
+              placeholder={t.modelSelector.searchModels}
               className="h-6 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
             />
           </div>

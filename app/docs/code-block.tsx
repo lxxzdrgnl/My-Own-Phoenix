@@ -134,6 +134,36 @@ export function CodeBlock({ code, filename }: { code: string; filename?: string 
   );
 }
 
+/** Render inline markdown: **bold** and `code` */
+export function Md({ text }: { text: string }) {
+  const parts: ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+  while (remaining.length > 0) {
+    // Match **bold** or `code`
+    const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+    const codeMatch = remaining.match(/`(.+?)`/);
+    // Find earliest match
+    const matches = [
+      boldMatch ? { type: "bold" as const, index: boldMatch.index!, length: boldMatch[0].length, content: boldMatch[1] } : null,
+      codeMatch ? { type: "code" as const, index: codeMatch.index!, length: codeMatch[0].length, content: codeMatch[1] } : null,
+    ].filter(Boolean).sort((a, b) => a!.index - b!.index);
+    if (matches.length === 0) {
+      parts.push(remaining);
+      break;
+    }
+    const m = matches[0]!;
+    if (m.index > 0) parts.push(remaining.slice(0, m.index));
+    if (m.type === "bold") {
+      parts.push(<strong key={key++} className="text-foreground font-semibold">{m.content}</strong>);
+    } else {
+      parts.push(<code key={key++} className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{m.content}</code>);
+    }
+    remaining = remaining.slice(m.index + m.length);
+  }
+  return <>{parts}</>;
+}
+
 export function Callout({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <div className="rounded-xl border-l-2 border-foreground/20 bg-muted/30 px-4 py-3">

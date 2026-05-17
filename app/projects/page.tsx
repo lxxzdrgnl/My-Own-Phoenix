@@ -9,10 +9,10 @@ import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
-import { FolderOpen, Plus, LogOut, Settings } from "lucide-react";
+import { FolderOpen, Plus } from "lucide-react";
 import { JoinProjectModal } from "@/components/join-project-modal";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { Nav } from "@/components/nav";
+import { useT } from "@/lib/i18n";
 
 interface ProjectItem {
   id: string;
@@ -25,6 +25,7 @@ interface ProjectItem {
 export default function ProjectsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const t = useT();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -112,11 +113,11 @@ export default function ProjectsPage() {
   return (
     <>
       <Modal open={showCreate} onClose={() => setShowCreate(false)} className="w-[420px]">
-        <ModalHeader onClose={() => setShowCreate(false)}>Create Project</ModalHeader>
+        <ModalHeader onClose={() => setShowCreate(false)}>{t.projects.createProject}</ModalHeader>
         <ModalBody>
           <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }} className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Project Name</label>
+              <label className="text-sm font-medium">{t.projects.projectName}</label>
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
@@ -126,9 +127,9 @@ export default function ProjectsPage() {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>{t.common.cancel}</Button>
               <Button type="submit" disabled={!newName.trim() || creating}>
-                {creating ? "Creating..." : "Create"}
+                {creating ? t.projects.creating : t.common.create}
               </Button>
             </div>
           </form>
@@ -138,64 +139,42 @@ export default function ProjectsPage() {
       <JoinProjectModal open={showJoin} onClose={() => { setShowJoin(false); loadProjects(); }} />
 
       <div className="min-h-screen bg-background">
-        {/* Top bar */}
-        <div className="border-b bg-card">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-            <a href="/" className="text-sm font-bold tracking-tight hover:opacity-70 transition-opacity">
-              My Own Phoenix
-            </a>
-            <div className="flex items-center gap-3">
-              <a href="/docs" className="text-xs text-muted-foreground transition-colors hover:text-foreground">Docs</a>
-              <a href="/settings" className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                <Settings className="h-3.5 w-3.5" />
-                Settings
-              </a>
-              <span className="text-xs text-muted-foreground">{user.email}</span>
-              <button
-                onClick={() => signOut(auth)}
-                className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                Sign out
-              </button>
-            </div>
-          </div>
-        </div>
+        <Nav />
 
-        <div className="mx-auto max-w-5xl px-6 py-10">
+        <div className="mx-auto max-w-6xl px-6 py-10">
           {projects.length === 0 ? (
             <div className="flex h-[60vh] flex-col items-center justify-center text-center">
               <EmptyState
                 icon={FolderOpen}
-                title="Welcome to My Own Phoenix"
-                description="Create a project or join an existing one to start monitoring your AI agents."
+                title={t.projects.welcome}
+                description={t.projects.welcomeDesc}
               />
               <div className="mt-6 flex gap-3">
                 <Button onClick={() => setShowCreate(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Create Project
+                  {t.projects.createProject}
                 </Button>
                 <Button variant="outline" onClick={() => setShowJoin(true)}>
-                  Join with Code
+                  {t.projects.joinWithCode}
                 </Button>
               </div>
             </div>
           ) : (
             <>
               <div className="mb-8 flex items-center justify-between">
-                <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
+                <h1 className="text-xl font-semibold tracking-tight">{t.projects.title}</h1>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setShowJoin(true)}>Join</Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowJoin(true)}>{t.projects.join}</Button>
                   <Button size="sm" onClick={() => setShowCreate(true)}>
                     <Plus className="mr-1.5 h-3.5 w-3.5" />
-                    New Project
+                    {t.projects.newProject}
                   </Button>
                 </div>
               </div>
 
               {myProjects.length > 0 && (
                 <section className="mb-8">
-                  <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">My Projects</h2>
+                  <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.projects.myProjects}</h2>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {myProjects.map((p) => (
                       <ProjectCard key={p.id} {...p} onRename={(n) => handleRename(p.id, n)} />
@@ -206,7 +185,7 @@ export default function ProjectsPage() {
 
               {sharedProjects.length > 0 && (
                 <section>
-                  <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Shared with me</h2>
+                  <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.projects.sharedWithMe}</h2>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {sharedProjects.map((p) => (
                       <ProjectCard key={p.id} {...p} />

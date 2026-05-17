@@ -8,6 +8,7 @@ import {
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { GripVertical, Settings2, X, Plus } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 /* ── Color presets (from real widget-grid.tsx) ── */
 const PAIR_PRESETS: { name: string; colors: [string, string] }[] = [
@@ -442,37 +443,32 @@ const MEASURE_METRICS = [
 /* ── Main ── */
 
 export function Dashboard() {
+  const t = useT();
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-        Features
+        {t.docs.dashboard.groupLabel}
       </p>
-      <h1 className="text-2xl font-bold tracking-tight mb-2">Dashboard</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-2">{t.docs.dashboard.title}</h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Customizable widget-based dashboard. Add, remove, drag to reorder,
-        and resize widgets to monitor your agent&apos;s performance. Layout
-        is saved per user per project.
+        {t.docs.dashboard.subtitle}
       </p>
 
       <div className="space-y-10">
         {/* Interactive widget dashboard */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">Widget dashboard</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.dashboard.widgetDashboard}</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Try it: drag the grip icon to move widgets, drag the bottom-right
-            corner to resize. Hover to see X (remove) and + Add Widget to add
-            new ones.
+            {t.docs.dashboard.widgetDashboardHelper}
           </p>
           <DashboardPreview />
         </div>
 
         {/* MEASURE framework */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">NIST AI RMF framework</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.dashboard.nistFramework}</h3>
           <p className="text-xs text-muted-foreground mb-4">
-            The dashboard includes an AI risk monitoring framework with 4
-            pillars: Govern, Map, Measure, Manage. Each pillar aggregates
-            relevant metrics into a single percentage score.
+            {t.docs.dashboard.nistFrameworkDesc}
           </p>
           <div className="grid grid-cols-4 gap-3">
             {FRAMEWORK_CARDS.map((card) => (
@@ -492,10 +488,9 @@ export function Dashboard() {
 
         {/* All 12 MEASURE metrics */}
         <div>
-          <h3 className="text-sm font-semibold mb-4">MEASURE metrics (12 total)</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.dashboard.measureMetrics}</h3>
           <p className="text-xs text-muted-foreground mb-4">
-            All metrics normalized to 0-100% (higher is better). Green dot
-            indicates healthy, yellow is warning, red is critical.
+            {t.docs.dashboard.measureMetricsDesc}
           </p>
           <div className="grid grid-cols-4 gap-4">
             {MEASURE_METRICS.map((card) => {
@@ -531,11 +526,8 @@ export function Dashboard() {
           </div>
         </div>
 
-        <Callout title="Customization">
-          Every widget supports 3 view modes (Summary, Trend, Detail),
-          custom color palettes, and drag-and-drop reordering. Layout is
-          persisted per user per project — each team member sees their own
-          arrangement.
+        <Callout title={t.docs.dashboard.calloutTitle}>
+          {t.docs.dashboard.calloutText}
         </Callout>
       </div>
     </div>

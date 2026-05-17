@@ -31,6 +31,7 @@ export interface MeasureMetricDef {
 export interface MetricValue {
   id: string;
   value: number;
+  noData?: boolean;
   formatted: string;
   status: StatusLevel;
 }
@@ -281,6 +282,7 @@ export function computeMetrics(
     return {
       id: metric.id,
       value,
+      noData,
       formatted: noData ? "N/A" : formatValue(value, metric.unit),
       status: noData ? "green" as StatusLevel : getStatus(metric, value),
     };

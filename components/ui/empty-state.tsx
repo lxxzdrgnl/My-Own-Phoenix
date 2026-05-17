@@ -1,8 +1,12 @@
+"use client";
+
 import * as React from "react";
 import { Loader2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 function LoadingState({ className }: { className?: string }) {
+  const { t } = useI18n();
   return (
     <div
       className={cn(
@@ -11,7 +15,7 @@ function LoadingState({ className }: { className?: string }) {
       )}
     >
       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      Loading...
+      {t.common.loading}
     </div>
   );
 }

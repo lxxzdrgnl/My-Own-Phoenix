@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
 import { Plus, Database } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface DatasetOption {
   id: string;
@@ -23,6 +24,7 @@ interface AddToDatasetModalProps {
 }
 
 export function AddToDatasetModal({ open, onClose, query = "", context = "" }: AddToDatasetModalProps) {
+  const t = useT();
   const [datasets, setDatasets] = useState<DatasetOption[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [newName, setNewName] = useState("");
@@ -112,18 +114,18 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
       <ModalHeader onClose={onClose}>
         <div className="flex items-center gap-2">
           <Database className="size-4" />
-          Add to Dataset
+          {t.addToDataset.title}
         </div>
       </ModalHeader>
       <ModalBody>
         <div className="space-y-4">
           <div className="space-y-2">
             <div>
-              <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Query</label>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.addToDataset.query}</label>
               <Textarea value={editQuery} onChange={(e) => setEditQuery(e.target.value)} rows={2} className="text-xs" />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Context</label>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.addToDataset.context}</label>
               <Textarea value={editContext} onChange={(e) => setEditContext(e.target.value)} rows={8} className="text-xs max-h-[300px]" />
             </div>
           </div>
@@ -132,7 +134,7 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
             {!creating ? (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Add to</label>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.addToDataset.addTo}</label>
                   <select
                     value={selectedId}
                     onChange={(e) => setSelectedId(e.target.value)}
@@ -141,22 +143,22 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
                     {datasets.map((d) => (
                       <option key={d.id} value={d.id}>{d.name} ({d.rowCount} rows)</option>
                     ))}
-                    {datasets.length === 0 && <option value="">No datasets yet</option>}
+                    {datasets.length === 0 && <option value="">{t.addToDataset.noDatasets}</option>}
                   </select>
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={handleAddToExisting} disabled={saving || !selectedId} className="flex-1 text-xs">
-                    {saving ? "Saving..." : "Add to Dataset"}
+                    {saving ? t.addToDataset.saving : t.addToDataset.addToDataset}
                   </Button>
                   <Button variant="outline" onClick={() => setCreating(true)} className="gap-1 text-xs">
-                    <Plus className="size-3" /> New
+                    <Plus className="size-3" /> {t.addToDataset.new}
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">New Dataset Name</label>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.addToDataset.newDatasetName}</label>
                   <Input
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
@@ -167,9 +169,9 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={handleCreateAndAdd} disabled={saving || !newName.trim()} className="flex-1 text-xs">
-                    {saving ? "Creating..." : "Create & Add"}
+                    {saving ? t.addToDataset.creating : t.addToDataset.createAndAdd}
                   </Button>
-                  <Button variant="ghost" onClick={() => setCreating(false)} className="text-xs">Cancel</Button>
+                  <Button variant="ghost" onClick={() => setCreating(false)} className="text-xs">{t.common.cancel}</Button>
                 </div>
               </div>
             )}

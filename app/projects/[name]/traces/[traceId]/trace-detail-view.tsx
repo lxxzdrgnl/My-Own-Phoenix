@@ -6,8 +6,10 @@ import { SpanTreeView } from "@/components/span-tree-view";
 import { LoadingState } from "@/components/ui/empty-state";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useT } from "@/lib/i18n";
 
 export function TraceDetailView({ projectName, traceId }: { projectName: string; traceId: string }) {
+  const t = useT();
   const [traces, setTraces] = useState<TraceTree[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,7 +31,7 @@ export function TraceDetailView({ projectName, traceId }: { projectName: string;
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Trace Detail</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t.projects.traceDetail}</h1>
           <p className="text-xs font-mono text-muted-foreground">{traceId}</p>
         </div>
       </div>
@@ -38,7 +40,7 @@ export function TraceDetailView({ projectName, traceId }: { projectName: string;
         <SpanTreeView traces={traces} projectName={projectName} onRefresh={load} />
       )}
       {!loading && traces.length === 0 && (
-        <p className="text-sm text-muted-foreground">Trace not found.</p>
+        <p className="text-sm text-muted-foreground">{t.projects.traceNotFound}</p>
       )}
     </div>
   );

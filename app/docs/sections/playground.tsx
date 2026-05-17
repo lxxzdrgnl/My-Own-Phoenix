@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { RefreshCw, Filter, Play, Pencil, Inbox, ChevronDown, X, Plus, Trash2 } from "lucide-react";
 import { Callout } from "../code-block";
+import { useT } from "@/lib/i18n";
 
 /* ── Mock data ── */
 const MOCK_TRACES = [
@@ -443,40 +444,31 @@ function PlaygroundPreview() {
 
 /* ── Main export ── */
 export function Playground() {
+  const t = useT();
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-        Features
+        {t.docs.playground.groupLabel}
       </p>
-      <h1 className="text-2xl font-bold tracking-tight mb-2">Playground</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-2">{t.docs.playground.title}</h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Select existing traces, add up to 5-6 prompt variant columns, and
-        compare results side-by-side. Test different prompts against the same
-        inputs without re-running your full agent.
+        {t.docs.playground.subtitle}
       </p>
 
       <div className="space-y-10">
         <div>
-          <h3 className="text-sm font-semibold mb-4">Playground interface</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.playground.playgroundInterface}</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Click a trace on the left to load it. Press Run on each column or use the Play button on the right action bar to run all columns at once.
+            {t.docs.playground.playgroundInterfaceHelper}
           </p>
           <PlaygroundPreview />
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold mb-4">Features</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.playground.features}</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            {[
-              "Browse traces from any project with filters (span kind, annotations, latency)",
-              "Add up to 5-6 prompt columns — each runs a different prompt variant for side-by-side comparison",
-              "Run single column or all columns at once",
-              "Edit prompts inline with template variable support ({query}, {context})",
-              "Sync prompts from Phoenix prompt versions",
-              "Add trace results to datasets for systematic testing",
-              "Annotate spans directly from the playground",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-2.5">
+            {(t.docs.playground.featuresList as unknown as readonly string[]).map((item, i) => (
+              <li key={i} className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/20" />
                 {item}
               </li>
@@ -484,10 +476,8 @@ export function Playground() {
           </ul>
         </div>
 
-        <Callout title="Connector required for agent columns">
-          Running prompt columns against your agent requires a connected
-          agent via the Connector. You can still browse and compare existing
-          trace results without a connector.
+        <Callout title={t.docs.playground.calloutTitle}>
+          {t.docs.playground.calloutText}
         </Callout>
       </div>
     </div>

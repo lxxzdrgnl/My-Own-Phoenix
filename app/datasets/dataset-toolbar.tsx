@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Upload, Download, Settings2 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface DatasetToolbarProps {
   datasetName: string;
@@ -25,12 +26,13 @@ export function DatasetToolbar({
   onImport,
   onExport,
 }: DatasetToolbarProps) {
+  const t = useT();
   return (
     <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">{datasetName}</h1>
         <p className="text-[10px] text-muted-foreground">
-          {totalRows.toLocaleString()} prompts · {headerCount} columns
+          {totalRows.toLocaleString()} {t.datasets.prompts.toLowerCase()} · {headerCount} {t.datasets.columns}
         </p>
       </div>
       <div className="flex items-center gap-1.5">
@@ -41,7 +43,7 @@ export function DatasetToolbar({
             onClick={onExport}
             className="h-7 gap-1.5 text-xs"
           >
-            <Download className="size-3" /> Export
+            <Download className="size-3" /> {t.common.export}
           </Button>
         )}
         <Button
@@ -50,7 +52,7 @@ export function DatasetToolbar({
           onClick={onImport}
           className="h-7 gap-1.5 text-xs"
         >
-          <Upload className="size-3" /> Import
+          <Upload className="size-3" /> {t.common.import}
         </Button>
         <button
           onClick={onToggleConfig}

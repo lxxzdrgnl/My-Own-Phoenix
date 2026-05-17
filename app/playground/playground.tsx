@@ -33,12 +33,14 @@ import { PromptColumn } from "./prompt-column";
 import { FilterDropdown } from "./filter-dropdown";
 import { TraceList } from "./trace-list";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useT } from "@/lib/i18n";
 
 function filterKey(pid: string) {
   return `pg_filter_${pid}`;
 }
 
 export function Playground({ fixedProject, dbProjectId }: { fixedProject?: string; dbProjectId?: string } = {}) {
+  const t = useT();
   const confirm = useConfirm();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectIdState] = useState(fixedProject || "");
@@ -279,7 +281,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                 className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-colors hover:bg-accent ${filterOpen ? "border-primary bg-accent" : "bg-background"}`}
               >
                 <Filter className="h-3 w-3" />
-                Filter
+                {t.common.filter}
                 <span className="ml-1 rounded bg-foreground/10 px-1 text-[11px] tabular-nums">
                   {traces.length}
                 </span>
@@ -301,7 +303,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                   onChange={toggleSelectAll}
                   className="rounded"
                 />
-                All
+                {t.common.selectAll}
               </label>
               <button
                 onClick={handleDeleteSelected}
@@ -309,7 +311,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                 className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1 text-xs font-medium text-background transition hover:bg-foreground/80 disabled:opacity-30"
               >
                 <Trash2 className="h-3 w-3" />
-                {deleting ? "Deleting…" : `Delete ${deleteSelection.size}`}
+                {deleting ? t.tracing.deleting : `${t.common.delete} ${deleteSelection.size}`}
               </button>
             </div>
           )}
@@ -346,7 +348,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                   />
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      Original
+                      {t.playground.original}
                     </span>
                     <div className="flex items-center gap-2">
                       <button
@@ -364,7 +366,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                   {/* Query (read-only) */}
                   <div className="mt-0">
                     <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      Query
+                      {t.playground.query}
                     </label>
                     <textarea
                       value={selected.query}
@@ -383,7 +385,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                       <ChevronDown
                         className={`h-3 w-3 transition-transform ${originalContextOpen ? "rotate-180" : ""}`}
                       />
-                      Context ({selected.context.length.toLocaleString()} chars)
+                      {t.playground.context} ({selected.context.length.toLocaleString()} chars)
                     </button>
                     {originalContextOpen && (
                       <textarea
@@ -402,7 +404,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                     <div className="h-full px-3 py-3">
                       <div className="mb-2">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                          Result
+                          {t.playground.result}
                         </span>
                       </div>
                       <p className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -412,7 +414,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-2 opacity-20">
                       <Inbox className="h-6 w-6" />
-                      <span className="text-xs">No response</span>
+                      <span className="text-xs">{t.playground.noResponse}</span>
                     </div>
                   )}
                 </div>
@@ -443,7 +445,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
             <button
               onClick={addColumn}
               className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background text-muted-foreground transition hover:bg-accent hover:text-foreground"
-              title="Add prompt column"
+              title={t.playground.addColumn}
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -451,14 +453,14 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
               onClick={runAll}
               disabled={anyRunning || columns.every((c) => !c.query.trim())}
               className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-40"
-              title="Run all columns"
+              title={t.playground.runAll}
             >
               <Play className="h-4 w-4 fill-current" />
             </button>
             <button
               onClick={() => setPromptsModalOpen(true)}
               className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background text-muted-foreground transition hover:bg-accent hover:text-foreground"
-              title="Manage prompts"
+              title={t.playground.managePrompts}
             >
               <Pencil className="h-4 w-4" />
             </button>
