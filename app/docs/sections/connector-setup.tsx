@@ -123,17 +123,22 @@ export function ConnectorSetup() {
             filename="terminal"
             code={`pip install phoenix-connector
 
+# Option 1: Interactive project selection (recommended)
+phoenix-connector \\
+  --key=pc_your_connector_key \\
+  --agent=http://localhost:2024
+
+# The CLI will fetch your projects and prompt you to select:
+#   Available projects:
+#     1. my-project [owner]
+#     2. team-project [editor]
+#   Select project: 1
+
+# Option 2: Specify project directly
 phoenix-connector \\
   --key=pc_your_connector_key \\
   --agent=http://localhost:2024 \\
-  --project=my-project-slug \\
-  --type=langgraph
-
-# Output:
-# ✓ Connected to SaaS
-# ✓ Project: my-project
-# ✓ Agent: http://localhost:2024
-# ⏳ Waiting for requests...`}
+  --project=my-project-slug`}
           />
         </div>
 
@@ -155,8 +160,8 @@ phoenix-connector \\
               ],
               [
                 <code key="p" className="text-xs font-mono">--project</code>,
-                "Project slug",
-                "required",
+                "Project slug (omit to select interactively)",
+                "optional",
               ],
               [
                 <code key="t" className="text-xs font-mono">--type</code>,

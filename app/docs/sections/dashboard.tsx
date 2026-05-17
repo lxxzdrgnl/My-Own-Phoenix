@@ -211,16 +211,13 @@ function DashboardPreview() {
       >
         {containerWidth > 0 && widgets.length > 0 ? (
           <GridLayout
+            className="layout"
             layout={layout}
-            cols={2}
-            rowHeight={160}
             width={containerWidth - 40}
-            margin={[20, 20]}
-            draggableHandle=".widget-drag-handle"
-            onLayoutChange={(newLayout) => setLayout(newLayout)}
-            isResizable
-            isDraggable
-            compactType="vertical"
+            gridConfig={{ cols: 2, rowHeight: 160 }}
+            onLayoutChange={(newLayout) => setLayout([...newLayout] as LayoutItem[])}
+            onDragStop={(newLayout) => setLayout([...newLayout] as LayoutItem[])}
+            onResizeStop={(newLayout) => setLayout([...newLayout] as LayoutItem[])}
           >
             {widgets.map((w) => (
               <div key={w.id}>
