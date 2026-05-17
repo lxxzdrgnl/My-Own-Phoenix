@@ -350,6 +350,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                     onClose={() => setDatasetModalOpen(false)}
                     query={selected.query}
                     context={selected.context}
+                    response={selected.response}
                   />
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">

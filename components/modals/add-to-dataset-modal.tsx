@@ -21,9 +21,10 @@ interface AddToDatasetModalProps {
   onClose: () => void;
   query?: string;
   context?: string;
+  response?: string;
 }
 
-export function AddToDatasetModal({ open, onClose, query = "", context = "" }: AddToDatasetModalProps) {
+export function AddToDatasetModal({ open, onClose, query = "", context = "", response = "" }: AddToDatasetModalProps) {
   const t = useT();
   const [datasets, setDatasets] = useState<DatasetOption[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -33,11 +34,13 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
 
   const [editQuery, setEditQuery] = useState(query);
   const [editContext, setEditContext] = useState(context);
+  const [editResponse, setEditResponse] = useState(response);
 
   useEffect(() => {
     if (!open) return;
     setEditQuery(query);
     setEditContext(context);
+    setEditResponse(response);
     apiFetch("/api/datasets").then((r) => r.json()).then((data) => {
       const ds = data.datasets ?? [];
       setDatasets(ds);
@@ -49,8 +52,8 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
     if (!newName.trim()) return;
     setSaving(true);
     try {
-      const headers = ["query", "context"];
-      const row = { query: editQuery, context: editContext };
+      const headers = ["query", "context", "response"];
+      const row = { query: editQuery, context: editContext, response: editResponse };
       const res = await apiFetch("/api/datasets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,10 +87,10 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: selectedId,
-            headers: ["query", "context"],
+            headers: ["query", "context", "response"],
             queryCol: "query",
             contextCol: "context",
-            rows: [{ query: editQuery, context: editContext }],
+            rows: [{ query: editQuery, context: editContext, response: editResponse }],
           }),
         });
       } else {
@@ -96,6 +99,7 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
           const lower = h.toLowerCase();
           if (lower.includes("query") || lower.includes("question") || lower.includes("prompt") || lower.includes("input")) row[h] = editQuery;
           else if (lower.includes("context") || lower.includes("document") || lower.includes("reference")) row[h] = editContext;
+          else if (lower.includes("response") || lower.includes("answer") || lower.includes("output") || lower.includes("expected")) row[h] = editResponse;
           else row[h] = "";
         }
         await apiFetch("/api/datasets/rows", {
@@ -126,7 +130,11 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "" }: A
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">{t.addToDataset.context}</label>
-              <Textarea value={editContext} onChange={(e) => setEditContext(e.target.value)} rows={8} className="text-xs max-h-[300px]" />
+              <Textarea value={editContext} onChange={(e) => setEditContext(e.target.value)} rows={4} className="text-xs max-h-[200px]" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">Response</label>
+              <Textarea value={editResponse} onChange={(e) => setEditResponse(e.target.value)} rows={4} className="text-xs max-h-[200px]" />
             </div>
           </div>
 

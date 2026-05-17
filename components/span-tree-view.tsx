@@ -6,6 +6,8 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { type RawSpan, type TraceTree, type Annotation } from "@/lib/phoenix";
 import { AnnotationBadges } from "@/components/annotation-badge";
 import { AnnotationForm } from "@/components/modals/annotation-form";
+import { AddToDatasetModal } from "@/components/modals/add-to-dataset-modal";
+import { Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ChevronRight,
@@ -66,6 +68,59 @@ function formatJson(raw: string): string {
 import { extractInputPreview } from "@/lib/span-extraction";
 import { SpanGraph } from "@/components/span-graph";
 import { RoleGate } from "@/components/ui/role-gate";
+
+// ─── Span colors for timeline bar ──
+const SPAN_BAR_COLORS: Record<string, string> = {
+  LLM: "#2e7d32",
+  CHAIN: "#3555c4",
+  RETRIEVER: "#b0446e",
+  TOOL: "#b57530",
+  AGENT: "#171717",
+  PROMPT: "#7b40a0",
+};
+
+/** Timeline bar showing how each direct child span contributed to total time */
+function SpanTimeline({ rootSpan }: { rootSpan: RawSpan }) {
+  const totalMs = rootSpan.latency;
+  if (!totalMs || totalMs <= 0) return null;
+
+  // Collect direct children with latency
+  const children = (rootSpan.children ?? []).filter((c) => c.latency > 0);
+  if (children.length === 0) return null;
+
+  return (
+    <div className="px-3 py-2 border-t bg-muted/10">
+      {/* Bar */}
+      <div className="h-2.5 flex rounded-full overflow-hidden bg-muted/30">
+        {children.map((child) => {
+          const pct = Math.max(1, (child.latency / totalMs) * 100);
+          const color = SPAN_BAR_COLORS[child.spanKind?.toUpperCase()] ?? "#888";
+          return (
+            <div
+              key={child.spanId}
+              title={`${child.name} — ${formatSec(child.latency)}`}
+              className="h-full transition-all hover:opacity-80"
+              style={{ width: `${pct}%`, backgroundColor: color }}
+            />
+          );
+        })}
+      </div>
+      {/* Labels */}
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5">
+        {children.map((child) => {
+          const color = SPAN_BAR_COLORS[child.spanKind?.toUpperCase()] ?? "#888";
+          return (
+            <div key={child.spanId} className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+              <span className="text-[10px] text-muted-foreground">{child.name}</span>
+              <span className="text-[10px] font-medium tabular-nums">{formatSec(child.latency)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ─── Span Tree Node (LangSmith style) ────────────────────────────────────────
 
@@ -364,6 +419,7 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
   const [selectedSpan, setSelectedSpan] = useState<RawSpan | null>(null);
   const [annotateSpanId, setAnnotateSpanId] = useState<string | null>(null);
   const [annotateAnnotations, setAnnotateAnnotations] = useState<Annotation[]>([]);
+  const [datasetModalOpen, setDatasetModalOpen] = useState(false);
 
   function handleAnnotate(spanId: string, annotations: Annotation[]) {
     setAnnotateSpanId(spanId);
@@ -437,6 +493,15 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
             {trace.spanCount} span{trace.spanCount !== 1 && "s"}
           </span>
+          <RoleGate>
+            <button
+              onClick={(e) => { e.stopPropagation(); setDatasetModalOpen(true); }}
+              className="rounded p-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent hover:text-foreground"
+              title="Add to dataset"
+            >
+              <Database className="size-3.5" />
+            </button>
+          </RoleGate>
           {onDeleteTrace && (
             <RoleGate>
               <button
@@ -450,6 +515,9 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
           )}
         </div>
       </div>
+
+      {/* Span timeline bar */}
+      <SpanTimeline rootSpan={trace.rootSpan} />
 
       {/* Expanded: tree + detail + graph */}
       {expanded && (
@@ -505,6 +573,36 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
           setAnnotateSpanId(null);
           onRefresh?.();
         }}
+      />
+      <AddToDatasetModal
+        open={datasetModalOpen}
+        onClose={() => setDatasetModalOpen(false)}
+        query={extractInputPreview(trace.rootSpan.input) || trace.rootSpan.name}
+        context={(() => {
+          // Extract context from TOOL/RETRIEVER child spans
+          const parts: string[] = [];
+          function collectContext(span: RawSpan) {
+            if ((span.spanKind === "TOOL" || span.spanKind === "RETRIEVER") && span.output) {
+              const out = typeof span.output === "string" ? span.output : JSON.stringify(span.output);
+              if (out.length > 10) parts.push(out);
+            }
+            span.children?.forEach(collectContext);
+          }
+          collectContext(trace.rootSpan);
+          return parts.join("\n---\n");
+        })()}
+        response={(() => {
+          const out = trace.rootSpan.output;
+          if (!out) return "";
+          try {
+            const parsed = JSON.parse(out);
+            if (Array.isArray(parsed?.messages)) {
+              const ai = parsed.messages.find((m: any) => m.type === "ai" || m.role === "assistant");
+              if (ai?.content) return String(ai.content);
+            }
+            return parsed?.content || parsed?.output || out;
+          } catch { return out; }
+        })()}
       />
     </div>
   );
