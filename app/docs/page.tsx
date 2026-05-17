@@ -109,7 +109,7 @@ export default function DocsPage() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto bg-background">
         <div
           key={active}
-          className="docs-stagger mx-auto max-w-3xl px-8 py-10"
+          className="docs-stagger mx-auto max-w-5xl px-10 py-10"
         >
           {ActiveSection && <ActiveSection />}
         </div>
