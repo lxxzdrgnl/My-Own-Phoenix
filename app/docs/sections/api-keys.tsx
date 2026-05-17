@@ -18,6 +18,7 @@ interface KeyInfo {
   scope: string;
   envVar?: string;
   note: string;
+  steps: { action: string; detail: string }[];
 }
 
 const KEYS: KeyInfo[] = [
@@ -32,6 +33,12 @@ const KEYS: KeyInfo[] = [
     scope: "Per-project — each project has its own trace key.",
     envVar: "PHOENIX_API_KEY",
     note: "The key is stored encrypted and always visible in Project Settings. Regenerating invalidates the old key.",
+    steps: [
+      { action: "Open your project", detail: "Click on the project from the Projects page" },
+      { action: "Go to Project Settings", detail: "Click \"Project Settings\" in the sidebar" },
+      { action: "Select API Keys tab", detail: "You'll see Trace Key and LLM Provider Keys sections" },
+      { action: "Click Generate Trace Key", detail: "The key and .env setup guide will appear. Copy both." },
+    ],
   },
   {
     icon: Plug,
@@ -44,6 +51,12 @@ const KEYS: KeyInfo[] = [
     scope: "Per-user — your personal key works across all your projects.",
     envVar: undefined,
     note: "Required only for interactive features: Chat, Playground, Dataset testing. Not needed for trace-only monitoring.",
+    steps: [
+      { action: "Go to Global Settings", detail: "Click \"Global Settings\" in the sidebar or top bar" },
+      { action: "Profile & Key tab", detail: "This is the default tab when you open settings" },
+      { action: "Click Generate Key", detail: "Your personal connector key (pc_*) will appear" },
+      { action: "Copy the key", detail: "Use it with phoenix-connector CLI or save it somewhere safe" },
+    ],
   },
   {
     icon: Bot,
@@ -56,6 +69,11 @@ const KEYS: KeyInfo[] = [
     scope: "Global keys auto-copy to new projects. Project-level keys override globals.",
     envVar: undefined,
     note: "Project members with editor/owner role can add project-level keys that override the global ones.",
+    steps: [
+      { action: "Global key: Global Settings → Providers", detail: "Add your OpenAI/Anthropic/Google/xAI API key. Auto-applied to new projects." },
+      { action: "Project key: Project Settings → API Keys", detail: "Add a project-specific key that overrides the global one for this project only." },
+      { action: "Click Add Key next to provider", detail: "Paste your API key and click Save" },
+    ],
   },
 ];
 
@@ -112,6 +130,29 @@ function KeyDetail({ info }: { info: KeyInfo }) {
         <DetailRow label="Where to get" value={info.location} />
         <DetailRow label="Used by" value={info.usedBy} />
         <DetailRow label="Scope" value={info.scope} />
+
+        {/* Step-by-step guide */}
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+            How to get it
+          </span>
+          <div className="mt-2 space-y-0">
+            {info.steps.map((step, i) => (
+              <div key={i} className="flex gap-3 pb-3">
+                <div className="flex flex-col items-center">
+                  <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-[9px] font-bold">
+                    {i + 1}
+                  </div>
+                  {i < info.steps.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
+                </div>
+                <div className="pt-0.5">
+                  <p className="text-[12px] font-medium leading-tight">{step.action}</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">{step.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {info.envVar && (
           <div>
