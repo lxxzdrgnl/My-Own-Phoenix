@@ -31,9 +31,11 @@ import {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatSec(ms: number): string {
-  if (ms < 10) return `${ms.toFixed(2)}ms`;
   if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  const m = Math.floor(ms / 60_000);
+  const s = Math.round((ms % 60_000) / 1000);
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 const SPAN_STYLES: Record<string, { icon: typeof Bot; bg: string; fg: string }> = {
@@ -71,12 +73,12 @@ import { RoleGate } from "@/components/ui/role-gate";
 
 // ─── Span colors for timeline bar ──
 const SPAN_BAR_COLORS: Record<string, string> = {
-  LLM: "#2e7d32",
-  CHAIN: "#3555c4",
-  RETRIEVER: "#b0446e",
-  TOOL: "#b57530",
-  AGENT: "#171717",
-  PROMPT: "#7b40a0",
+  LLM: "#a5d6a7",
+  CHAIN: "#a3b8f0",
+  RETRIEVER: "#e091ab",
+  TOOL: "#e0a86b",
+  AGENT: "#b0b0b0",
+  PROMPT: "#c4a0d8",
 };
 
 /** Timeline bar showing how each direct child span contributed to total time */
@@ -89,9 +91,9 @@ function SpanTimeline({ rootSpan }: { rootSpan: RawSpan }) {
   if (children.length === 0) return null;
 
   return (
-    <div className="px-3 py-2 border-t bg-muted/10">
+    <div className="px-3 py-2 border-t">
       {/* Bar */}
-      <div className="h-2.5 flex rounded-full overflow-hidden bg-muted/30">
+      <div className="h-2.5 flex rounded-full overflow-hidden bg-white dark:bg-white/10">
         {children.map((child) => {
           const pct = Math.max(1, (child.latency / totalMs) * 100);
           const color = SPAN_BAR_COLORS[child.spanKind?.toUpperCase()] ?? "#888";
@@ -489,7 +491,9 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
         </div>
         <div className="flex items-center gap-2.5 shrink-0">
           <StatusIcon status={trace.rootSpan.status} />
-          <span className="text-[11px] tabular-nums text-muted-foreground">{formatSec(trace.latency)}</span>
+          {expanded && (
+            <span className="text-[11px] tabular-nums text-muted-foreground">{formatSec(trace.latency)}</span>
+          )}
           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
             {trace.spanCount} span{trace.spanCount !== 1 && "s"}
           </span>
@@ -517,8 +521,8 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
         </div>
       </div>
 
-      {/* Span timeline bar */}
-      <SpanTimeline rootSpan={trace.rootSpan} />
+      {/* Span timeline bar — only when expanded */}
+      {expanded && <SpanTimeline rootSpan={trace.rootSpan} />}
 
       {/* Expanded: tree + detail + graph */}
       {expanded && (
