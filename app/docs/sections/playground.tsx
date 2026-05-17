@@ -209,7 +209,7 @@ function PlaygroundPreview() {
     <div className="rounded-xl border overflow-hidden bg-background" style={{ height: 560 }}>
       <div className="flex h-full min-h-0">
         {/* ── LEFT: Trace sidebar ── */}
-        <div className="w-[210px] shrink-0 flex flex-col border-r">
+        <div className="w-[200px] shrink-0 flex flex-col border-r">
           <div className="border-b px-3 py-3">
             <div className="flex items-center gap-2">
               <button className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-background transition hover:bg-accent">
@@ -256,8 +256,10 @@ function PlaygroundPreview() {
           </div>
         </div>
 
+        {/* ── Scrollable columns area ── */}
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-x-auto">
         {/* ── ORIGINAL column ── */}
-        <div className="flex flex-col border-r" style={{ flex: "1 0 200px" }}>
+        <div className="flex flex-col border-r" style={{ flex: "1 0 200px", minWidth: 200 }}>
           <div className="shrink-0 border-b bg-muted/10 px-3 pt-3 pb-2">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -300,7 +302,7 @@ function PlaygroundPreview() {
 
         {/* ── Dynamic prompt columns ── */}
         {columns.map((col) => (
-          <div key={col.id} className="flex flex-col border-r" style={{ flex: "1 0 200px" }}>
+          <div key={col.id} className="flex flex-col border-r" style={{ flex: "1 0 200px", minWidth: 200 }}>
             <div className="shrink-0 border-b bg-muted/5 px-3 pt-3 pb-2">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -382,6 +384,8 @@ function PlaygroundPreview() {
             </div>
           </div>
         ))}
+
+        </div>{/* close scrollable columns area */}
 
         {/* ── Right action bar ── */}
         <div className="flex shrink-0 flex-col items-center gap-3 border-l bg-muted/5 px-3 pt-3">

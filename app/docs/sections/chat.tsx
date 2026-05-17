@@ -66,9 +66,9 @@ function ChatPreview() {
   const [inputValue, setInputValue] = useState("");
 
   return (
-    <div className="rounded-xl border overflow-hidden" style={{ height: 500 }}>
-      {/* Chat header — matches real: agent name, status dot, model badge */}
-      <div className="border-b px-4 py-2.5 flex items-center gap-2">
+    <div className="flex flex-col rounded-xl border overflow-hidden bg-background" style={{ height: 520 }}>
+      {/* Chat header */}
+      <div className="shrink-0 border-b px-4 py-2.5 flex items-center gap-2">
         <div className="h-2 w-2 rounded-full bg-[#10b981]" />
         <span className="text-xs font-semibold">legal-rag-agent</span>
         <span className="text-[10px] text-muted-foreground">online</span>
@@ -77,27 +77,19 @@ function ChatPreview() {
         </span>
       </div>
 
-      {/* Messages area — matches real thread viewport */}
-      <div className="overflow-y-auto px-4 pt-4" style={{ height: 390 }}>
-        <div className="mx-auto w-full max-w-lg flex flex-col">
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2">
+        <div className="mx-auto w-full max-w-lg flex flex-col gap-3">
           {MOCK_MESSAGES.map((msg, i) =>
             msg.role === "user" ? (
-              <div
-                key={i}
-                className="grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 py-3 [&>*]:col-start-2"
-              >
-                <div className="relative col-start-2 min-w-0">
-                  <div className="rounded-2xl bg-muted px-4 py-2.5 text-foreground text-xs">
-                    {msg.content}
-                  </div>
+              <div key={i} className="flex justify-end">
+                <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-foreground text-xs">
+                  {msg.content}
                 </div>
               </div>
             ) : (
-              <div
-                key={i}
-                className="relative w-full py-3"
-              >
-                <div className="px-2 text-foreground text-xs leading-relaxed">
+              <div key={i} className="max-w-[90%]">
+                <div className="rounded-2xl bg-accent/40 px-4 py-3 text-foreground text-xs leading-relaxed">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={miniMarkdownComponents}
@@ -111,9 +103,9 @@ function ChatPreview() {
         </div>
       </div>
 
-      {/* Composer — matches real: rounded-2xl border, textarea placeholder, send button */}
-      <div className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-lg flex-col px-4 pb-4">
-        <div className="flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2">
+      {/* Composer */}
+      <div className="shrink-0 border-t px-4 py-3">
+        <div className="mx-auto max-w-lg flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2">
           <input
             type="text"
             value={inputValue}
