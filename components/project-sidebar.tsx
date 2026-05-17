@@ -44,25 +44,25 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
 
   const NAV_GROUPS = [
     {
-      label: t.projects.develop ?? "Develop",
+      label: t.projects.testing ?? "Testing",
       items: [
         { href: "chat", label: t.chat.title, icon: MessageSquare },
         { href: "playground", label: t.playground.title, icon: FlaskConical },
+        { href: "datasets", label: t.datasets.title, icon: Database },
       ],
     },
     {
-      label: t.projects.analytics ?? "Analytics",
+      label: t.projects.monitoring ?? "Monitoring",
       items: [
         { href: "dashboard", label: t.dashboard.title, icon: LayoutDashboard },
-        { href: "overview", label: t.projects.requests ?? "Requests", icon: List },
+        { href: "requests", label: t.projects.requests ?? "Requests", icon: List },
         { href: "evaluations", label: t.evaluations.title, icon: SlidersHorizontal },
-        { href: "measure", label: t.projects.measureNav ?? "Measure", icon: Gauge },
       ],
     },
     {
-      label: t.projects.quality ?? "Quality",
+      label: t.projects.safety ?? "Safety",
       items: [
-        { href: "datasets", label: t.datasets.title, icon: Database },
+        { href: "measure", label: t.projects.measureNav ?? "Risk Management", icon: Gauge },
         { href: "pii-guard", label: t.projects.piiGuard ?? "PII Guard", icon: Shield },
         { href: "risks", label: t.projects.risksNav ?? "Risks", icon: ShieldAlert },
       ],

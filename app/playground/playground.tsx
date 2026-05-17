@@ -57,7 +57,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
     promptName: string;
     version: PromptVersion;
   } | null>(null);
-  const [spanKinds, setSpanKinds] = useState<Set<string>>(new Set(["LLM"]));
+  const [spanKinds, setSpanKinds] = useState<Set<string>>(new Set());
   const [contentFilter, setContentFilter] = useState("ALL");
   const [filterOpen, setFilterOpen] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
@@ -99,12 +99,12 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
       const saved = localStorage.getItem(filterKey(pid));
       if (saved) {
         const { kinds, content } = JSON.parse(saved);
-        setSpanKinds(new Set(kinds ?? ["LLM"]));
+        setSpanKinds(new Set(kinds ?? []));
         setContentFilter(content ?? "ALL");
         return;
       }
     } catch (e) { console.error(e); }
-    setSpanKinds(new Set(["LLM"]));
+    setSpanKinds(new Set([]));
     setContentFilter("ALL");
   }
 
