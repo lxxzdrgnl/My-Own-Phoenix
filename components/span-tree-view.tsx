@@ -71,12 +71,12 @@ import { RoleGate } from "@/components/ui/role-gate";
 
 // ─── Span colors for timeline bar ──
 const SPAN_BAR_COLORS: Record<string, string> = {
-  LLM: "#2e7d32",
-  CHAIN: "#3555c4",
-  RETRIEVER: "#b0446e",
-  TOOL: "#b57530",
-  AGENT: "#171717",
-  PROMPT: "#7b40a0",
+  LLM: "#171717",
+  CHAIN: "#525252",
+  RETRIEVER: "#737373",
+  TOOL: "#404040",
+  AGENT: "#0a0a0a",
+  PROMPT: "#616161",
 };
 
 /** Timeline bar showing how each direct child span contributed to total time */
