@@ -77,24 +77,50 @@ const ORIGINAL_RESULT = `Here are some recent AI-related news highlights from Go
 
 const MOCK_RESULTS: Record<string, string[]> = {
   t1: [
+    // structured response
     `Based on the provided context, here is a structured summary of recent Google AI developments:\n\n**Key Announcements:**\n- Gemini Intelligence integration across Android, Chrome, and new hardware\n- "Magic Pointer" contextual AI on Googlebook laptops\n- Rambler voice-to-text feature for natural dictation\n\n**Impact Assessment:** These updates signal Google's shift toward ambient AI assistance embedded in everyday devices rather than standalone chatbot experiences.\n\n**Sources:** Google I/O 2026 keynote, official Android blog`,
-    `**Summary of Recent Google AI News**\n\nGoogle announced several AI initiatives at I/O 2026:\n\n1. Gemini Intelligence — a suite of on-device AI features for Android phones\n2. Googlebook — AI-native laptop hardware with contextual suggestions\n3. Chrome AI — browser-integrated summarization and task automation\n\nThese represent a platform-wide AI integration strategy targeting consumer productivity.`,
+    // concise summary
+    `Google announced several AI initiatives at I/O 2026:\n\n1. Gemini Intelligence — on-device AI for Android\n2. Googlebook — AI-native laptop with contextual suggestions\n3. Chrome AI — browser summarization and task automation\n\nPlatform-wide AI integration strategy targeting consumer productivity.`,
+    // key takeaways
+    `**Key Takeaways — Google AI (May 2026)**\n\n• Gemini Intelligence rolls out to Samsung & Google phones this summer\n• Googlebook: new laptop category with "Magic Pointer" AI feature\n• Chrome gets AI summarization + task automation (late June)\n• Rambler: voice-to-polished-text dictation tool\n• Strategy: ambient AI in everyday devices, not standalone chatbots`,
+    // brief answer
+    `Google released Gemini Intelligence for Android, Googlebook laptops with AI features, and Chrome AI tools for summarization. All announced at I/O 2026, rolling out summer 2026.`,
+    // investment memo
+    `**Investment Memo: Google AI Strategy Update**\n\n**Thesis:** Google is embedding AI across its entire product stack (Android, Chrome, hardware), creating an ecosystem moat.\n\n**Key Signals:**\n- Gemini Intelligence: on-device AI reduces cloud dependency, improves margins\n- Googlebook: hardware play captures higher ASP, locks users into ecosystem\n- Chrome AI: browser integration reaches 3B+ users directly\n\n**Risk:** Execution across multiple product lines simultaneously. Samsung partnership dependency.\n\n**Rating:** Positive — strengthens platform dominance.`,
+    // simple language
+    `Google made some cool AI updates!\n\nBasically, your Android phone will get smarter — it can help you fill out forms, summarize websites, and turn your voice notes into clean text. They also made a new laptop called "Googlebook" that has a smart pointer that knows what you're looking at. And Chrome (the browser) will soon be able to summarize articles for you.\n\nAll of this is coming this summer.`,
   ],
   t2: [
-    `**Samsung AI Update Summary:**\n\nSamsung has been actively expanding its AI capabilities across its product lineup:\n\n- Galaxy AI features expanded to mid-range devices (A-series)\n- Partnership with Google for on-device Gemini Nano integration\n- New AI-powered camera features: scene optimization, object removal\n- Bixby overhaul with LLM backbone expected Q3 2026\n\n**Analysis:** Samsung is positioning itself as the primary hardware partner for Google's AI ambitions while maintaining its own AI identity through Bixby improvements.`,
-    `Samsung's latest AI developments focus on three areas:\n\n1. **On-device AI** — Gemini Nano on flagship Galaxy devices\n2. **Camera Intelligence** — Real-time scene understanding and editing\n3. **Smart Home** — SmartThings AI hub for predictive automation\n\nThe company aims to differentiate through hardware-software integration rather than competing directly on foundation models.`,
+    `**Samsung AI Update Summary:**\n\n- Galaxy AI features expanded to mid-range devices (A-series)\n- Partnership with Google for on-device Gemini Nano integration\n- New AI-powered camera features: scene optimization, object removal\n- Bixby overhaul with LLM backbone expected Q3 2026\n\n**Analysis:** Samsung is positioning itself as the primary hardware partner for Google's AI ambitions.`,
+    `Samsung AI: Gemini Nano on Galaxy, AI camera features, Bixby LLM overhaul Q3 2026. Focus on hardware-software integration.`,
+    `**Key Takeaways — Samsung AI**\n\n• Galaxy AI expanding to A-series (mid-range)\n• Gemini Nano partnership with Google\n• AI camera: scene optimization + object removal\n• Bixby getting LLM backbone Q3 2026\n• SmartThings AI hub for predictive home automation`,
+    `Samsung is adding AI to Galaxy phones (Gemini Nano), cameras, and Bixby. Mid-range phones getting AI features too.`,
+    `**Investment Memo: Samsung AI**\n\n**Thesis:** Samsung leverages Google partnership while maintaining own AI identity.\n**Signals:** Galaxy AI to mid-range = TAM expansion. Bixby LLM = differentiation.\n**Risk:** Over-dependence on Google's Gemini. Late to LLM race.\n**Rating:** Neutral — solid execution, limited upside vs. Apple.`,
+    `Samsung is making their phones smarter! Even the cheaper Galaxy phones will get AI features now. The camera can automatically make your photos look better and remove things you don't want. And Bixby (Samsung's assistant) is getting a big upgrade to be more like ChatGPT.`,
   ],
   t3: [
-    `**Tesla Trends Update:**\n\n- Full Self-Driving v13 achieving 99.7% intervention-free miles in testing\n- Optimus robot entering limited factory deployment\n- Energy division revenue up 67% YoY\n- Robotaxi service pilot expanding to Austin and Miami\n\n**Market Outlook:** Tesla's diversification beyond vehicles positions it as an AI and energy company, with automotive as one of multiple revenue streams.`,
-    `Tesla's current trajectory centers on AI and automation:\n\n1. FSD v13 — near-autonomous driving with minimal human intervention\n2. Optimus — humanoid robot now performing repetitive factory tasks\n3. Robotaxi — pilot programs in 3 US cities\n\nThe company is transitioning from an automaker to a broader AI/robotics platform.`,
+    `**Tesla Trends Update:**\n\n- Full Self-Driving v13 achieving 99.7% intervention-free miles\n- Optimus robot entering limited factory deployment\n- Energy division revenue up 67% YoY\n- Robotaxi pilot expanding to Austin and Miami\n\n**Market Outlook:** Tesla is diversifying beyond vehicles into AI and energy.`,
+    `Tesla: FSD v13 near-autonomous, Optimus in factories, Energy +67% YoY, Robotaxi expanding to 3 cities. Transitioning to AI/robotics platform.`,
+    `**Key Takeaways — Tesla**\n\n• FSD v13: 99.7% intervention-free driving\n• Optimus robot: now in factory deployment\n• Energy revenue: +67% year-over-year\n• Robotaxi: Austin + Miami pilots\n• Shift from automaker → AI/energy company`,
+    `Tesla's FSD v13 drives almost fully autonomously. Optimus robot is working in factories. Robotaxi launching in more cities.`,
+    `**Investment Memo: Tesla**\n\n**Thesis:** Tesla is no longer just a car company — AI and energy are the growth vectors.\n**Signals:** FSD v13 near-production-ready, Robotaxi = recurring revenue, Energy +67% = diversification.\n**Risk:** Regulatory timeline for Robotaxi. Optimus still early.\n**Rating:** Positive — optionality on AI/robotics underpriced.`,
+    `Tesla is doing way more than just cars now! Their self-driving software is getting really good (99.7% drives without human help). They have a robot called Optimus that's starting to work in factories. And their energy business (solar + batteries) grew 67% this year. They're also testing robot taxis in a few cities.`,
   ],
   t4: [
-    `This is a test response demonstrating the prompt template processing. The query "Test question" was received and processed through the legal-rag-answer template with context-based structured response formatting.\n\n**Status:** Template functioning correctly.\n**Context:** No relevant context provided.\n**Response quality:** N/A (test query)`,
-    `**Test Response**\n\nQuery received: "Test question"\nTemplate applied: legal-rag-answer / concise summary mode\nContext length: 0 chars\n\nNo substantive answer can be generated for a test query without relevant context.`,
+    `Test response processed through structured template.\n\n**Status:** Template functioning correctly.\n**Context:** No relevant context provided.\n**Response quality:** N/A (test query)`,
+    `Test query received. No context provided. Template applied successfully.`,
+    `**Key Takeaways:** Test query — no substantive content to summarize.`,
+    `This is a test. No real content to answer.`,
+    `**Memo:** Test query — no actionable data. N/A.`,
+    `This was just a test question! Nothing to really answer here.`,
   ],
   t5: [
-    `**NVIDIA Recent Developments:**\n\n- Blackwell Ultra GPU architecture announced for H2 2026\n- CUDA 13 with native support for sparse attention patterns\n- NIM microservices platform adoption growing 3x QoQ\n- Jensen Huang keynote emphasized "physical AI" and robotics\n\n**Key Insight:** NVIDIA continues to dominate AI infrastructure while expanding into inference optimization and edge deployment through NIM.`,
-    `NVIDIA highlights:\n\n1. **Blackwell Ultra** — next-gen GPU for AI training and inference\n2. **NIM Platform** — containerized AI model deployment growing rapidly\n3. **Robotics push** — Isaac platform for embodied AI development\n\nNVIDIA remains the picks-and-shovels play for the AI industry with expanding software moats.`,
+    `**NVIDIA Recent Developments:**\n\n- Blackwell Ultra GPU architecture announced for H2 2026\n- CUDA 13 with native sparse attention support\n- NIM microservices platform adoption growing 3x QoQ\n- Jensen Huang keynote: "physical AI" and robotics focus\n\n**Key Insight:** NVIDIA dominates AI infrastructure while expanding into inference optimization.`,
+    `NVIDIA: Blackwell Ultra GPU (H2 2026), CUDA 13, NIM platform 3x growth. Expanding from training to inference and edge deployment.`,
+    `**Key Takeaways — NVIDIA**\n\n• Blackwell Ultra: next-gen AI GPU, H2 2026\n• CUDA 13: native sparse attention patterns\n• NIM platform: 3x quarter-over-quarter adoption\n• Focus shift: "physical AI" + robotics\n• Isaac platform for embodied AI`,
+    `NVIDIA announced Blackwell Ultra GPUs, CUDA 13, and NIM platform growing 3x. Focus on robotics and physical AI.`,
+    `**Investment Memo: NVIDIA**\n\n**Thesis:** Picks-and-shovels play with expanding software moats.\n**Signals:** Blackwell Ultra = next cycle driver. NIM = software recurring revenue. Isaac = robotics TAM.\n**Risk:** Customer concentration (hyperscalers). China export restrictions.\n**Rating:** Strong Positive — monopoly position with software optionality.`,
+    `NVIDIA makes the chips that power AI! They just announced even faster ones called "Blackwell Ultra" coming later this year. They also have a platform called NIM that makes it easy for companies to run AI, and it's growing really fast. The CEO Jensen Huang is also big on robots and "physical AI" — meaning AI that can interact with the real world.`,
   ],
 };
 
@@ -132,9 +158,10 @@ interface ColumnState {
 const PROMPT_OPTIONS = [
   "legal-rag-answer / v4 — structured response",
   "legal-rag-answer / v4 — concise summary",
-  "legal-rag-answer / v3 — bullet points",
   "news-summarizer / v2 — key takeaways",
   "qa-responder / v1 — brief answer",
+  "analyst-report / v1 — investment memo",
+  "eli5-explainer / v1 — simple language",
 ];
 
 /* ── Playground Preview ── */
