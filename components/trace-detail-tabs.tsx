@@ -5,7 +5,7 @@ import { useT } from "@/lib/i18n";
 import { type TraceTree, type Annotation } from "@/lib/phoenix";
 import { AnnotationBadge } from "@/components/annotation-badge";
 import { apiFetch } from "@/lib/api-client";
-import { Bot, User, FileJson, ChevronDown } from "lucide-react";
+import { Bot, User, FileJson, ChevronDown, RefreshCw, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Tab = "io" | "evals";
@@ -37,6 +37,51 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
   const [evalMeta, setEvalMeta] = useState<Map<string, EvalMeta>>(new Map());
   const [showRaw, setShowRaw] = useState(false);
   const [savingName, setSavingName] = useState<string | null>(null);
+  const [runningEval, setRunningEval] = useState<string | null>(null);
+
+  async function runSingleEval(name: string) {
+    if (!projectName) return;
+    setRunningEval(name);
+    try {
+      const res = await apiFetch("/api/eval-run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: projectName,
+          traceId: trace.traceId,
+          evalNames: [name],
+        }),
+      });
+      if (!res.ok) throw new Error(`run ${res.status}`);
+      onRefresh?.();
+    } catch (e) {
+      console.error("[trace-detail-tabs] run eval failed", e);
+    } finally {
+      setRunningEval(null);
+    }
+  }
+
+  async function runAllEvals() {
+    if (!projectName) return;
+    setRunningEval("__all__");
+    try {
+      const res = await apiFetch("/api/eval-run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: projectName,
+          traceId: trace.traceId,
+          evalNames: [],
+        }),
+      });
+      if (!res.ok) throw new Error(`run all ${res.status}`);
+      onRefresh?.();
+    } catch (e) {
+      console.error("[trace-detail-tabs] run all evals failed", e);
+    } finally {
+      setRunningEval(null);
+    }
+  }
 
   useEffect(() => {
     apiFetch("/api/eval-prompts")
@@ -129,6 +174,18 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
           {t.traceTabs.evals}
           <CountBadge n={uniqueEvalCount} />
         </TabBtn>
+        {tab === "evals" && (
+          <button
+            type="button"
+            onClick={runAllEvals}
+            disabled={runningEval !== null}
+            title="전체 평가 다시 실행"
+            className="ml-2 inline-flex items-center gap-1 rounded border border-foreground/15 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-foreground hover:text-background disabled:opacity-40"
+          >
+            <Play className={cn("size-2.5", runningEval === "__all__" && "animate-pulse")} />
+            전체 실행
+          </button>
+        )}
         <button
           onClick={() => setShowRaw(!showRaw)}
           className="ml-auto inline-flex items-center gap-1 px-4 py-2 text-xs text-muted-foreground hover:text-foreground"
@@ -149,11 +206,13 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
             savingName={savingName}
             onRate={saveHumanAnnotation}
             onDelete={deleteHumanAnnotation}
+            onRunSingle={runSingleEval}
+            runningEval={runningEval}
             empty={t.traceTabs.noEvals}
             aiLabel={t.traceTabs.aiColumn}
             humanLabel={t.traceTabs.humanColumn}
             pendingLabel={t.traceTabs.pendingShort}
-            pendingTitle={t.traceTabs.pending}
+            pendingTitle="클릭하여 이 평가 즉시 실행"
           />
         )}
       </div>
@@ -234,12 +293,30 @@ function IoPanel({
   );
 }
 
-function PendingCell({ onClick, title, label }: { onClick?: () => void; title: string; label: string }) {
+function PendingCell({ onClick, title, label, running }: { onClick?: () => void; title: string; label: string; running?: boolean }) {
+  if (running) {
+    return (
+      <span className="inline-flex items-center rounded border border-foreground/15 px-2 py-1 font-mono text-[9px] leading-none text-muted-foreground">
+        …
+      </span>
+    );
+  }
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={title}
+        className="inline-flex items-center rounded border border-foreground/10 px-2 py-1 font-mono text-[9px] leading-none text-muted-foreground/60 transition-colors hover:border-foreground/30 hover:bg-foreground/5 hover:text-foreground"
+      >
+        {label}
+      </button>
+    );
+  }
   return (
     <span
       title={title}
       className="inline-flex items-center rounded border border-foreground/10 px-2 py-1 font-mono text-[9px] leading-none text-muted-foreground/60"
-      onClick={onClick}
     >
       {label}
     </span>
@@ -392,6 +469,8 @@ function EvalsPanel({
   savingName,
   onRate,
   onDelete,
+  onRunSingle,
+  runningEval,
   empty,
   aiLabel,
   humanLabel,
@@ -405,6 +484,8 @@ function EvalsPanel({
   savingName: string | null;
   onRate: (name: string, label: string, score: number, explanation: string) => void;
   onDelete: (name: string) => void;
+  onRunSingle: (name: string) => void;
+  runningEval: string | null;
   empty: string;
   aiLabel: string;
   humanLabel: string;
@@ -471,9 +552,25 @@ function EvalsPanel({
             </div>
             <div className="px-3 py-1.5">
               {row.ai ? (
-                <AnnotationBadge annotation={row.ai} />
+                <div className="group/ai inline-flex items-center gap-1">
+                  <AnnotationBadge annotation={row.ai} />
+                  <button
+                    type="button"
+                    onClick={() => onRunSingle(row.name)}
+                    disabled={runningEval === row.name}
+                    title="이 평가 다시 실행"
+                    className="opacity-0 transition-opacity group-hover/ai:opacity-100 text-muted-foreground/60 hover:text-foreground"
+                  >
+                    <RefreshCw className={cn("size-2.5", runningEval === row.name && "animate-spin opacity-100")} />
+                  </button>
+                </div>
               ) : (
-                <PendingCell label={pendingLabel} title={pendingTitle} />
+                <PendingCell
+                  label={pendingLabel}
+                  title={pendingTitle}
+                  running={runningEval === row.name}
+                  onClick={() => onRunSingle(row.name)}
+                />
               )}
             </div>
             <div className="px-3 py-2 text-[11px] leading-snug text-muted-foreground/80 break-words" title={row.ai?.explanation ?? ""}>

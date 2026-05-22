@@ -299,6 +299,11 @@ def _load_project_config(project: str) -> dict[str, bool]:
     return _project_configs.get(project, {})
 
 
+# Ad-hoc /run sets this to restrict enabled evals to just the requested names.
+# None = no override (return all enabled).
+_force_only_evals: set[str] | None = None
+
+
 def get_enabled_evals(project: str) -> set[str]:
     """Returns set of eval names enabled for this project."""
     defs = _load_eval_defs(project)
@@ -316,6 +321,8 @@ def get_enabled_evals(project: str) -> set[str]:
             # Built-in evals default to enabled, custom evals default to disabled
             if name in BUILT_IN_EVALS:
                 enabled.add(name)
+    if _force_only_evals is not None:
+        enabled &= _force_only_evals
     return enabled
 
 
@@ -1013,6 +1020,83 @@ def process_trace(
     return eval_count
 
 
+# ── FastAPI ad-hoc eval endpoint ──────────────────────────────────────────
+#
+# Use case: user clicks "−" in trace detail to run a specific eval immediately,
+# or re-evaluate an older trace. Polling cycle is 15–30s — too slow for that
+# interaction. We expose a small HTTP API alongside the polling loop.
+
+from fastapi import FastAPI, HTTPException  # type: ignore
+from pydantic import BaseModel  # type: ignore
+import uvicorn  # type: ignore
+import threading
+
+api = FastAPI(title="eval-worker ad-hoc API")
+
+
+class RunRequest(BaseModel):
+    project: str  # Phoenix project name (slug)
+    traceId: str
+    # Optional: restrict to specific eval names. Empty = run every missing enabled eval.
+    evalNames: list[str] = []
+
+
+@api.post("/run")
+def run_eval(req: RunRequest) -> dict:
+    """Re-evaluate one trace for one (or multiple) eval names."""
+    db_project_id = _resolve_project_id(req.project)
+    set_current_project(db_project_id or req.project)
+
+    # Fetch only this trace's spans via Phoenix's trace_id filter.
+    try:
+        resp = _http.get(
+            f"/v1/projects/{req.project}/spans",
+            params={"trace_id": req.traceId, "limit": "500"},
+        )
+        trace_spans = resp.json().get("data", [])
+    except Exception as e:
+        logger.error("ad-hoc /run fetch error: %s", e, exc_info=True)
+        raise HTTPException(500, f"failed to fetch spans: {e}")
+    if not trace_spans:
+        raise HTTPException(404, f"trace {req.traceId} not found in project {req.project}")
+
+    # If specific eval names were given, force re-evaluation by temporarily
+    # narrowing the enabled set. We monkey-patch get_enabled_evals scope by
+    # restricting REEVAL_ANNOTATIONS for this call.
+    try:
+        if req.evalNames:
+            # Restrict enabled evals to only the requested names AND force
+            # re-evaluation (so existing rows are overwritten).
+            global REEVAL_ANNOTATIONS, _force_only_evals
+            prev_reeval = REEVAL_ANNOTATIONS
+            prev_force = _force_only_evals
+            REEVAL_ANNOTATIONS = set(req.evalNames)
+            _force_only_evals = set(req.evalNames)
+            try:
+                count = process_trace(trace_spans, req.project, db_project_id or "")
+            finally:
+                REEVAL_ANNOTATIONS = prev_reeval
+                _force_only_evals = prev_force
+        else:
+            count = process_trace(trace_spans, req.project, db_project_id or "")
+    except Exception as e:
+        logger.error("ad-hoc /run process_trace error: %s", e, exc_info=True)
+        raise HTTPException(500, f"process_trace failed: {e}")
+
+    return {"ok": True, "evalsRun": count}
+
+
+@api.get("/health")
+def health() -> dict:
+    return {"ok": True}
+
+
+def start_http_server() -> None:
+    port = int(os.getenv("EVAL_WORKER_HTTP_PORT", "4000"))
+    logger.info("Starting eval-worker HTTP API on port %d", port)
+    uvicorn.run(api, host="0.0.0.0", port=port, log_level="warning")
+
+
 # ── Main loop ─────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -1082,4 +1166,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # FastAPI runs in a daemon thread; polling loop on main thread.
+    threading.Thread(target=start_http_server, daemon=True).start()
     main()

@@ -128,12 +128,10 @@ export function AiHumanComparison({
     return Array.from(set).sort();
   }, [traces]);
 
+  // Auto-correct if selectedEval was set to a name that no longer exists.
   useEffect(() => {
-    if (selectedEval === "" && evalNames.length > 0) {
-      setSelectedEval(evalNames[0]);
-    }
     if (selectedEval !== "" && !evalNames.includes(selectedEval)) {
-      setSelectedEval(evalNames[0] ?? "");
+      setSelectedEval("");
     }
   }, [evalNames, selectedEval]);
 
@@ -147,68 +145,110 @@ export function AiHumanComparison({
 
   // ── Disagreement list source (with fallback) ──
   // Priority 1: trace IDs that have diff pairs on selected eval.
-  // Fallback: all human-reviewed trace IDs (when no diffs found, so the user
-  // still sees the traces they reviewed instead of an empty list).
+  // Fallback: trace IDs with a HUMAN annotation matching the selected eval
+  // (or any human annotation if no eval is selected).
   const diffPairs = useMemo(() => filtered.filter((p) => p.isDiff), [filtered]);
   const humanReviewedTraceIds = useMemo(() => {
     const s = new Set<string>();
     for (const tr of traces) {
-      if (tr.annotations.some((a) => a.annotatorKind === "HUMAN")) s.add(tr.traceId);
+      const hit = selectedEval
+        ? tr.annotations.some((a) => a.annotatorKind === "HUMAN" && a.name === selectedEval)
+        : tr.annotations.some((a) => a.annotatorKind === "HUMAN");
+      if (hit) s.add(tr.traceId);
     }
     return s;
-  }, [traces]);
+  }, [traces, selectedEval]);
   const disagreementTraceIds = useMemo(() => {
     if (diffPairs.length > 0) return new Set(diffPairs.map((p) => p.traceId));
     return humanReviewedTraceIds;
   }, [diffPairs, humanReviewedTraceIds]);
   const isFallbackList = diffPairs.length === 0 && humanReviewedTraceIds.size > 0;
 
-  return (
-    <div>
-      {/* Toolbar: tabs (left) + annotation filter (right) */}
-      <div className="mb-4 flex items-end justify-between gap-3 flex-wrap border-b">
-        <div className="flex gap-1">
-          {(
-            [
-              ["disagreement", t.humanReview.tabDisagreement],
-              ["confusion", t.humanReview.tabConfusion],
-              ["scatter", t.humanReview.tabScatter],
-            ] as const
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                tab === k
-                  ? "border-foreground text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 pb-2">
-          <span className="text-xs text-muted-foreground">
-            {t.humanReview.annotationFilter}
-          </span>
-          <select
-            value={selectedEval}
-            onChange={(e) => setSelectedEval(e.target.value)}
-            className="h-8 rounded-md border bg-background px-2 text-xs"
-          >
-            {evalNames.length === 0 && <option value="">—</option>}
-            {evalNames.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+  // ── Per-eval counts for filter pills ──
+  // Shows the number of traces that would appear in the disagreement list
+  // if that pill were active. Helps first-time users see at-a-glance which
+  // eval has work to review.
+  const evalCounts = useMemo(() => {
+    function countFor(evalName: string | null): number {
+      const pairsForE = evalName
+        ? allPairs.filter((p) => p.evalName === evalName)
+        : allPairs;
+      const diffs = pairsForE.filter((p) => p.isDiff);
+      if (diffs.length > 0) return new Set(diffs.map((p) => p.traceId)).size;
+      // Fallback: count human-reviewed traces matching the eval (or any).
+      let n = 0;
+      for (const tr of traces) {
+        const hit = evalName
+          ? tr.annotations.some((a) => a.annotatorKind === "HUMAN" && a.name === evalName)
+          : tr.annotations.some((a) => a.annotatorKind === "HUMAN");
+        if (hit) n++;
+      }
+      return n;
+    }
+    const counts: Record<string, number> = { __all__: countFor(null) };
+    for (const n of evalNames) counts[n] = countFor(n);
+    return counts;
+  }, [allPairs, traces, evalNames]);
 
-      {/* Body */}
-      {tab === "disagreement" ? (
+  return (
+    <div className="space-y-6">
+      {/* Annotation filter — pill row with per-eval counts */}
+      {evalNames.length > 0 && (
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            {t.humanReview.annotationFilter}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <FilterPill
+              active={selectedEval === ""}
+              label={t.humanReview.annotationFilterAll}
+              count={evalCounts.__all__ ?? 0}
+              onClick={() => setSelectedEval("")}
+            />
+            {evalNames.map((n) => (
+              <FilterPill
+                key={n}
+                active={selectedEval === n}
+                label={n}
+                count={evalCounts[n] ?? 0}
+                onClick={() => setSelectedEval(n)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stats row: confusion matrix + scatter side-by-side */}
+      {compared > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-xl border bg-card p-6">
+            <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {t.humanReview.tabConfusion}
+            </p>
+            <ConfusionTab counts={cm} t={t} />
+          </div>
+          <div className="rounded-xl border bg-card p-6">
+            <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {t.humanReview.tabScatter}
+            </p>
+            <ScatterTab pairs={filtered} slug={slug} t={t} />
+          </div>
+        </div>
+      )}
+
+      {/* Disagreement list section */}
+      <div>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t.humanReview.tabDisagreement}
+          </h2>
+          {disagreementTraceIds.size > 0 && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {disagreementTraceIds.size}
+              {compared > 0 ? ` / ${new Set(filtered.map((p) => p.traceId)).size}` : ""}
+            </span>
+          )}
+        </div>
         <DisagreementTab
           traceIds={disagreementTraceIds}
           traceTrees={traceTrees}
@@ -217,20 +257,43 @@ export function AiHumanComparison({
           isFallbackList={isFallbackList}
           t={t}
         />
-      ) : compared === 0 ? (
-        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          {t.humanReview.noComparable}
-        </div>
-      ) : tab === "confusion" ? (
-        <div className="rounded-xl border bg-card p-6">
-          <ConfusionTab counts={cm} t={t} />
-        </div>
-      ) : (
-        <div className="rounded-xl border bg-card p-6">
-          <ScatterTab pairs={filtered} slug={slug} t={t} />
-        </div>
-      )}
+      </div>
     </div>
+  );
+}
+
+// ─── Filter pill ──────────────────────────────────────────────────────────────
+
+function FilterPill({
+  active,
+  label,
+  count,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+        active
+          ? "border-foreground bg-foreground text-background"
+          : "border-border bg-card text-foreground hover:bg-muted"
+      }`}
+    >
+      <span className="font-medium">{label}</span>
+      <span
+        className={`tabular-nums ${
+          active ? "text-background/65" : "text-muted-foreground"
+        }`}
+      >
+        {count}
+      </span>
+    </button>
   );
 }
 
