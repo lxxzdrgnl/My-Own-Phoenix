@@ -16,6 +16,63 @@ export interface Trace {
   model: string;
   status: string;
   spanKind: string;
+  /** True when this trace contains ≥1 GUARDRAIL span with `guardrail.triggered=true`. */
+  hasGuardrailTriggered: boolean;
+}
+
+// ─── Guardrail span types ─────────────────────────────────────────────────
+
+export interface GuardrailDetection {
+  type: string;
+  start: number;
+  end: number;
+  masked: string;
+}
+
+/**
+ * Parse a raw `guardrail.detections` attribute value into a typed array.
+ * Accepts either a JSON string (the canonical OTel attribute form) or an
+ * already-parsed array. Returns `[]` on any error so callers can render
+ * gracefully when an emitter sends malformed data.
+ */
+export function parseGuardrailDetections(raw: unknown): GuardrailDetection[] {
+  if (!raw) return [];
+  let arr: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      arr = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  const out: GuardrailDetection[] = [];
+  for (const d of arr) {
+    if (!d || typeof d !== "object") continue;
+    const o = d as Record<string, unknown>;
+    const type = typeof o.type === "string" ? o.type : "";
+    const start = Number(o.start);
+    const end = Number(o.end);
+    const masked = typeof o.masked === "string" ? o.masked : "";
+    if (!type || Number.isNaN(start) || Number.isNaN(end)) continue;
+    out.push({ type, start, end, masked });
+  }
+  return out;
+}
+
+/**
+ * Walk a span tree and return true iff any node is a GUARDRAIL span with
+ * `guardrail.triggered === true`. Safe to call on trees that contain no
+ * guardrail spans at all (returns false).
+ */
+export function computeHasGuardrailTriggered(root: RawSpan): boolean {
+  if (root.spanKind?.toUpperCase() === "GUARDRAIL" && root.guardrailTriggered === true) {
+    return true;
+  }
+  for (const child of root.children ?? []) {
+    if (computeHasGuardrailTriggered(child)) return true;
+  }
+  return false;
 }
 
 export interface Annotation {
@@ -345,6 +402,17 @@ export async function fetchTraces(
 
     if (!query && !response) continue;
 
+    // Detect any triggered guardrail across all spans of this trace. Cheap
+    // linear scan — guardrail spans are rare and check is per-trace, not
+    // per-render. When no GUARDRAIL spans exist this is false.
+    const hasGuardrailTriggered = allSpans.some((ts) => {
+      if (ts.context?.trace_id !== traceId) return false;
+      const kind = String(
+        ts.attributes?.["openinference.span.kind"] ?? ts.span_kind ?? "",
+      ).toUpperCase();
+      return kind === "GUARDRAIL" && ts.attributes?.["guardrail.triggered"] === true;
+    });
+
     results.push({
       spanId: sid,
       traceId,
@@ -362,6 +430,7 @@ export async function fetchTraces(
       model: String(root.attributes?.["llm.model_name"] ?? ""),
       status: String(root.status_code ?? "OK"),
       spanKind: String(root.span_kind ?? ""),
+      hasGuardrailTriggered,
     });
   }
 
@@ -390,6 +459,13 @@ export interface RawSpan {
   cost: number;
   annotations: Annotation[];
   children: RawSpan[];
+  // ─── Guardrail (only set when spanKind === "GUARDRAIL") ───
+  /** True if the guard fired (PII detected / blocked / etc). */
+  guardrailTriggered?: boolean;
+  /** Guard subtype, e.g. "pii_mask". */
+  guardrailType?: string;
+  /** Parsed `guardrail.detections` array. */
+  guardrailDetections?: GuardrailDetection[];
 }
 
 export interface TraceTree {
@@ -398,6 +474,8 @@ export interface TraceTree {
   spanCount: number;
   latency: number;
   time: string;
+  /** True when this trace contains ≥1 GUARDRAIL span with `guardrail.triggered=true`. */
+  hasGuardrailTriggered: boolean;
 }
 
 function buildSpanTree(rawSpans: any[], annMap: Record<string, Annotation[]>): RawSpan[] {
@@ -412,12 +490,13 @@ function buildSpanTree(rawSpans: any[], annMap: Record<string, Annotation[]>): R
     const completionTokens = Number(attrs["llm.token_count.completion"] ?? 0);
     const totalTokens = Number(attrs["llm.token_count.total"] ?? 0);
 
+    const spanKindStr = String(attrs["openinference.span.kind"] ?? s.span_kind ?? "");
     const span: RawSpan = {
       spanId: sid,
       traceId: s.context?.trace_id ?? "",
       parentId: s.parent_id ?? null,
       name: s.name ?? "",
-      spanKind: String(attrs["openinference.span.kind"] ?? s.span_kind ?? ""),
+      spanKind: spanKindStr,
       status: String(s.status_code ?? "OK"),
       latency: s.end_time && s.start_time
         ? new Date(s.end_time).getTime() - new Date(s.start_time).getTime()
@@ -432,6 +511,17 @@ function buildSpanTree(rawSpans: any[], annMap: Record<string, Annotation[]>): R
       annotations: annMap[sid] ?? [],
       children: [],
     };
+
+    // Populate guardrail fields only when this is a GUARDRAIL span. Keeps
+    // the field absent for normal spans so downstream `?? false` checks
+    // are unambiguous.
+    if (spanKindStr.toUpperCase() === "GUARDRAIL") {
+      span.guardrailTriggered = attrs["guardrail.triggered"] === true;
+      const gt = attrs["guardrail.type"];
+      if (typeof gt === "string") span.guardrailType = gt;
+      span.guardrailDetections = parseGuardrailDetections(attrs["guardrail.detections"]);
+    }
+
     spanMap.set(sid, span);
   }
 
@@ -495,6 +585,7 @@ export async function fetchTraceTrees(
       spanCount: spans.length,
       latency: root.latency,
       time: rootStart ?? spans[0]?.start_time ?? "",
+      hasGuardrailTriggered: computeHasGuardrailTriggered(root),
     });
   }
 

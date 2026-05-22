@@ -178,7 +178,28 @@ def phoenix_get_annotations(project: str, span_ids: list[str]) -> dict[str, set[
         return {}
 
 
-def phoenix_upload_annotation(span_id: str, name: str, kind: str, label: str, score: float, explanation: str = "") -> None:
+def _notify_eval_completed(project: str, span_id: str, name: str, kind: str) -> None:
+    """Notify dashboard so SSE-connected clients refresh their view."""
+    if not INTERNAL_TOKEN or not project:
+        return
+    try:
+        ui_kind = "HUMAN" if kind == "HUMAN" else "LLM"
+        httpx.post(
+            f"{DASHBOARD_URL}/api/internal/eval-completed",
+            headers={**DASHBOARD_HEADERS, "Content-Type": "application/json"},
+            json={
+                "projectIdent": project,
+                "spanId": span_id,
+                "name": name,
+                "kind": ui_kind,
+            },
+            timeout=2,
+        )
+    except Exception as e:
+        logger.debug("eval-completed webhook failed: %s", e)
+
+
+def phoenix_upload_annotation(span_id: str, name: str, kind: str, label: str, score: float, explanation: str = "", project: str = "") -> None:
     try:
         _http.post("/v1/span_annotations?sync=true", json={
             "data": [{
@@ -190,6 +211,8 @@ def phoenix_upload_annotation(span_id: str, name: str, kind: str, label: str, sc
         })
     except Exception as e:
         logger.warning("Annotation upload failed (%s): %s", name, e)
+        return
+    _notify_eval_completed(project, span_id, name, kind)
 
 
 # ── Eval config from dashboard ────────────────────────────────────────────
@@ -765,7 +788,7 @@ def _run_trace_evals(
     """Trace-level evals on root span."""
     if "banned_word" in missing and response:
         r = eval_banned_word(response, query, context, root_span_data)
-        phoenix_upload_annotation(root_id, "banned_word", "CODE", r["label"], r["score"], r.get("explanation", ""))
+        phoenix_upload_annotation(root_id, "banned_word", "CODE", r["label"], r["score"], r.get("explanation", ""), project)
 
     if "qa_correctness" in missing and query and response:
         try:
@@ -775,34 +798,34 @@ def _run_trace_evals(
             if result is not None and not result.empty:
                 row = result.iloc[0]
                 phoenix_upload_annotation(root_id, "qa_correctness", "LLM",
-                    str(row.get("label", "")), float(row.get("score", 0)), str(row.get("explanation", "")))
+                    str(row.get("label", "")), float(row.get("score", 0)), str(row.get("explanation", "")), project)
         except Exception as e:
             logger.error("[%s] qa_correctness failed: %s", project, e)
 
     if "tool_calling" in missing and query and context:
         r = eval_tool_calling(query, context, project_id)
         if r:
-            phoenix_upload_annotation(root_id, "tool_calling", "LLM", r["label"], r["score"], r.get("explanation", ""))
+            phoenix_upload_annotation(root_id, "tool_calling", "LLM", r["label"], r["score"], r.get("explanation", ""), project)
 
     if "guardrail" in missing and response:
         r = _run_llm_eval("guardrail", default_prompts.GUARDRAIL, context, response, query, project_id)
         if r:
-            phoenix_upload_annotation(root_id, "guardrail", "LLM", r["label"], r["score"], r.get("explanation", ""))
+            phoenix_upload_annotation(root_id, "guardrail", "LLM", r["label"], r["score"], r.get("explanation", ""), project)
 
     if "hallucination" in missing and response:
         r = eval_hallucination(response, context or "(no context)", project_id)
         if r:
-            phoenix_upload_annotation(root_id, "hallucination", "LLM", r["label"], r["score"], r.get("explanation", ""))
+            phoenix_upload_annotation(root_id, "hallucination", "LLM", r["label"], r["score"], r.get("explanation", ""), project)
 
     if "citation" in missing and response:
         r = eval_citation(response, context or "(no context)", project_id)
         if r:
-            phoenix_upload_annotation(root_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""))
+            phoenix_upload_annotation(root_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""), project)
 
     if "rag_relevance" in missing and query:
         r = _run_llm_eval("rag_relevance", RAG_RELEVANCE_PROMPT, context or "(no context)", response, query, project_id)
         if r:
-            phoenix_upload_annotation(root_id, "rag_relevance", "LLM", r["label"], r["score"], r.get("explanation", ""))
+            phoenix_upload_annotation(root_id, "rag_relevance", "LLM", r["label"], r["score"], r.get("explanation", ""), project)
 
     # ── Custom evals (from dashboard) ──
     for eval_name in missing - BUILT_IN_EVALS:
@@ -813,7 +836,7 @@ def _run_trace_evals(
             if edef.eval_type == "code_rule" and edef.rule_config:
                 r = _eval_code_rule(edef.rule_config, query, response, context, root_span_data)
                 if r:
-                    phoenix_upload_annotation(root_id, eval_name, "CODE", r["label"], r["score"], r.get("explanation", ""))
+                    phoenix_upload_annotation(root_id, eval_name, "CODE", r["label"], r["score"], r.get("explanation", ""), project)
             elif edef.eval_type == "llm_prompt" and edef.template:
                 filled = edef.template.format(
                     context=context or "(no context)",
@@ -825,7 +848,7 @@ def _run_trace_evals(
                 r = _parse_eval_result(raw, edef.output_mode)
                 if r:
                     phoenix_upload_annotation(root_id, eval_name, "LLM",
-                        r["label"], r["score"], r["explanation"])
+                        r["label"], r["score"], r["explanation"], project)
         except Exception as e:
             logger.error("[%s] custom eval '%s' failed: %s", project, eval_name, e)
 
@@ -842,12 +865,12 @@ def _run_llm_span_evals(
     if "hallucination" in missing and response:
         r = eval_hallucination(response, context, project_id)
         if r:
-            phoenix_upload_annotation(span_id, "hallucination", "LLM", r["label"], r["score"], r.get("explanation", ""))
+            phoenix_upload_annotation(span_id, "hallucination", "LLM", r["label"], r["score"], r.get("explanation", ""), project)
 
     if "citation" in missing and response:
         r = eval_citation(response, context, project_id)
         if r:
-            phoenix_upload_annotation(span_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""))
+            phoenix_upload_annotation(span_id, "citation", "LLM", r["label"], r["score"], r.get("explanation", ""), project)
 
 
 RAG_RELEVANCE_PROMPT = """You are an expert at evaluating retrieval quality for RAG systems.
@@ -893,7 +916,7 @@ def _run_retriever_span_evals(
         r = _parse_eval_result(raw, "score")
         if r:
             phoenix_upload_annotation(span_id, "rag_relevance", "LLM",
-                r["label"], r["score"], r.get("explanation", ""))
+                r["label"], r["score"], r.get("explanation", ""), project)
     except Exception as e:
         logger.error("[%s] rag_relevance failed: %s", project, e)
 

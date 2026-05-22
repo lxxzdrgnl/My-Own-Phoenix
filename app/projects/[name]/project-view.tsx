@@ -2,7 +2,8 @@
 import { apiFetch } from "@/lib/api-client";
 import { useT } from "@/lib/i18n";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { FAIL_LABELS } from "@/lib/constants";
 import { fetchTraces, fetchTraceTrees, type Trace, type TraceTree } from "@/lib/phoenix";
 import { SpanTreeView } from "@/components/span-tree-view";
@@ -14,10 +15,14 @@ import { GapAnalysis, type GapDataItem } from "@/components/dashboard/widgets/ga
 import { computeMetrics, computeGovernScore, computeMapScore, computeMeasureScore, type FeedbackStats, type RmfScores } from "@/lib/rmf-utils";
 import type { AnnotationData, SpanData } from "@/lib/dashboard-utils";
 import { cn } from "@/lib/utils";
-import { Search, Filter, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Search, Filter } from "lucide-react";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
+import { QueryBar, ChipRow } from "@/components/query-bar";
+import { parseQuery, serializeQuery, applyFilters } from "@/lib/query";
+import type { QueryAST } from "@/lib/query";
+import { useProjectSse } from "@/lib/hooks/use-project-sse";
+import { useProjectOptional } from "@/lib/project-context";
 
 
 function formatMs(ms: number): string {
@@ -99,12 +104,57 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
   const [traces, setTraces] = useState<Trace[]>([]);
   const [traceTrees, setTraceTrees] = useState<TraceTree[]>([]);
   const [tracesLoading, setTracesLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [annotationFilter, setAnnotationFilter] = useState<"all" | "pass" | "fail" | "none">("all");
-  const [latencyFilter, setLatencyFilter] = useState<"all" | "fast" | "medium" | "slow">("all");
   const [activeTab, setActiveTab] = useState<"traces" | "measure">(defaultTab);
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(7));
+
+  // ── Query AST (single source of truth for filters) ──
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Derive known annotation names from loaded traces so the parser can
+  // distinguish annotation tokens from typos.
+  const knownAnnotations = useMemo(() => {
+    const s = new Set<string>();
+    for (const tr of traces) {
+      for (const a of tr.annotations) s.add(a.name);
+    }
+    return s;
+  }, [traces]);
+
+  const [queryAST, setQueryAST] = useState<QueryAST>({ tokens: [], annotationCombinator: "AND" });
+  // Track the last URL `?q=` value we processed so we only re-hydrate from URL
+  // when it actually changes externally (not on every router.replace we issue).
+  const initialQRef = useRef<string | null>(null);
+  useEffect(() => {
+    const q = searchParams?.get("q") ?? "";
+    if (initialQRef.current === q) return;
+    initialQRef.current = q;
+    const { ast } = parseQuery(q, knownAnnotations);
+    setQueryAST(ast);
+  }, [searchParams, knownAnnotations]);
+
+  const syncUrl = useCallback(
+    (ast: QueryAST) => {
+      const text = serializeQuery(ast);
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      if (text) params.set("q", text);
+      else params.delete("q");
+      const qs = params.toString();
+      initialQRef.current = text;
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
+
+  const handleQueryChange = useCallback(
+    (ast: QueryAST) => {
+      setQueryAST(ast);
+      syncUrl(ast);
+    },
+    [syncUrl],
+  );
 
   const loadTraces = useCallback(async () => {
     setTracesLoading(true);
@@ -126,30 +176,29 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
     loadTraces();
   }, [loadTraces]);
 
-  // ── Filtering ──
-  const GOOD_LABELS = ["factual", "correct", "clean", "relevant"];
-
-  const filteredTraces = traces.filter((tr) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!tr.query.toLowerCase().includes(q) && !tr.response.toLowerCase().includes(q)) return false;
-    }
-    if (annotationFilter === "none") {
-      if (tr.annotations.length > 0) return false;
-    } else if (annotationFilter === "pass") {
-      if (tr.annotations.length === 0) return false;
-      if (!tr.annotations.every((a) => GOOD_LABELS.includes(a.label) || a.score >= 0.8)) return false;
-    } else if (annotationFilter === "fail") {
-      if (tr.annotations.length === 0) return false;
-      if (!tr.annotations.some((a) => !GOOD_LABELS.includes(a.label) && a.score < 0.8)) return false;
-    }
-    if (latencyFilter === "fast" && tr.latency >= 1000) return false;
-    if (latencyFilter === "medium" && (tr.latency < 1000 || tr.latency >= 3000)) return false;
-    if (latencyFilter === "slow" && tr.latency < 3000) return false;
-    return true;
+  // Live updates via SSE — re-fetch traces when an eval completes for this project
+  const projectCtx = useProjectOptional();
+  useProjectSse(projectCtx?.id, (msg) => {
+    if (msg.type === "eval-completed") loadTraces();
   });
 
-  const hasActiveFilters = searchQuery !== "" || annotationFilter !== "all" || latencyFilter !== "all";
+  // ── Filtering ──
+  const filteredTraces = useMemo(
+    () => applyFilters(traces, queryAST),
+    [traces, queryAST],
+  );
+
+  const filteredTraceIds = useMemo(
+    () => new Set(filteredTraces.map((t) => t.traceId)),
+    [filteredTraces],
+  );
+
+  const filteredTraceTrees = useMemo(
+    () => traceTrees.filter((t) => filteredTraceIds.has(t.traceId)),
+    [traceTrees, filteredTraceIds],
+  );
+
+  const hasActiveFilters = queryAST.tokens.length > 0;
 
   // Metrics computation
   const traceCount = traceTrees.length || traces.length;
@@ -361,32 +410,16 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
 
             {/* Trace list */}
             <div className="mb-4">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <h2 className="text-lg font-semibold">{t.projects.traces}</h2>
                   <p className="text-sm text-muted-foreground">
                     {hasActiveFilters
-                      ? `${filteredTraces.length} / ${traces.length} ${t.projects.tracesCount}`
+                      ? `${filteredTraceTrees.length} / ${traceTrees.length} ${t.projects.tracesCount}`
                       : t.projects.recentRequests}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={t.projects.searchTraces}
-                      className="h-8 w-48 pl-8 text-xs"
-                    />
-                    {searchQuery && (
-                      <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2">
-                        <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                      </button>
-                    )}
-                  </div>
-                  {/* Filter toggle */}
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => setFilterOpen(!filterOpen)}
                     className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
@@ -397,13 +430,15 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                     {t.common.filter}
                     {hasActiveFilters && (
                       <span className="rounded bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                        {[annotationFilter !== "all", latencyFilter !== "all"].filter(Boolean).length}
+                        {queryAST.tokens.filter((tk) => tk.kind !== "error").length}
                       </span>
                     )}
                   </button>
                   {hasActiveFilters && (
                     <button
-                      onClick={() => { setSearchQuery(""); setAnnotationFilter("all"); setLatencyFilter("all"); }}
+                      onClick={() =>
+                        handleQueryChange({ tokens: [], annotationCombinator: "AND" })
+                      }
                       className="text-xs text-muted-foreground hover:text-foreground"
                     >
                       {t.projects.clear}
@@ -412,57 +447,26 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                 </div>
               </div>
 
-              {/* Filter panel */}
+              {/* Query bar — full width, two-way synced with chips */}
+              <div className="mt-3">
+                <QueryBar
+                  ast={queryAST}
+                  onChange={handleQueryChange}
+                  knownAnnotations={knownAnnotations}
+                />
+              </div>
+
+              {/* Chip row — same AST, click-to-toggle */}
               {filterOpen && (
-                <div className="mt-3 flex flex-wrap items-center gap-4 rounded-lg border bg-muted/20 px-4 py-3">
-                  {/* Annotation */}
-                  <div>
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.projects.annotation}</p>
-                    <div className="flex gap-1">
-                      {(["all", "pass", "fail", "none"] as const).map((v) => (
-                        <button
-                          key={v}
-                          onClick={() => setAnnotationFilter(v)}
-                          className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
-                            annotationFilter === v
-                              ? "border-foreground bg-foreground text-background"
-                              : "hover:bg-muted"
-                          }`}
-                        >
-                          {v === "all" ? t.projects.all : v === "pass" ? t.projects.pass : v === "fail" ? t.projects.fail : t.projects.noAnnotation}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Latency */}
-                  <div>
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.projects.latency}</p>
-                    <div className="flex gap-1">
-                      {([
-                        { v: "all", l: t.projects.all },
-                        { v: "fast", l: "<1s" },
-                        { v: "medium", l: "1-3s" },
-                        { v: "slow", l: ">3s" },
-                      ] as const).map(({ v, l }) => (
-                        <button
-                          key={v}
-                          onClick={() => setLatencyFilter(v)}
-                          className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
-                            latencyFilter === v
-                              ? "border-foreground bg-foreground text-background"
-                              : "hover:bg-muted"
-                          }`}
-                        >
-                          {l}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <ChipRow
+                  ast={queryAST}
+                  knownAnnotations={knownAnnotations}
+                  onChange={handleQueryChange}
+                />
               )}
             </div>
 
-            {traceTrees.length === 0 ? (
+            {filteredTraceTrees.length === 0 ? (
               <EmptyState
                 icon={Search}
                 title={traces.length === 0 ? t.projects.noTracesFound : t.projects.noTracesMatch}
@@ -470,7 +474,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                 className="py-12"
               />
             ) : (
-              <SpanTreeView traces={traceTrees} projectName={projectName} onRefresh={loadTraces} />
+              <SpanTreeView traces={filteredTraceTrees} projectName={projectName} onRefresh={loadTraces} />
             )}
           </>
         )}

@@ -7,9 +7,12 @@ import { LoadingState } from "@/components/ui/empty-state";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
+import { useProjectOptional } from "@/lib/project-context";
+import { TraceDetailTabs } from "./trace-detail-tabs";
 
 export function TraceDetailView({ projectName, traceId }: { projectName: string; traceId: string }) {
   const t = useT();
+  const projectCtx = useProjectOptional();
   const [traces, setTraces] = useState<TraceTree[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,17 +20,24 @@ export function TraceDetailView({ projectName, traceId }: { projectName: string;
     setLoading(true);
     try {
       const result = await fetchTraceTrees(projectName);
-      setTraces(result.filter((t) => t.traceId === traceId));
-    } catch (e) { console.error(e); }
+      setTraces(result.filter((tt) => tt.traceId === traceId));
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   }, [projectName, traceId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center gap-3">
-        <Link href={`/projects/${encodeURIComponent(projectName)}`} className="rounded p-1.5 transition-colors hover:bg-muted">
+        <Link
+          href={`/projects/${encodeURIComponent(projectName)}`}
+          className="rounded p-1.5 transition-colors hover:bg-muted"
+        >
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
@@ -37,7 +47,10 @@ export function TraceDetailView({ projectName, traceId }: { projectName: string;
       </div>
       {loading && <LoadingState />}
       {!loading && traces.length > 0 && (
-        <SpanTreeView traces={traces} projectName={projectName} onRefresh={load} />
+        <div className="space-y-4">
+          <TraceDetailTabs trace={traces[0]} projectId={projectCtx?.id} onRefresh={load} />
+          <SpanTreeView traces={traces} projectName={projectName} onRefresh={load} />
+        </div>
       )}
       {!loading && traces.length === 0 && (
         <p className="text-sm text-muted-foreground">{t.projects.traceNotFound}</p>

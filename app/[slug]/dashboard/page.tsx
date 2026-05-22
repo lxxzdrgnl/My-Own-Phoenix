@@ -17,6 +17,7 @@ import { AddWidgetMenu, WIDGET_GROUPS } from "@/components/dashboard/add-widget-
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
 import { type AnnotationData, type SpanData } from "@/lib/dashboard-utils";
 import { getWidget } from "@/components/dashboard/widgets/registry";
+import { LastUpdatedBadge } from "@/components/dashboard/last-updated-badge";
 
 // ─── Title sync & layout helpers ───
 
@@ -70,7 +71,7 @@ const DEFAULT_LAYOUTS: LayoutItem[] = [
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { phoenixProject: project, role } = useProject();
+  const { id: projectId, phoenixProject: project, role } = useProject();
   const t = useT();
   const isViewer = !canEdit(role);
 
@@ -82,31 +83,42 @@ export default function DashboardPage() {
   const [annotations, setAnnotations] = useState<AnnotationData[]>([]);
   const [spans, setSpans] = useState<SpanData[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(7));
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [lastUpdatedByName, setLastUpdatedByName] = useState<string | null>(null);
 
-  // ─── Load persisted layout ───
+  // ─── Load persisted layout (shared per-project) ───
+
+  const loadLayout = useCallback(async () => {
+    if (!projectId) return;
+    setLayoutLoaded(false);
+    try {
+      const r = await apiFetch(`/api/dashboard/layout?projectId=${encodeURIComponent(projectId)}`);
+      const data = await r.json();
+      if (data.layout) {
+        const parsed = JSON.parse(data.layout);
+        const w = fixWidgetTitles(parsed.widgets ?? DEFAULT_WIDGETS);
+        setWidgets(w);
+        setLayouts(fixLayoutMins(parsed.layouts ?? DEFAULT_LAYOUTS, w));
+        setViewModes(parsed.viewModes ?? {});
+        setWidgetColors(parsed.widgetColors ?? {});
+      } else {
+        setWidgets(DEFAULT_WIDGETS);
+        setLayouts(DEFAULT_LAYOUTS);
+        setWidgetColors({});
+      }
+      setLastUpdatedAt(data.updatedAt ?? null);
+      setLastUpdatedByName(data.updatedByName ?? null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLayoutLoaded(true);
+    }
+  }, [projectId]);
 
   useEffect(() => {
     if (!user) return;
-    setLayoutLoaded(false);
-    apiFetch(`/api/dashboard/layout?userId=${user.uid}&project=${encodeURIComponent(project)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.layout) {
-          const parsed = JSON.parse(data.layout);
-          const w = fixWidgetTitles(parsed.widgets ?? DEFAULT_WIDGETS);
-          setWidgets(w);
-          setLayouts(fixLayoutMins(parsed.layouts ?? DEFAULT_LAYOUTS, w));
-          setViewModes(parsed.viewModes ?? {});
-          setWidgetColors(parsed.widgetColors ?? {});
-        } else {
-          setWidgets(DEFAULT_WIDGETS);
-          setLayouts(DEFAULT_LAYOUTS);
-          setWidgetColors({});
-        }
-      })
-      .catch((e) => { console.error(e); })
-      .finally(() => setLayoutLoaded(true));
-  }, [user, project]);
+    loadLayout();
+  }, [user, loadLayout]);
 
   const saveLayout = useCallback(
     (
@@ -115,7 +127,7 @@ export default function DashboardPage() {
       newViewModes?: Record<string, WidgetViewMode>,
       newColors?: Record<string, WidgetColors>,
     ) => {
-      if (!layoutLoaded || !user || isViewer) return;
+      if (!layoutLoaded || !user || isViewer || !projectId) return;
       const w = newWidgets ?? widgets;
       const vm = newViewModes ?? viewModes;
       const wc = newColors ?? widgetColors;
@@ -124,14 +136,70 @@ export default function DashboardPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user.uid,
-          project,
+          projectId,
           layout: JSON.stringify({ widgets: w, layouts: newLayouts, viewModes: vm, widgetColors: wc }),
         }),
-      }).catch((e) => { console.error(e); });
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.updatedAt) {
+            setLastUpdatedAt(data.updatedAt);
+            // Show ourselves as the updater immediately; a follow-up GET on the
+            // next SSE message or refresh will pull the canonical display name.
+            setLastUpdatedByName(user.displayName ?? user.email ?? lastUpdatedByName);
+          }
+        })
+        .catch((e) => { console.error(e); });
     },
-    [user, widgets, viewModes, widgetColors, project, layoutLoaded, isViewer],
+    [user, widgets, viewModes, widgetColors, projectId, layoutLoaded, isViewer, lastUpdatedByName],
   );
+
+  // ─── SSE: refetch when another user saves ───
+
+  useEffect(() => {
+    if (!projectId || !user) return;
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const { auth } = await import("@/lib/firebase");
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetch(`/api/sse/project/${encodeURIComponent(projectId)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: ctrl.signal,
+        });
+        if (!res.body) return;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const events = buf.split("\n\n");
+          buf = events.pop() ?? "";
+          for (const ev of events) {
+            const dataLine = ev.split("\n").find((l) => l.startsWith("data: "));
+            if (!dataLine) continue;
+            try {
+              const msg = JSON.parse(dataLine.slice(6));
+              if (
+                msg?.type === "layout-updated" &&
+                msg.projectId === projectId &&
+                msg.savedBy !== user.uid
+              ) {
+                loadLayout();
+              }
+            } catch {
+              /* keep-alive comment or malformed payload — ignore */
+            }
+          }
+        }
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") console.error("[sse]", e);
+      }
+    })();
+    return () => ctrl.abort();
+  }, [projectId, user, loadLayout]);
 
   // ─── Data loading ───
 
@@ -248,6 +316,12 @@ export default function DashboardPage() {
         <RoleGate>
           <AddWidgetMenu onAdd={handleAddWidget} />
         </RoleGate>
+        {isViewer && (
+          <span className="rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            {t.dashboard.viewOnly}
+          </span>
+        )}
+        <LastUpdatedBadge updatedAt={lastUpdatedAt} updatedByName={lastUpdatedByName} />
       </div>
       <div
         className="relative flex-1 overflow-y-auto p-4"

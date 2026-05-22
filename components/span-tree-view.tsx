@@ -26,7 +26,11 @@ import {
   Zap,
   Plus,
   Trash2,
+  Shield,
+  ShieldCheck,
 } from "lucide-react";
+import { GuardrailDetail } from "@/components/span-detail/guardrail-detail";
+import { useT } from "@/lib/i18n";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -39,16 +43,30 @@ function formatSec(ms: number): string {
 }
 
 const SPAN_STYLES: Record<string, { icon: typeof Bot; bg: string; fg: string }> = {
-  LLM:       { icon: Bot,            bg: "bg-[#e8f5e9] dark:bg-[#2d4a2e]",  fg: "text-[#2e7d32] dark:text-[#6fcf6f]" },
-  CHAIN:     { icon: Link2,          bg: "bg-[#e3eafc] dark:bg-[#2e3a5b]",  fg: "text-[#3555c4] dark:text-[#6b8cff]" },
-  RETRIEVER: { icon: Search,         bg: "bg-[#fce4ec] dark:bg-[#4a2d3a]",  fg: "text-[#b0446e] dark:text-[#e07baf]" },
-  TOOL:      { icon: Box,            bg: "bg-[#fef3e2] dark:bg-[#4a3b2d]",  fg: "text-[#b57530] dark:text-[#e0a86b]" },
-  PROMPT:    { icon: MessageSquare,  bg: "bg-[#f3e5f5] dark:bg-[#3b2d4a]",  fg: "text-[#7b40a0] dark:text-[#b07be0]" },
-  DEFAULT:   { icon: Zap,            bg: "bg-muted",                         fg: "text-muted-foreground" },
+  LLM:            { icon: Bot,            bg: "bg-[#e8f5e9] dark:bg-[#2d4a2e]",  fg: "text-[#2e7d32] dark:text-[#6fcf6f]" },
+  CHAIN:          { icon: Link2,          bg: "bg-[#e3eafc] dark:bg-[#2e3a5b]",  fg: "text-[#3555c4] dark:text-[#6b8cff]" },
+  RETRIEVER:      { icon: Search,         bg: "bg-[#fce4ec] dark:bg-[#4a2d3a]",  fg: "text-[#b0446e] dark:text-[#e07baf]" },
+  TOOL:           { icon: Box,            bg: "bg-[#fef3e2] dark:bg-[#4a3b2d]",  fg: "text-[#b57530] dark:text-[#e0a86b]" },
+  PROMPT:         { icon: MessageSquare,  bg: "bg-[#f3e5f5] dark:bg-[#3b2d4a]",  fg: "text-[#7b40a0] dark:text-[#b07be0]" },
+  GUARDRAIL:      { icon: Shield,         bg: "bg-red-500/15",                    fg: "text-red-600 dark:text-red-400" },
+  GUARDRAIL_PASS: { icon: ShieldCheck,    bg: "bg-muted",                         fg: "text-muted-foreground" },
+  DEFAULT:        { icon: Zap,            bg: "bg-muted",                         fg: "text-muted-foreground" },
 };
 
-function getSpanStyle(kind: string) {
-  return SPAN_STYLES[kind.toUpperCase()] ?? SPAN_STYLES.DEFAULT;
+/**
+ * Look up the visual style for a span. Accepts either a full RawSpan
+ * (preferred — lets us branch on guardrail.triggered for GUARDRAIL
+ * spans) or a bare kind string (legacy callers).
+ */
+function getSpanStyle(arg: RawSpan | string) {
+  if (typeof arg === "string") {
+    return SPAN_STYLES[arg.toUpperCase()] ?? SPAN_STYLES.DEFAULT;
+  }
+  const kind = (arg.spanKind ?? "").toUpperCase();
+  if (kind === "GUARDRAIL" && arg.guardrailTriggered !== true) {
+    return SPAN_STYLES.GUARDRAIL_PASS;
+  }
+  return SPAN_STYLES[kind] ?? SPAN_STYLES.DEFAULT;
 }
 
 function StatusIcon({ status }: { status: string }) {
@@ -79,7 +97,23 @@ const SPAN_BAR_COLORS: Record<string, string> = {
   TOOL: "#e0a86b",
   AGENT: "#b0b0b0",
   PROMPT: "#c4a0d8",
+  GUARDRAIL: "#dc2626",       // triggered (red)
+  GUARDRAIL_PASS: "#9ca3af",  // pass (gray)
 };
+
+/**
+ * Resolve the timeline-bar color for a span. GUARDRAIL spans switch
+ * red→gray based on `guardrail.triggered`.
+ */
+function getSpanBarColor(span: RawSpan): string {
+  const kind = (span.spanKind ?? "").toUpperCase();
+  if (kind === "GUARDRAIL") {
+    return span.guardrailTriggered === true
+      ? SPAN_BAR_COLORS.GUARDRAIL
+      : SPAN_BAR_COLORS.GUARDRAIL_PASS;
+  }
+  return SPAN_BAR_COLORS[kind] ?? "#888";
+}
 
 /** Timeline bar showing how each direct child span contributed to total time */
 function SpanTimeline({ rootSpan }: { rootSpan: RawSpan }) {
@@ -96,7 +130,7 @@ function SpanTimeline({ rootSpan }: { rootSpan: RawSpan }) {
       <div className="h-2.5 flex rounded-full overflow-hidden bg-white dark:bg-white/10">
         {children.map((child) => {
           const pct = Math.max(1, (child.latency / totalMs) * 100);
-          const color = SPAN_BAR_COLORS[child.spanKind?.toUpperCase()] ?? "#888";
+          const color = getSpanBarColor(child);
           return (
             <div
               key={child.spanId}
@@ -110,7 +144,7 @@ function SpanTimeline({ rootSpan }: { rootSpan: RawSpan }) {
       {/* Labels */}
       <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5">
         {children.map((child) => {
-          const color = SPAN_BAR_COLORS[child.spanKind?.toUpperCase()] ?? "#888";
+          const color = getSpanBarColor(child);
           return (
             <div key={child.spanId} className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
@@ -142,7 +176,7 @@ function SpanNode({
   const [expanded, setExpanded] = useState(true);
   const hasChildren = span.children.length > 0;
   const isSelected = selectedId === span.spanId;
-  const style = getSpanStyle(span.spanKind);
+  const style = getSpanStyle(span);
   const Icon = style.icon;
 
   return (
@@ -245,7 +279,7 @@ function SpanNode({
 // ─── Root Span Header ────────────────────────────────────────────────────────
 
 function RootHeader({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; onDeleteAnnotation?: (spanId: string, name: string) => void; onAnnotate?: (spanId: string, annotations: Annotation[]) => void }) {
-  const style = getSpanStyle(span.spanKind);
+  const style = getSpanStyle(span);
   const Icon = style.icon;
 
   // Count total tokens and cost from tree
@@ -315,8 +349,14 @@ function RootHeader({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; o
 
 function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; onDeleteAnnotation?: (spanId: string, name: string) => void; onAnnotate?: (spanId: string, annotations: Annotation[]) => void }) {
   const [activeTab, setActiveTab] = useState<"input" | "output">("input");
-  const style = getSpanStyle(span.spanKind);
+  const style = getSpanStyle(span);
   const Icon = style.icon;
+
+  // GUARDRAIL spans get a bespoke side-by-side diff renderer instead of
+  // the generic input/output tabs.
+  if (span.spanKind?.toUpperCase() === "GUARDRAIL") {
+    return <GuardrailDetail span={span} />;
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -427,7 +467,8 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
     setAnnotateSpanId(spanId);
     setAnnotateAnnotations(annotations);
   }
-  const style = getSpanStyle(trace.rootSpan.spanKind);
+  const t = useT();
+  const style = getSpanStyle(trace.rootSpan);
   const Icon = style.icon;
 
   return (
@@ -493,6 +534,15 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
           <StatusIcon status={trace.rootSpan.status} />
           {expanded && (
             <span className="text-[11px] tabular-nums text-muted-foreground">{formatSec(trace.latency)}</span>
+          )}
+          {trace.hasGuardrailTriggered && (
+            <span
+              title={t.projects.guardrailTriggered}
+              className="inline-flex items-center gap-1 rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 dark:text-red-400"
+            >
+              <Shield className="size-2.5" />
+              {t.projects.guardBadge}
+            </span>
           )}
           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
             {trace.spanCount} span{trace.spanCount !== 1 && "s"}

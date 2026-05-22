@@ -19,6 +19,7 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeft,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -56,6 +57,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
         { href: "dashboard", label: t.dashboard.title, icon: LayoutDashboard },
         { href: "requests", label: t.projects.requests ?? "Requests", icon: List },
         { href: "evaluations", label: t.evaluations.title, icon: SlidersHorizontal },
+        { href: "human-review", label: t.projects.humanReview ?? "Human Review", icon: Users },
       ],
     },
     {

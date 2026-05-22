@@ -1,37 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { broadcast } from "@/lib/sse-broadcast";
+import { layoutGetCore, layoutPutCore, type LayoutDeps } from "./core";
 
-export const GET = authedHandler(async (req: NextRequest) => {
-  const userId = req.nextUrl.searchParams.get("userId");
-  const project = req.nextUrl.searchParams.get("project") ?? "default";
-  if (!userId) {
-    return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", { userId: "userId is required" });
-  }
+/**
+ * Per-project shared dashboard layout.
+ *
+ * GET /api/dashboard/layout?projectId=<id>
+ *   - Any project member (viewer+) can read.
+ * PUT /api/dashboard/layout    body: { projectId, layout }
+ *   - Editor+ only. Upserts the row, stamps `lastUpdatedBy = uid`, and
+ *     broadcasts a `layout-updated` SSE message so other open clients can
+ *     re-fetch.
+ *
+ * Business logic lives in ./core.ts behind LayoutDeps so it can be unit-tested
+ * without Prisma / Firebase. See scripts/test-dashboard-layout-api.ts.
+ */
+function realDeps(): LayoutDeps {
+  return {
+    findMember: (projectId, userId) =>
+      prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId } },
+        select: { role: true },
+      }),
+    findLayout: (projectId) =>
+      prisma.dashboardLayout.findUnique({
+        where: { projectId },
+        select: {
+          layout: true,
+          lastUpdatedBy: true,
+          updatedAt: true,
+          updatedByUser: { select: { name: true, email: true } },
+        },
+      }),
+    upsertLayout: (projectId, layout, uid) =>
+      prisma.dashboardLayout.upsert({
+        where: { projectId },
+        update: { layout, lastUpdatedBy: uid },
+        create: { projectId, layout, lastUpdatedBy: uid },
+        select: { layout: true, lastUpdatedBy: true, updatedAt: true },
+      }),
+    broadcast,
+  };
+}
 
-  const record = await prisma.dashboardLayout.findUnique({
-    where: { userId_projectName: { userId, projectName: project } },
+export const GET = authedHandler(async (req: NextRequest, uid: string) => {
+  const projectId = req.nextUrl.searchParams.get("projectId") ?? "";
+  const result = await layoutGetCore({ projectId, uid, deps: realDeps() });
+  if (result.status === "validation")
+    return apiError(req, ErrorCode.VALIDATION_FAILED, "projectId is required", { projectId: "missing" });
+  if (result.status === "forbidden") return apiError(req, ErrorCode.FORBIDDEN, "Not a project member");
+  return NextResponse.json({
+    layout: result.layout,
+    lastUpdatedBy: result.lastUpdatedBy,
+    updatedAt: result.updatedAt,
+    updatedByName: result.updatedByName,
   });
-
-  return NextResponse.json({ layout: record?.layout ?? null });
 });
 
-export const PUT = authedHandler(async (req: NextRequest) => {
-  const { userId, project, layout } = await req.json();
-
-  if (!userId || !layout) {
+export const PUT = authedHandler(async (req: NextRequest, uid: string) => {
+  const body = await req.json().catch(() => ({}));
+  const projectId = typeof body.projectId === "string" ? body.projectId : "";
+  const layout = typeof body.layout === "string" ? body.layout : "";
+  const result = await layoutPutCore({ projectId, uid, layout, deps: realDeps() });
+  if (result.status === "validation")
     return apiError(req, ErrorCode.VALIDATION_FAILED, "Validation failed", {
-      fields: "userId and layout are required",
+      projectId: projectId ? undefined : "projectId is required",
+      layout: layout ? undefined : "layout is required",
     });
-  }
-
-  const proj = project ?? "default";
-
-  const record = await prisma.dashboardLayout.upsert({
-    where: { userId_projectName: { userId, projectName: proj } },
-    update: { layout },
-    create: { userId, projectName: proj, layout },
-  });
-
-  return NextResponse.json({ layout: record.layout });
+  if (result.status === "forbidden") return apiError(req, ErrorCode.FORBIDDEN, "Editor access required");
+  return NextResponse.json({ success: true, updatedAt: result.updatedAt });
 });
