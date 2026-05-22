@@ -11,8 +11,7 @@ import { HighchartWidget } from "@/components/dashboard/widgets/highchart-widget
 import { MeasureGrid } from "@/components/dashboard/widgets/measure-grid";
 import { RmfFunctionCards } from "@/components/dashboard/widgets/rmf-function-card";
 import { GapAnalysis, type GapDataItem } from "@/components/dashboard/widgets/gap-analysis";
-import { ManageView } from "@/components/dashboard/widgets/manage-view";
-import { computeMetrics, computeGovernScore, computeMapScore, computeMeasureScore, computeManageScore, type FeedbackStats, type RmfScores } from "@/lib/rmf-utils";
+import { computeMetrics, computeGovernScore, computeMapScore, computeMeasureScore, type FeedbackStats, type RmfScores } from "@/lib/rmf-utils";
 import type { AnnotationData, SpanData } from "@/lib/dashboard-utils";
 import { cn } from "@/lib/utils";
 import { Search, Filter, X } from "lucide-react";
@@ -95,7 +94,7 @@ function buildPassFailChartOptions(traces: Trace[]): Highcharts.Options {
   };
 }
 
-export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = false }: { projectName: string; defaultTab?: "traces" | "measure" | "risk"; hideTabBar?: boolean }) {
+export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = false }: { projectName: string; defaultTab?: "traces" | "measure"; hideTabBar?: boolean }) {
   const t = useT();
   const [traces, setTraces] = useState<Trace[]>([]);
   const [traceTrees, setTraceTrees] = useState<TraceTree[]>([]);
@@ -103,7 +102,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
   const [searchQuery, setSearchQuery] = useState("");
   const [annotationFilter, setAnnotationFilter] = useState<"all" | "pass" | "fail" | "none">("all");
   const [latencyFilter, setLatencyFilter] = useState<"all" | "fast" | "medium" | "slow">("all");
-  const [activeTab, setActiveTab] = useState<"traces" | "measure" | "risk">(defaultTab);
+  const [activeTab, setActiveTab] = useState<"traces" | "measure">(defaultTab);
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(7));
 
@@ -219,25 +218,6 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
     return computeMetrics(spanData, annData, feedbackStats);
   }, [traceTrees, traces, feedbackStats]);
 
-  // Risk stats
-  const [riskStats, setRiskStats] = useState({ total: 0, mitigated: 0, openIncidents: 0 });
-  const loadRiskStats = useCallback(async () => {
-    try {
-      const [risksRes, incidentsRes] = await Promise.all([
-        apiFetch(`/api/risks?projectId=${encodeURIComponent(projectName)}`).then((r) => r.json()).catch(() => ({ risks: [] })),
-        apiFetch(`/api/incidents?projectId=${encodeURIComponent(projectName)}`).then((r) => r.json()).catch(() => ({ incidents: [] })),
-      ]);
-      const risks = risksRes.risks ?? [];
-      const incidents = incidentsRes.incidents ?? [];
-      setRiskStats({
-        total: risks.length,
-        mitigated: risks.filter((r: any) => r.status === "MITIGATED").length,
-        openIncidents: incidents.filter((i: any) => i.status !== "RESOLVED").length,
-      });
-    } catch (e) { console.error(e); }
-  }, [projectName]);
-  useEffect(() => { loadRiskStats(); }, [loadRiskStats]);
-
   // RMF scores
   const rmfScores: RmfScores = useMemo(() => {
     const builtInCount = 6;
@@ -252,9 +232,8 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
       govern: computeGovernScore(enabledEvalCount, builtInCount + Math.max(0, customEvalCount), customEvalCount > 0),
       map: computeMapScore(rmfMetrics),
       measure: computeMeasureScore(rmfMetrics),
-      manage: computeManageScore(riskStats.total, riskStats.mitigated, riskStats.openIncidents),
     };
-  }, [rmfMetrics, traceTrees, riskStats]);
+  }, [rmfMetrics, traceTrees]);
 
   // Gap analysis data
   const gapData: GapDataItem[] = useMemo(() => {
@@ -298,7 +277,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
           </div>
           {!hideTabBar && (
           <div className="flex gap-1 border-b">
-          {(["traces", "measure", "risk"] as const).map((tab) => (
+          {(["traces", "measure"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -309,7 +288,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              {{ traces: t.projects.traces, measure: t.projects.measure, risk: t.projects.riskManagement }[tab]}
+              {{ traces: t.projects.traces, measure: t.projects.measure }[tab]}
             </button>
           ))}
           </div>
@@ -503,11 +482,6 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
             <MeasureGrid metrics={rmfMetrics} />
             <GapAnalysis data={gapData} />
           </div>
-        )}
-
-        {/* Risk tab */}
-        {activeTab === "risk" && (
-          <ManageView projectId={projectName} />
         )}
       </div>
     </div>

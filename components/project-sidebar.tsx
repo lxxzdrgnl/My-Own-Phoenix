@@ -12,7 +12,6 @@ import {
   SlidersHorizontal,
   Gauge,
   Database,
-  ShieldAlert,
   Shield,
   Settings2,
   Settings,
@@ -64,7 +63,6 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
       items: [
         { href: "measure", label: t.projects.measureNav ?? "Risk Management", icon: Gauge },
         { href: "pii-guard", label: t.projects.piiGuard ?? "PII Guard", icon: Shield },
-        { href: "risks", label: t.projects.risksNav ?? "Risks", icon: ShieldAlert },
       ],
     },
   ];

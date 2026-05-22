@@ -295,7 +295,6 @@ export interface RmfScores {
   govern: number;  // 0-100
   map: number;     // 0-100
   measure: number; // 0-100
-  manage: number;  // 0-100
 }
 
 /** GOVERN: How well is AI governance configured for this project? */
@@ -341,15 +340,6 @@ export function computeMeasureScore(metrics: MetricValue[]): number {
   if (metrics.length === 0) return 0;
   const total = metrics.reduce((sum, m) => sum + m.value, 0);
   return Math.round(total / metrics.length);
-}
-
-/** MANAGE: Risk mitigation coverage. No data = 0 (not configured) */
-export function computeManageScore(totalRisks: number, mitigatedRisks: number, openIncidents: number): number {
-  if (totalRisks === 0 && openIncidents === 0) return 0; // Not configured
-  if (totalRisks === 0) return Math.max(0, 50 - openIncidents * 10);
-  const mitigationRate = (mitigatedRisks / totalRisks) * 100;
-  const incidentPenalty = Math.min(30, openIncidents * 10);
-  return Math.max(0, Math.round(mitigationRate - incidentPenalty));
 }
 
 // ─── Gap status ───

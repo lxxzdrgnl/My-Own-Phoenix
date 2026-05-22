@@ -63,40 +63,6 @@ model MessageFeedback {
   @@unique([messageId, userId])
 }
 
-model RiskItem {
-  id         String    @id @default(cuid())
-  projectId  String?
-  name       String
-  system     String
-  riskLevel  String
-  mitigation String
-  status     String    @default("OPEN")
-  assignee   String?
-  dueDate    DateTime?
-  resolvedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([projectId])
-  @@index([status])
-  @@index([assignee])
-}
-
-model Incident {
-  id         String    @id @default(cuid())
-  projectId  String?
-  title      String
-  severity   String
-  status     String    @default("OPEN")
-  createdAt  DateTime  @default(now())
-  resolvedAt DateTime?
-  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([projectId])
-  @@index([createdAt])
-}
-
 model DashboardLayout {
   id          String   @id @default(cuid())
   userId      String
@@ -263,8 +229,6 @@ model Project {
   datasets          Dataset[]
   evalConfigs       ProjectEvalConfig[]
   evalPrompts       EvalPrompt[]
-  riskItems         RiskItem[]
-  incidents         Incident[]
   dashboardLayouts  DashboardLayout[]
   threads           Thread[]
   connectorSessions ConnectorSession[]

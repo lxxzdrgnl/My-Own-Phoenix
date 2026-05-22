@@ -421,7 +421,6 @@ const FRAMEWORK_CARDS = [
   { label: "GOVERN", subtitle: "Governance", score: "90%", desc: "AI policy, eval coverage, ethics principles, guardrail configuration" },
   { label: "MAP", subtitle: "Risk Identification", score: "100%", desc: "Risk category coverage, eval type diversity, impact analysis" },
   { label: "MEASURE", subtitle: "Risk Measurement", score: "90%", desc: "12 performance metrics — all normalized 0-100%, higher is better" },
-  { label: "MANAGE", subtitle: "Risk Response", score: "0%", desc: "Risk mitigation rate, incident response, remediation actions" },
 ];
 
 /* ── All 12 MEASURE metrics ── */

@@ -15,10 +15,10 @@ interface RmfFunctionCardsProps {
 
 interface FunctionDef {
   key: keyof RmfScores;
-  nameKey: "govern" | "map" | "measureName" | "manage";
-  labelKey: "governLabel" | "mapLabel" | "measureLabel" | "manageLabel";
-  descKey: "governDesc" | "mapDesc" | "measureDesc" | "manageDesc";
-  formulaKey: "governFormula" | "mapFormula" | "measureFormula" | "manageFormula";
+  nameKey: "govern" | "map" | "measureName";
+  labelKey: "governLabel" | "mapLabel" | "measureLabel";
+  descKey: "governDesc" | "mapDesc" | "measureDesc";
+  formulaKey: "governFormula" | "mapFormula" | "measureFormula";
   color: string;
 }
 
@@ -47,21 +47,13 @@ const RMF_FUNCTIONS: FunctionDef[] = [
     formulaKey: "measureFormula",
     color: "#10b981",
   },
-  {
-    key: "manage",
-    nameKey: "manage",
-    labelKey: "manageLabel",
-    descKey: "manageDesc",
-    formulaKey: "manageFormula",
-    color: "#14b8a6",
-  },
 ];
 
 export function RmfFunctionCards({ scores, measureScore, className }: RmfFunctionCardsProps) {
   const t = useT();
 
   return (
-    <div className={cn("grid grid-cols-4 gap-4 p-4", className)}>
+    <div className={cn("grid grid-cols-3 gap-4 p-4", className)}>
       {RMF_FUNCTIONS.map((fn) => {
         const score = scores[fn.key] ?? (fn.key === "measure" ? measureScore : undefined);
         const display = score !== undefined ? `${score}%` : "\u2014";

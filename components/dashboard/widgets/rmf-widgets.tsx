@@ -2,7 +2,7 @@
 
 import { MeasureGrid } from "./measure-grid";
 import { RmfFunctionCards } from "./rmf-function-card";
-import { computeMetrics, computeGovernScore, computeMapScore, computeMeasureScore, computeManageScore, type RmfScores } from "@/lib/rmf-utils";
+import { computeMetrics, computeGovernScore, computeMapScore, computeMeasureScore, type RmfScores } from "@/lib/rmf-utils";
 import { StatCard } from "./stat-card";
 import { HighchartWidget } from "./highchart-widget";
 import {
@@ -24,7 +24,6 @@ export function rmf_overview({ annotations, spans }: WidgetRenderProps) {
     govern: computeGovernScore(evalNames.size, 6, evalNames.size > 6),
     map: computeMapScore(metrics),
     measure: computeMeasureScore(metrics),
-    manage: computeManageScore(0, 0, 0), // No risk data in widget context
   };
   return <RmfFunctionCards scores={scores} />;
 }
