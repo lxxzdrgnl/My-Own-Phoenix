@@ -16,13 +16,13 @@ interface BackfillResult {
 
 interface EvalBackfillPanelProps {
   selectedEval: string | null;
-  selectedProject: string | null;
+  projectId: string | undefined;
   editTemplate: string;
 }
 
 export function EvalBackfillPanel({
   selectedEval,
-  selectedProject,
+  projectId,
   editTemplate,
 }: EvalBackfillPanelProps) {
   const t = useT();
@@ -31,7 +31,7 @@ export function EvalBackfillPanel({
   const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
 
   async function handleBackfill() {
-    if (!selectedEval || !selectedProject) return;
+    if (!selectedEval || !projectId) return;
     setBackfilling(true);
     setBackfillResult(null);
     try {
@@ -39,7 +39,7 @@ export function EvalBackfillPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: selectedProject,
+          projectId,
           evalName: selectedEval,
           startDate: backfillRange.from.toISOString().split("T")[0],
           endDate: backfillRange.to.toISOString().split("T")[0],

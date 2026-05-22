@@ -6,3 +6,12 @@ docs/
 prisma/dev.db
 prisma/dev.db-journal
 postgres_data
+
+# Never bake secret env files into the image — env_file in docker-compose
+# is the single source of truth at runtime. Without this, a stray .env in
+# the build context (e.g. a developer's local file) gets COPYed into /app
+# and silently shadows the env_file values via Next.js dotenv auto-loading.
+.env
+.env.local
+.env.*.local
+!.env.example

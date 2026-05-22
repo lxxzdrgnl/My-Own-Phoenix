@@ -210,14 +210,22 @@ _project_configs_loaded_at: dict[str, float] = {}
 
 
 def _load_eval_defs(project: str = "") -> dict[str, EvalDef]:
-    """Load eval definitions for a project from dashboard API. Refresh every 60s."""
+    """Load eval definitions for a project from dashboard API. Refresh every 60s.
+
+    `project` is a Phoenix project name; the dashboard API keys by DB project id (cuid),
+    so we resolve before calling. Cache key remains the phoenix project name.
+    """
     now = time.time()
     if project in _eval_defs and now - _eval_defs_loaded_at.get(project, 0) < 60:
         return _eval_defs[project]
     try:
         url = f"{DASHBOARD_URL}/api/eval-prompts"
         if project:
-            url += f"?projectId={project}"
+            db_id = _resolve_project_id(project)
+            if not db_id:
+                # No mapping yet — fall back to global defs rather than mis-keying.
+                return _eval_defs.get(project, {})
+            url += f"?projectId={db_id}"
         resp = httpx.get(url, headers=DASHBOARD_HEADERS, timeout=5)
         if resp.status_code == 200:
             defs = {}
@@ -244,12 +252,19 @@ def _load_eval_defs(project: str = "") -> dict[str, EvalDef]:
 
 
 def _load_project_config(project: str) -> dict[str, bool]:
-    """Load enabled/disabled evals for a project. Refresh every 60s."""
+    """Load enabled/disabled evals for a project. Refresh every 60s.
+
+    `project` is a Phoenix project name; resolve to DB cuid before calling the
+    dashboard, which keys ProjectEvalConfig by Project.id.
+    """
     now = time.time()
     if project in _project_configs and now - _project_configs_loaded_at.get(project, 0) < 60:
         return _project_configs[project]
+    db_id = _resolve_project_id(project)
+    if not db_id:
+        return _project_configs.get(project, {})
     try:
-        resp = httpx.get(f"{DASHBOARD_URL}/api/eval-config?projectId={project}", headers=DASHBOARD_HEADERS, timeout=5)
+        resp = httpx.get(f"{DASHBOARD_URL}/api/eval-config?projectId={db_id}", headers=DASHBOARD_HEADERS, timeout=5)
         if resp.status_code == 200:
             configs = resp.json().get("configs", [])
             result = {c["evalName"]: c["enabled"] for c in configs}

@@ -27,6 +27,45 @@ export const DEFAULT_CHAT_SUGGESTIONS: ChatSuggestion[] = [];
 
 export const MAX_CHAT_SUGGESTIONS = 4;
 
+// Per-user default prompt template, seeded into every newly created project as
+// a starter Phoenix prompt. User can override it in General Settings.
+export const PROMPT_TEMPLATE_KEY = "promptTemplate";
+
+export interface PromptTemplate {
+  system: string;
+  context: string;
+}
+
+export const DEFAULT_PROMPT_TEMPLATE: PromptTemplate = {
+  system: "당신은 도움이 되는 AI 어시스턴트입니다. 사용자의 질문에 정확하고 간결하게 답하세요. 모르는 내용은 솔직히 모른다고 답하세요.",
+  context: "",
+};
+
+export function parsePromptTemplate(json: string | undefined): PromptTemplate {
+  if (!json) return DEFAULT_PROMPT_TEMPLATE;
+  try {
+    const parsed = JSON.parse(json);
+    return {
+      system: typeof parsed.system === "string" ? parsed.system : DEFAULT_PROMPT_TEMPLATE.system,
+      context: typeof parsed.context === "string" ? parsed.context : DEFAULT_PROMPT_TEMPLATE.context,
+    };
+  } catch {
+    return DEFAULT_PROMPT_TEMPLATE;
+  }
+}
+
+// Phoenix CHAT prompt standard:
+//   - system message: the system prompt text as-is
+//   - user message: optional context block + the mustache {{query}} variable
+export function renderTemplateSystemMessage(t: PromptTemplate): string {
+  return t.system;
+}
+
+export function renderTemplateUserMessage(t: PromptTemplate): string {
+  const ctx = t.context.trim();
+  return ctx ? `${ctx}\n\n{{query}}` : "{{query}}";
+}
+
 export function parseChatSuggestions(json: string | undefined): ChatSuggestion[] {
   if (!json) return DEFAULT_CHAT_SUGGESTIONS;
   try {

@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Clock, ChevronRight, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { apiFetch } from "@/lib/api-client";
+import { useProject } from "@/lib/project-context";
 
 interface Detection {
   type: string;
@@ -22,7 +24,7 @@ interface PiiEvalRow {
     stage2: Detection[];
     combined: Detection[];
   };
-  outcome: "TP" | "TN" | "FP" | "FN" | "PARTIAL";
+  outcome: "TP" | "TN" | "FP" | "FN" | "PARTIAL" | "LIVE";
   latency_ms: number;
   output_guard?: {
     simulated_output: string;
@@ -39,6 +41,7 @@ const OUTCOME_BADGE: Record<string, string> = {
   FP: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
   FN: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   PARTIAL: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+  LIVE: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
 };
 
 const CATEGORY_BADGE: Record<string, string> = {
@@ -47,6 +50,7 @@ const CATEGORY_BADGE: Record<string, string> = {
   obfuscated: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   cross_session: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
   prompt_injection: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  live: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
 };
 
 const TYPE_BADGE: Record<string, string> = {
@@ -56,9 +60,12 @@ const TYPE_BADGE: Record<string, string> = {
   credit_card: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
   email: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   demographic: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
+  name: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  address: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
 };
 
 export function PiiGuardPastRuns() {
+  const { id: projectId } = useProject();
   const [rows, setRows] = useState<PiiEvalRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -67,15 +74,21 @@ export function PiiGuardPastRuns() {
   const [outcomeFilter, setOutcomeFilter] = useState("all");
 
   useEffect(() => {
-    fetch("/datasets/pii-eval-results.json")
+    if (!projectId) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    apiFetch(`/api/pii-guard/runs?projectId=${encodeURIComponent(projectId)}`)
       .then((r) => r.json())
       .then((data) => {
-        setRows(data);
-        if (data.length > 0) setSelectedId(data[0].id);
+        const runs: PiiEvalRow[] = data.runs ?? [];
+        setRows(runs);
+        if (runs.length > 0) setSelectedId(runs[0].id);
       })
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectId]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -90,7 +103,10 @@ export function PiiGuardPastRuns() {
 
   const metrics = useMemo(() => {
     const counts = { TP: 0, TN: 0, FP: 0, FN: 0, PARTIAL: 0 };
-    for (const r of rows) counts[r.outcome]++;
+    // LIVE rows have no ground truth; skip them from precision/recall.
+    for (const r of rows) {
+      if (r.outcome in counts) counts[r.outcome as keyof typeof counts]++;
+    }
     const tp = counts.TP + counts.PARTIAL;
     const precision = tp + counts.FP > 0 ? tp / (tp + counts.FP) : 0;
     const recall = tp + counts.FN > 0 ? tp / (tp + counts.FN) : 0;
@@ -153,7 +169,7 @@ export function PiiGuardPastRuns() {
             className="h-8 rounded border bg-background px-2 text-xs"
           >
             <option value="all">All outcomes</option>
-            {["TP", "TN", "FP", "FN", "PARTIAL"].map((o) => <option key={o} value={o}>{o}</option>)}
+            {["TP", "TN", "FP", "FN", "PARTIAL", "LIVE"].map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
 

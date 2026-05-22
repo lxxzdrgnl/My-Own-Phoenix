@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createHash } from "crypto";
 import { rateLimit } from "@/lib/rate-limit";
+import {
+  decodeOtlpProtobufTraces,
+  encodeOtlpTraceResponse,
+} from "@/lib/otlp-proto";
 
 function hashKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
@@ -123,17 +127,57 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
-  // Parse OTLP JSON and convert to Phoenix spans
+  // Parse OTLP body. Accept both OTLP/HTTP transport encodings:
+  //   - application/x-protobuf  → ExportTraceServiceRequest (binary, OTel default)
+  //   - application/json        → OTLP/JSON
+  // Anything else is treated as JSON for backward compatibility with clients
+  // that omit the header.
+  const contentType = req.headers.get("Content-Type") ?? "";
+  const wantsProtobuf = contentType.includes("application/x-protobuf");
   let otlp: any;
-  try {
-    otlp = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  if (wantsProtobuf) {
+    try {
+      const buf = new Uint8Array(await req.arrayBuffer());
+      otlp = decodeOtlpProtobufTraces(buf);
+    } catch (e) {
+      console.error("[collect] protobuf decode failed:", e);
+      return NextResponse.json(
+        { error: "Invalid OTLP protobuf body" },
+        { status: 400 },
+      );
+    }
+  } else {
+    try {
+      otlp = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400 },
+      );
+    }
   }
+
+  // OTLP/HTTP success responses must use the same encoding as the request,
+  // shaped as an ExportTraceServiceResponse (empty on full success). Error
+  // bodies are left as human-readable JSON since OTel clients only inspect
+  // the status code on 4xx/5xx.
+  const successResponse = (spansCount: number) => {
+    if (wantsProtobuf) {
+      return new Response(Buffer.from(encodeOtlpTraceResponse()), {
+        status: 200,
+        headers: { "Content-Type": "application/x-protobuf" },
+      });
+    }
+    return NextResponse.json({
+      ok: true,
+      spans: spansCount,
+      project: project.phoenixProject,
+    });
+  };
 
   const spans = otlpToPhoenixSpans(otlp);
   if (spans.length === 0) {
-    return NextResponse.json({ ok: true, spans: 0 });
+    return successResponse(0);
   }
 
   // Send to Phoenix under the correct project
@@ -154,7 +198,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Trace backend error" }, { status: 502 });
     }
 
-    return NextResponse.json({ ok: true, spans: spans.length, project: project.phoenixProject });
+    return successResponse(spans.length);
   } catch (e) {
     console.error("[collect] Failed to forward:", e);
     return NextResponse.json({ error: "Failed to connect to trace backend" }, { status: 502 });

@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { LoadingState } from "@/components/ui/empty-state";
+import { apiFetch } from "@/lib/api-client";
+import { useProject } from "@/lib/project-context";
 
 // ─── Types (matches JSONL from dexter eval results) ───
 
@@ -22,7 +24,7 @@ interface RawEvalRow {
     stage2: Detection[];
     combined: Detection[];
   };
-  outcome: "TP" | "TN" | "FP" | "FN" | "PARTIAL";
+  outcome: "TP" | "TN" | "FP" | "FN" | "PARTIAL" | "LIVE";
   latency_ms: number;
   output_guard?: {
     blocked: boolean;
@@ -35,39 +37,52 @@ interface RawEvalRow {
 // ─── Component ───
 
 export function PiiGuardDashboard() {
+  const { id: projectId } = useProject();
   const [rows, setRows] = useState<RawEvalRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/datasets/pii-eval-results.json")
+    if (!projectId) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    apiFetch(`/api/pii-guard/runs?projectId=${encodeURIComponent(projectId)}`)
       .then((r) => r.json())
-      .then((data) => setRows(data))
+      .then((data) => setRows(data.runs ?? []))
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectId]);
+
+  // LIVE rows have no ground truth — exclude them from precision/recall and breakdowns.
+  const benchmarkRows = useMemo(() => rows.filter((r) => r.outcome !== "LIVE"), [rows]);
 
   const metrics = useMemo(() => {
     const counts = { TP: 0, TN: 0, FP: 0, FN: 0, PARTIAL: 0 };
-    for (const r of rows) counts[r.outcome]++;
+    for (const r of benchmarkRows) {
+      if (r.outcome in counts) counts[r.outcome as keyof typeof counts]++;
+    }
     const tp = counts.TP + counts.PARTIAL;
     const precision = tp + counts.FP > 0 ? tp / (tp + counts.FP) : 0;
     const recall = tp + counts.FN > 0 ? tp / (tp + counts.FN) : 0;
     const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
-    const latencies = rows.map((r) => r.latency_ms).sort((a, b) => a - b);
+    const latencies = benchmarkRows.map((r) => r.latency_ms).sort((a, b) => a - b);
     const p50 = latencies[Math.floor(latencies.length * 0.5)] ?? 0;
     const p95 = latencies[Math.floor(latencies.length * 0.95)] ?? 0;
     const mean = latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0;
     return { counts, precision, recall, f1, p50, p95, mean };
-  }, [rows]);
+  }, [benchmarkRows]);
 
   const categoryBreakdown = useMemo(() => {
     const cats: Record<string, Record<string, number>> = {};
-    for (const r of rows) {
+    for (const r of benchmarkRows) {
       if (!cats[r.category]) cats[r.category] = { TP: 0, TN: 0, FP: 0, FN: 0, PARTIAL: 0 };
-      cats[r.category][r.outcome]++;
+      if (r.outcome in cats[r.category]) {
+        cats[r.category][r.outcome as keyof (typeof cats)[string]]++;
+      }
     }
     return cats;
-  }, [rows]);
+  }, [benchmarkRows]);
 
   const piiTypeBreakdown = useMemo(() => {
     const types: Record<string, number> = {};

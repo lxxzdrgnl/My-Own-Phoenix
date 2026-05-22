@@ -111,6 +111,17 @@ export PHOENIX_COLLECTOR_ENDPOINT="https://phoenix.rheon.kr/api/collect"
 # 3. Run your agent — traces flow automatically
 python agent.py`}
           />
+          <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+            The collector accepts both OTLP/HTTP transport encodings —{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono">
+              application/x-protobuf
+            </code>{" "}
+            (the OpenTelemetry SDK default) and{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono">
+              application/json
+            </code>
+            . No exporter configuration is required.
+          </p>
         </div>
 
         {/* Framework examples */}

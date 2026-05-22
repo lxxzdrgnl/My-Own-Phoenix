@@ -116,13 +116,18 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
 
   // ── Load datasets ──
   const loadDatasets = useCallback(async () => {
+    if (!projectId) {
+      setDatasets([]);
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await apiFetch("/api/datasets");
+      const res = await apiFetch(`/api/datasets?projectId=${encodeURIComponent(projectId)}`);
       const data = await res.json();
       setDatasets(data.datasets ?? []);
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, []);
+  }, [projectId]);
   useEffect(() => { loadDatasets(); }, [loadDatasets]);
 
   useEffect(() => {

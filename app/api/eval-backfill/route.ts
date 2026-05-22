@@ -89,6 +89,16 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
     if (roleCheck instanceof NextResponse) return roleCheck;
   }
 
+  // Resolve the Phoenix project name for trace/annotation calls (Phoenix doesn't know cuids).
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { phoenixProject: true },
+  });
+  const phoenixProject = project?.phoenixProject;
+  if (!phoenixProject) {
+    return apiError(req, ErrorCode.BAD_REQUEST, "Project has no phoenixProject mapping");
+  }
+
   // Load eval definition
   const evalPrompt = await prisma.evalPrompt.findFirst({
     where: { name: evalName, OR: [{ projectId: null }, { projectId: "" }, { projectId }] },
@@ -102,7 +112,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
   const outputMode = evalPrompt.outputMode ?? "score";
 
   // Fetch spans
-  const spans = await phoenixGetSpans(projectId, startTime, endTime);
+  const spans = await phoenixGetSpans(phoenixProject, startTime, endTime);
   if (!spans.length) {
     return NextResponse.json({ evaluated: 0, skipped: 0, message: "No spans found in date range" });
   }
@@ -124,7 +134,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
     if (root) rootSpans[tid] = root;
   }
   const rootIds = Object.values(rootSpans).map((s) => (s.context as Record<string, string>).span_id);
-  const existing = await phoenixGetAnnotations(projectId, rootIds);
+  const existing = await phoenixGetAnnotations(phoenixProject, rootIds);
 
   let evaluated = 0;
   let skipped = 0;

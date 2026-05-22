@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  fetchPrompts,
-  fetchPromptVersions,
   fetchPromptVersionTags,
   addPromptVersionTag,
   deletePromptVersionTag,
@@ -13,6 +11,7 @@ import {
   PromptInfo,
   PromptTag,
 } from "@/lib/phoenix";
+import { apiFetch } from "@/lib/api-client";
 import {
   Plus,
   Tag,
@@ -37,7 +36,7 @@ interface PromptWithVersions {
   versions: VersionWithTags[];
 }
 
-export function PromptsManager() {
+export function PromptsManager({ projectId }: { projectId: string }) {
   const [prompts, setPrompts] = useState<PromptWithVersions[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -48,10 +47,11 @@ export function PromptsManager() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const ps = await fetchPrompts();
+      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/prompts`);
+      const data = await res.json();
+      const scoped: Array<{ prompt: PromptInfo; versions: PromptVersion[] }> = data.prompts ?? [];
       const result: PromptWithVersions[] = [];
-      for (const p of ps) {
-        const versions = await fetchPromptVersions(p.name);
+      for (const { prompt: p, versions } of scoped) {
         const versionsWithTags: VersionWithTags[] = [];
         for (const v of versions) {
           const tags = await fetchPromptVersionTags(v.id);
@@ -64,7 +64,7 @@ export function PromptsManager() {
       console.error(e);
     }
     setLoading(false);
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     load();
@@ -79,6 +79,10 @@ export function PromptsManager() {
     if (!ok) return;
     try {
       await deletePrompt(name);
+      await apiFetch(
+        `/api/projects/${encodeURIComponent(projectId)}/prompts?name=${encodeURIComponent(name)}`,
+        { method: "DELETE" },
+      ).catch((e) => console.error("[prompts] mapping delete failed:", e));
       await load();
     } catch (e: any) {
       alert(`Delete failed: ${e.message}`);
@@ -242,6 +246,7 @@ export function PromptsManager() {
       {modal === "create" && (
         <PromptFormModal
           mode="create"
+          projectId={projectId}
           onClose={() => setModal(null)}
           onSave={load}
         />
@@ -249,6 +254,7 @@ export function PromptsManager() {
       {modal === "edit" && editTarget && (
         <PromptFormModal
           mode="edit"
+          projectId={projectId}
           initial={editTarget}
           onClose={() => {
             setModal(null);

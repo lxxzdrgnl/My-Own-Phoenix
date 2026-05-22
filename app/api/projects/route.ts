@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
-import { seedProjectEvals } from "@/lib/eval-seed";
+import { ensureBuiltInEvals, seedProjectEvals } from "@/lib/eval-seed";
 import { encrypt } from "@/lib/crypto";
 import { randomBytes, createHash } from "crypto";
+import { ensureDefaultPromptForProject } from "@/lib/project-prompt-seed";
 
 function generateSlug(): string {
   return randomBytes(8).toString("base64url").toLowerCase().slice(0, 12);
@@ -63,6 +64,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
     data: {
       name: name.trim(),
       slug,
+      phoenixProject: slug,
       traceKeyHash,
       traceKeyEncrypted,
       members: {
@@ -87,8 +89,19 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
     });
   }
 
-  // Seed built-in eval templates for the new project
+  // Ensure global built-in eval templates exist, then seed them into the new project.
+  // ensureBuiltInEvals is no-op after the first call per process.
+  await ensureBuiltInEvals();
   await seedProjectEvals(project.id);
+
+  // Seed a starter Phoenix prompt + ProjectPrompt mapping using the owner's
+  // General Settings template. Idempotent; safe to re-run. Phoenix outages
+  // shouldn't block project creation, so we swallow errors here.
+  try {
+    await ensureDefaultPromptForProject(project.id);
+  } catch (err) {
+    console.error("[projects] starter prompt seeding failed:", err);
+  }
 
   return NextResponse.json({
     id: project.id,

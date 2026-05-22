@@ -271,6 +271,41 @@ model Project {
   llmProviders      LlmProvider[]
   inviteCodes       ProjectInviteCode[]
   joinRequests      ProjectJoinRequest[]
+  prompts           ProjectPrompt[]
+  piiGuardRuns      PiiGuardRun[]
+}
+
+model PiiGuardRun {
+  id             String   @id @default(cuid())
+  projectId      String
+  externalId     String   @default("")    // original benchmark id (e.g. "P001")
+  category       String   @default("")    // clean | direct | obfuscated | cross_session | prompt_injection
+  input          String
+  expectedMasked String   @default("")
+  actualMasked   String   @default("")
+  detections     String   @default("{}")  // JSON: { stage1, stage2, combined }
+  outcome        String                   // TP | TN | FP | FN | PARTIAL
+  latencyMs      Int      @default(0)
+  outputGuard    String?                  // JSON or null
+  createdAt      DateTime @default(now())
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
+
+// Project ↔ Phoenix prompt scoping. Phoenix's prompt registry is global by name,
+// so we maintain this mapping in our own DB and filter all reads through it.
+// Going forward every Phoenix prompt visible in the UI must have a row here.
+model ProjectPrompt {
+  id          String   @id @default(cuid())
+  projectId   String
+  phoenixName String
+  createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, phoenixName])
+  @@unique([phoenixName])
+  @@index([projectId])
 }
 
 model ProjectMember {

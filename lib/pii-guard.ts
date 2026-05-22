@@ -4,10 +4,20 @@
  *
  * Stage 1: Regex-based pattern matching (RRN, bank account, phone, credit card, email)
  * Stage 1.5: Deterministic normalizer (Korean numerals, reversed, spaced email, demographic)
- * Stage 2: LLM-based (placeholder — not wired)
+ * Stage 2: LLM-based contextual judgment for names/addresses and missed PII
  */
 
-export type PIIType = "rrn" | "bank_acct" | "phone_kr" | "credit_card" | "email" | "demographic";
+import { callLlm } from "@/lib/llm-providers";
+
+export type PIIType =
+  | "rrn"
+  | "bank_acct"
+  | "phone_kr"
+  | "credit_card"
+  | "email"
+  | "demographic"
+  | "name"
+  | "address";
 
 export interface PIIDetection {
   type: PIIType;
@@ -52,6 +62,8 @@ const POSITIVE_KEYWORDS: Record<PIIType, string[]> = {
   credit_card: ["카드", "결제", "결재", "카드번호", "신용카드", "자동결제"],
   email: ["이메일", "email", "메일", "주소"],
   demographic: [],
+  name: [],
+  address: [],
 };
 
 const NEGATIVE_KEYWORDS: Record<PIIType, string[]> = {
@@ -61,6 +73,8 @@ const NEGATIVE_KEYWORDS: Record<PIIType, string[]> = {
   credit_card: ["주문번호", "거래번호", "식별자", "CUSIP", "ISIN"],
   email: ["github", "git@", "SSH", "저장소", "repo"],
   demographic: [],
+  name: [],
+  address: [],
 };
 
 const TYPE_PRIORITY: Record<PIIType, number> = {
@@ -70,6 +84,8 @@ const TYPE_PRIORITY: Record<PIIType, number> = {
   email: 3,
   bank_acct: 2,
   demographic: 1,
+  name: 2,
+  address: 2,
 };
 
 const CONTEXT_WINDOW = 20;
@@ -86,6 +102,8 @@ const KOREAN_DIGITS: Record<string, string> = {
   사: "4", 오: "5", 육: "6", 륙: "6", 칠: "7", 팔: "8", 구: "9",
 };
 
+// Stage 1 regex keywords. name/address are LLM-only categories so they get a never-match regex.
+const NEVER_RE = /a^/;
 const CONTEXT_KEYWORDS_RE: Record<PIIType, RegExp> = {
   rrn: /주민|주민번호|주민등록|RRN|신원|KYC/i,
   bank_acct: /계좌|은행|입금|송금|이체|잔액/i,
@@ -93,6 +111,8 @@ const CONTEXT_KEYWORDS_RE: Record<PIIType, RegExp> = {
   credit_card: /카드|신용카드|결제|자동결제/i,
   email: /이메일|email|메일/i,
   demographic: /거주|사는|여성|남성|직장인|다니는|나이|프로필/i,
+  name: NEVER_RE,
+  address: NEVER_RE,
 };
 
 const REVERSED_HINT = /역순|거꾸로|뒤집/i;
@@ -161,18 +181,32 @@ export function dedupeOverlapping(detections: PIIDetection[]): PIIDetection[] {
   return kept;
 }
 
-export function runGuard(text: string, stage2Mode: "auto" | "force" | "skip" = "auto"): PiiGuardResult {
+export async function runGuard(
+  text: string,
+  stage2Mode: "auto" | "force" | "skip" = "auto",
+  opts?: { projectId?: string; userId?: string; model?: string },
+): Promise<PiiGuardResult> {
   const startedAt = Date.now();
 
   const stage1 = regexDetect(text);
   const deterministic = deterministicDetect(text);
-  const combined = dedupeOverlapping([...stage1, ...deterministic]);
-  // Stage 2 (LLM) — placeholder, not implemented in this project
-  const stage2: PIIDetection[] = [];
+  const earlyCombined = dedupeOverlapping([...stage1, ...deterministic]);
+
+  const shouldRunStage2 = decideStage2(stage2Mode, earlyCombined);
+  let stage2: PIIDetection[] = [];
+  if (shouldRunStage2) {
+    try {
+      stage2 = await runStage2Llm(text, earlyCombined, opts);
+    } catch (e) {
+      // LLM failure must not break stage 1/1.5 results — log and continue.
+      console.error("[pii-guard] stage 2 failed:", e);
+    }
+  }
+
+  const combined = dedupeOverlapping([...stage1, ...deterministic, ...stage2]);
 
   let action: "allow" | "mask" | "block" = "allow";
   let maskedText = text;
-
   if (combined.length > 0) {
     action = "mask";
     maskedText = maskText(text, combined);
@@ -186,11 +220,113 @@ export function runGuard(text: string, stage2Mode: "auto" | "force" | "skip" = "
     stageStats: {
       stage1Count: stage1.length,
       deterministicCount: deterministic.length,
-      stage2Count: 0,
-      stage2Used: false,
+      stage2Count: stage2.length,
+      stage2Used: shouldRunStage2,
       latencyMs: Date.now() - startedAt,
     },
   };
+}
+
+// ─── Stage 2: LLM contextual judgment ───
+
+function decideStage2(mode: "auto" | "force" | "skip", earlyDetections: PIIDetection[]): boolean {
+  if (mode === "skip") return false;
+  if (mode === "force") return true;
+  // auto: skip when stage 1/1.5 already found at least one high-confidence match — the trivial cases
+  // are covered. Run when nothing was found, since the LLM is where names/addresses/contextual PII surface.
+  const haveStrongMatch = earlyDetections.some((d) => d.confidence >= 0.9);
+  return !haveStrongMatch;
+}
+
+const STAGE2_SYSTEM_PROMPT = `You are a strict PII (personally identifiable information) detector for Korean and English text.
+
+Detect these categories (be thorough — err on the side of flagging):
+- name: 사람의 실명 또는 풀네임 (e.g., "김민수", "이영희", "John Doe", "박지훈씨"). Flag Korean names with or without 씨/님 honorific. Don't flag company/brand names.
+- address: 도로명 또는 지번 주소 (e.g., "서울시 강남구 테헤란로 152", "강남구 역삼동 123-4").
+- demographic: 나이대+성별+직업 같은 식별 가능한 인구통계 조합 (e.g., "30대 남성 사업가", "20대 여성 디자이너"). Single attribute alone (just "30대") is NOT enough.
+- email, phone_kr, rrn, bank_acct, credit_card: only if the regex/normalizer obviously missed it.
+
+Input format: you receive the original text and a list of items already detected by regex/normalizer. Find ADDITIONAL items only — do not repeat what is already detected.
+
+Output rules:
+- start/end are 0-indexed character offsets into the input text.
+- match MUST equal text.substring(start, end) exactly — count Korean characters as single chars.
+- confidence: 0.0–1.0. Use ≥0.8 for clear cases, 0.6–0.8 for ambiguous.
+- If nothing additional found, return { "detections": [] }.
+
+Example input:
+  Already detected: []
+  Text: "30대 IT 회사 다니는 김민수씨와 미팅했습니다"
+Example output:
+  { "detections": [
+    { "type": "name", "start": 12, "end": 16, "match": "김민수씨", "confidence": 0.9 },
+    { "type": "demographic", "start": 0, "end": 11, "match": "30대 IT 회사 다니는", "confidence": 0.7 }
+  ] }
+
+Return JSON only.`;
+
+interface LlmDetection { type: string; start: number; end: number; match: string; confidence: number }
+const ALLOWED_STAGE2_TYPES = new Set<string>([
+  "name", "address", "demographic", "email", "phone_kr", "rrn", "bank_acct", "credit_card",
+]);
+
+async function runStage2Llm(
+  text: string,
+  earlyDetections: PIIDetection[],
+  opts?: { projectId?: string; userId?: string; model?: string },
+): Promise<PIIDetection[]> {
+  const alreadyFound = earlyDetections.map((d) => ({
+    type: d.type,
+    start: d.start,
+    end: d.end,
+    match: d.match,
+  }));
+  const userMsg = `Already detected by regex/normalizer (do NOT repeat):
+${JSON.stringify(alreadyFound)}
+
+Input text:
+${text}`;
+
+  const res = await callLlm({
+    model: opts?.model ?? "gpt-4o-mini",
+    messages: [
+      { role: "system", content: STAGE2_SYSTEM_PROMPT },
+      { role: "user", content: userMsg },
+    ],
+    temperature: 0,
+    responseFormat: "json",
+    projectId: opts?.projectId,
+    userId: opts?.userId,
+  });
+
+  let parsed: { detections?: LlmDetection[] };
+  try {
+    parsed = JSON.parse(res.content);
+  } catch (e) {
+    console.error("[pii-guard stage2] JSON parse failed. raw:", res.content);
+    return [];
+  }
+  const raw = Array.isArray(parsed.detections) ? parsed.detections : [];
+
+  // LLMs are unreliable at character offsets (especially in mixed-script Korean text), so
+  // we accept the model's `match` and recompute offsets by searching the text directly.
+  // The model's `start` is treated as a hint to disambiguate when the same string appears twice.
+  const valid: PIIDetection[] = [];
+  for (const d of raw) {
+    if (!ALLOWED_STAGE2_TYPES.has(d.type)) continue;
+    if (typeof d.match !== "string" || d.match.length === 0) continue;
+    const confidence = Math.max(0, Math.min(1, Number(d.confidence) || 0));
+    if (confidence < MIN_CONFIDENCE_THRESHOLD) continue;
+
+    const hint = typeof d.start === "number" ? Math.max(0, d.start - 5) : 0;
+    let start = text.indexOf(d.match, hint);
+    if (start === -1) start = text.indexOf(d.match);
+    if (start === -1) continue; // match string not actually present
+    const end = start + d.match.length;
+
+    valid.push({ type: d.type as PIIType, start, end, match: d.match, confidence });
+  }
+  return valid;
 }
 
 // ─── Internal helpers ───

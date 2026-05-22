@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { LoadingState } from "@/components/ui/empty-state";
 import { apiFetch } from "@/lib/api-client";
 import type { PIIDetection, PiiGuardResult } from "@/lib/pii-guard";
+import { useProject } from "@/lib/project-context";
 import { PiiGuardPastRuns } from "./pii-guard-past-runs";
 import { EvalDashboard } from "../eval-dashboard/eval-dashboard";
 
@@ -26,6 +27,8 @@ const TYPE_LABELS: Record<string, string> = {
   credit_card: "카드번호",
   email: "이메일",
   demographic: "인구통계",
+  name: "이름",
+  address: "주소",
 };
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -35,6 +38,8 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> 
   credit_card: { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-300", border: "border-purple-200 dark:border-purple-800" },
   email: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300", border: "border-amber-200 dark:border-amber-800" },
   demographic: { bg: "bg-pink-100 dark:bg-pink-900/30", text: "text-pink-700 dark:text-pink-300", border: "border-pink-200 dark:border-pink-800" },
+  name: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-300", border: "border-indigo-200 dark:border-indigo-800" },
+  address: { bg: "bg-teal-100 dark:bg-teal-900/30", text: "text-teal-700 dark:text-teal-300", border: "border-teal-200 dark:border-teal-800" },
 };
 
 const HIGHLIGHT_COLORS: Record<string, string> = {
@@ -44,11 +49,14 @@ const HIGHLIGHT_COLORS: Record<string, string> = {
   credit_card: "bg-purple-200/70 dark:bg-purple-800/40 text-purple-900 dark:text-purple-100",
   email: "bg-amber-200/70 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100",
   demographic: "bg-pink-200/70 dark:bg-pink-800/40 text-pink-900 dark:text-pink-100",
+  name: "bg-indigo-200/70 dark:bg-indigo-800/40 text-indigo-900 dark:text-indigo-100",
+  address: "bg-teal-200/70 dark:bg-teal-800/40 text-teal-900 dark:text-teal-100",
 };
 
 type TabType = "live" | "past" | "dashboard";
 
 export function PiiGuardRunner() {
+  const { id: projectId } = useProject();
   const [tab, setTab] = useState<TabType>("live");
   const [input, setInput] = useState(DEFAULT_INPUT);
   const [direction, setDirection] = useState<"input" | "output">("input");
@@ -64,7 +72,7 @@ export function PiiGuardRunner() {
       const res = await apiFetch("/api/pii-guard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: input, direction, stage2 }),
+        body: JSON.stringify({ text: input, direction, stage2, projectId }),
       });
       const data = await res.json();
       setResult(data);
@@ -73,7 +81,7 @@ export function PiiGuardRunner() {
     } finally {
       setLoading(false);
     }
-  }, [input, direction, stage2]);
+  }, [input, direction, stage2, projectId]);
 
   return (
     <div className="flex h-full flex-col">

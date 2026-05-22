@@ -166,7 +166,11 @@ const ROUTE_SECTIONS: RouteSectionProps[] = [
   {
     title: "Connectors & Traces",
     routes: [
-      ["POST", "/api/collect", "Ingest OTel traces (Bearer pt_*)"],
+      [
+        "POST",
+        "/api/collect",
+        "Ingest OTel traces — accepts OTLP/JSON or OTLP/protobuf (Bearer pt_*)",
+      ],
       ["GET", "/api/connectors", "List connected agents"],
       ["GET", "/api/user/connector-key", "Get connector key"],
       ["POST", "/api/user/connector-key", "Generate connector key"],
@@ -226,7 +230,12 @@ export function ApiReference() {
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
               /api/collect
             </code>{" "}
-            endpoint uses Trace API Keys instead:
+            endpoint uses Trace API Keys instead, and accepts either OTLP/HTTP
+            transport encoding — pick whichever your OpenTelemetry SDK uses by
+            default:
+          </p>
+          <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground mt-3 mb-2">
+            OTLP/JSON
           </p>
           <CodeBlock
             code={`curl -X POST \\
@@ -235,6 +244,29 @@ export function ApiReference() {
   -d '{"resourceSpans": [...]}' \\
   https://phoenix.rheon.kr/api/collect`}
           />
+          <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground mt-4 mb-2">
+            OTLP/Protobuf (OpenTelemetry SDK default)
+          </p>
+          <CodeBlock
+            code={`curl -X POST \\
+  -H "Authorization: Bearer pt_your_trace_key" \\
+  -H "Content-Type: application/x-protobuf" \\
+  --data-binary @trace.pb \\
+  https://phoenix.rheon.kr/api/collect`}
+          />
+          <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+            The body is the standard OTLP{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono">
+              ExportTraceServiceRequest
+            </code>{" "}
+            message in either encoding. Most SDKs (OpenInference, OTel Python,
+            Node, Go, Java) send protobuf by default and require no extra
+            configuration beyond the endpoint URL and{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono">
+              PHOENIX_API_KEY
+            </code>
+            .
+          </p>
         </div>
 
         {/* Swagger */}

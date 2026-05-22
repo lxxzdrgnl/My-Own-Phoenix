@@ -3,11 +3,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { LoadingState } from "@/components/ui/empty-state";
 import { CheckCircle, Copy, Check, RefreshCw, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
+import {
+  DEFAULT_PROMPT_TEMPLATE,
+  PROMPT_TEMPLATE_KEY,
+  PromptTemplate,
+  parsePromptTemplate,
+} from "@/lib/constants";
 
 export function GeneralSection() {
   const { user } = useAuth();
@@ -24,11 +31,18 @@ export function GeneralSection() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // Default prompt template state
+  const [template, setTemplate] = useState<PromptTemplate>(DEFAULT_PROMPT_TEMPLATE);
+  const [savedTemplate, setSavedTemplate] = useState<PromptTemplate>(DEFAULT_PROMPT_TEMPLATE);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
+
   const loadStatus = useCallback(async () => {
     try {
-      const [keyRes, profileRes] = await Promise.all([
+      const [keyRes, profileRes, settingsRes] = await Promise.all([
         apiFetch("/api/user/connector-key"),
         apiFetch("/api/user/profile"),
+        apiFetch("/api/settings"),
       ]);
       if (keyRes.ok) {
         const data = await keyRes.json();
@@ -38,6 +52,12 @@ export function GeneralSection() {
         const data = await profileRes.json();
         setNickname(data.name || "");
         setSavedNickname(data.name || "");
+      }
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
+        const t = parsePromptTemplate(data[PROMPT_TEMPLATE_KEY]);
+        setTemplate(t);
+        setSavedTemplate(t);
       }
     } catch (e) {
       console.error(e);
@@ -69,6 +89,30 @@ export function GeneralSection() {
       setSavingProfile(false);
     }
   };
+
+  const handleSaveTemplate = async () => {
+    setSavingTemplate(true);
+    setTemplateSaved(false);
+    try {
+      const res = await apiFetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [PROMPT_TEMPLATE_KEY]: JSON.stringify(template) }),
+      });
+      if (res.ok) {
+        setSavedTemplate(template);
+        setTemplateSaved(true);
+        setTimeout(() => setTemplateSaved(false), 2000);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const templateDirty =
+    template.system !== savedTemplate.system || template.context !== savedTemplate.context;
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -140,6 +184,58 @@ export function GeneralSection() {
                     {profileSaved ? t.settings.saved : t.common.save}
                   </Button>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Default Prompt Template */}
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
+                {t.settings.promptTemplateSection}
+              </h3>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="rounded-lg border px-5 py-4 space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t.settings.promptTemplateDesc}
+              </p>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">
+                  {t.settings.promptSystemLabel}
+                </p>
+                <Textarea
+                  value={template.system}
+                  onChange={(e) => setTemplate((p) => ({ ...p, system: e.target.value }))}
+                  placeholder={t.settings.promptSystemPlaceholder}
+                  rows={4}
+                  className="text-xs"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">
+                  {t.settings.promptContextLabel}
+                </p>
+                <Textarea
+                  value={template.context}
+                  onChange={(e) => setTemplate((p) => ({ ...p, context: e.target.value }))}
+                  placeholder={t.settings.promptContextPlaceholder}
+                  rows={4}
+                  className="text-xs"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleSaveTemplate}
+                  disabled={savingTemplate || !templateDirty}
+                >
+                  {savingTemplate && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                  {templateSaved && !templateDirty ? t.settings.saved : t.common.save}
+                </Button>
+                {templateSaved && !templateDirty && (
+                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                )}
               </div>
             </div>
           </section>

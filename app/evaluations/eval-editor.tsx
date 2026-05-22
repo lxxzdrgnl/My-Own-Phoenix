@@ -140,12 +140,12 @@ export function EvalEditor({
         }),
       });
       // Save project-scoped template override (skip in globalMode)
-      if (!globalMode) {
+      if (!globalMode && projectId) {
         await apiFetch("/api/eval-config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            projectId: selectedProject,
+            projectId,
             evalName: selectedEval,
             template: editTemplate,
           }),
@@ -226,11 +226,11 @@ export function EvalEditor({
           isCustom: true,
         }),
       });
-      if (!globalMode) {
+      if (!globalMode && projectId) {
         await apiFetch("/api/eval-config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId: selectedProject, evalName: name, enabled: true }),
+          body: JSON.stringify({ projectId, evalName: name, enabled: true }),
         });
       }
       const createdTemplate = newType === "llm_prompt" ? NEW_EVAL_TEMPLATE : "";
@@ -512,7 +512,7 @@ export function EvalEditor({
         {!globalMode && (
           <EvalBackfillPanel
             selectedEval={selectedEval}
-            selectedProject={selectedProject}
+            projectId={projectId}
             editTemplate={editTemplate}
           />
         )}

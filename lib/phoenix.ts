@@ -534,6 +534,24 @@ export async function fetchPromptsWithVersions(): Promise<
   return results;
 }
 
+/**
+ * Project-scoped prompt list. Returns only the Phoenix prompts mapped to the
+ * given DB project via the ProjectPrompt table. The playground and prompts
+ * manager MUST use this — fetchPromptsWithVersions exposes every Phoenix
+ * prompt globally and is forbidden in project-scoped UI.
+ */
+export async function fetchScopedPromptsWithVersions(
+  projectId: string,
+): Promise<Array<{ prompt: PromptInfo; versions: PromptVersion[] }>> {
+  const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/prompts`);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Scoped prompts fetch failed (${res.status}): ${err}`);
+  }
+  const data = await res.json();
+  return data.prompts ?? [];
+}
+
 // --- Prompt Tags ---
 
 export interface PromptTag {
@@ -680,6 +698,7 @@ export async function callLLM(
   query: string,
   context: string,
   projectId?: string,
+  modelOverride?: string,
 ): Promise<{ text: string; tokens: number; spanId?: string }> {
   const messages = (version.template?.messages ?? []).map((m) => ({
     role: m.role,
@@ -694,7 +713,7 @@ export async function callLLM(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: version.model_name || "gpt-4o-mini",
+      model: modelOverride || version.model_name || "gpt-4o-mini",
       messages,
       temperature: params.temperature ?? 0.7,
       promptLabel: version.description || version.id,

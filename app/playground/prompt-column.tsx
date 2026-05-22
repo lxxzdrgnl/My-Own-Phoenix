@@ -3,6 +3,7 @@
 import { RefreshCw, Play, Pencil, Inbox, ChevronDown, X, MessageSquarePlus } from "lucide-react";
 import { PromptVersion } from "@/lib/phoenix";
 import { Column, VersionOption } from "./hooks/use-playground-columns";
+import { AgentModelSelector } from "@/components/agent-model-selector";
 import { useT } from "@/lib/i18n";
 
 interface PromptColumnProps {
@@ -10,6 +11,7 @@ interface PromptColumnProps {
   idx: number;
   versionOptions: VersionOption[];
   canRemove: boolean;
+  projectId?: string;
   onUpdate: (id: string, patch: Partial<Column>) => void;
   onRemove: (id: string) => void;
   onRun: (id: string) => void;
@@ -22,6 +24,7 @@ export function PromptColumn({
   idx,
   versionOptions,
   canRemove,
+  projectId,
   onUpdate,
   onRemove,
   onRun,
@@ -81,6 +84,16 @@ export function PromptColumn({
             </option>
           ))}
         </select>
+
+        {/* Agent / Model selector — same dropdown as chat: pick any connected
+            agent for this project, or a direct LLM model. */}
+        <div className="mt-2">
+          <AgentModelSelector
+            value={col.target}
+            onChange={(v) => onUpdate(col.id, { target: v })}
+            projectId={projectId}
+          />
+        </div>
 
         {/* Query */}
         <div className="mt-2">

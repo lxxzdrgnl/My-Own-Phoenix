@@ -15,6 +15,7 @@ import {
   PromptInfo,
   PromptTag,
 } from "@/lib/phoenix";
+import { apiFetch } from "@/lib/api-client";
 import {
   Plus,
   Tag,
@@ -48,9 +49,11 @@ interface PromptsModalProps {
   open: boolean;
   onClose: () => void;
   onChanged?: () => void;
+  /** DB project id — required: this modal only ever lists prompts that belong to a specific project. */
+  projectId: string;
 }
 
-export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
+export function PromptsModal({ open, onClose, onChanged, projectId }: PromptsModalProps) {
   const t = useT();
   const [prompts, setPrompts] = useState<PromptWithVersions[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,10 +65,11 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const ps = await fetchPrompts();
+      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/prompts`);
+      const data = await res.json();
+      const scoped: Array<{ prompt: PromptInfo; versions: PromptVersion[] }> = data.prompts ?? [];
       const result: PromptWithVersions[] = [];
-      for (const p of ps) {
-        const versions = await fetchPromptVersions(p.name);
+      for (const { prompt: p, versions } of scoped) {
         const versionsWithTags: VersionWithTags[] = [];
         for (const v of versions) {
           const tags = await fetchPromptVersionTags(v.id);
@@ -78,7 +82,7 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
       console.error(e);
     }
     setLoading(false);
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     if (open) load();
@@ -93,6 +97,13 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
     if (!ok) return;
     try {
       await deletePrompt(name);
+      // Best-effort: remove the project mapping too. The Phoenix delete already
+      // ran, so a failure here only leaves an orphan mapping row that the
+      // GET endpoint will quietly skip on the next load.
+      await apiFetch(
+        `/api/projects/${encodeURIComponent(projectId)}/prompts?name=${encodeURIComponent(name)}`,
+        { method: "DELETE" },
+      ).catch((e) => console.error("[prompts] mapping delete failed:", e));
       await load();
       onChanged?.();
     } catch (e: any) {
@@ -266,6 +277,7 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
       {innerModal === "create" && (
         <PromptFormModal
           mode="create"
+          projectId={projectId}
           onClose={() => setInnerModal(null)}
           onSave={handleInnerSave}
         />
@@ -273,6 +285,7 @@ export function PromptsModal({ open, onClose, onChanged }: PromptsModalProps) {
       {innerModal === "edit" && editTarget && (
         <PromptFormModal
           mode="edit"
+          projectId={projectId}
           initial={editTarget}
           onClose={() => {
             setInnerModal(null);
@@ -301,6 +314,8 @@ interface PromptFormModalProps {
   initial?: PromptFormInitial;
   onClose: () => void;
   onSave: () => void;
+  /** DB project id to scope newly created prompts to. Required for `create` mode — Phoenix prompts must be project-scoped. */
+  projectId?: string;
 }
 
 export function PromptFormModal({
@@ -308,6 +323,7 @@ export function PromptFormModal({
   initial,
   onClose,
   onSave,
+  projectId,
 }: PromptFormModalProps) {
   const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
@@ -325,11 +341,27 @@ export function PromptFormModal({
       setError(t.promptsModal.nameRequired);
       return;
     }
+    if (mode === "create" && !projectId) {
+      setError("Project context is required to create a prompt.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
       if (mode === "create") {
         await createPrompt(name, desc, system, user, model, temperature);
+        // Register the prompt under the current project so it shows up in this
+        // project's playground and stays hidden from others. Phoenix names are
+        // global, so this mapping is the only enforcement of project scoping.
+        const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId!)}/prompts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoenixName: name }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ message: "Failed to scope prompt to project" }));
+          throw new Error(err.message ?? "Failed to scope prompt to project");
+        }
       } else {
         await updatePrompt(name, desc, versionDesc || `v${Date.now()}`, system, user, model, temperature);
       }

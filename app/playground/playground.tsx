@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   fetchTraces,
-  fetchPromptsWithVersions,
   fetchProjects,
+  fetchScopedPromptsWithVersions,
   deleteTrace,
   Trace,
   PromptVersion,
@@ -205,8 +205,12 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
   }, [projectId, spanKinds, contentFilter]);
 
   const loadPrompts = useCallback(async () => {
+    if (!dbProjectId) {
+      setVersionOptions([]);
+      return;
+    }
     try {
-      const results = await fetchPromptsWithVersions();
+      const results = await fetchScopedPromptsWithVersions(dbProjectId);
       const opts: VersionOption[] = [];
       for (const { prompt, versions } of results)
         for (const v of versions)
@@ -219,7 +223,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [dbProjectId]);
 
   useEffect(() => {
     loadProjects();
@@ -437,6 +441,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                 idx={idx}
                 versionOptions={versionOptions}
                 canRemove={columns.length > 1}
+                projectId={dbProjectId}
                 onUpdate={updateColumn}
                 onRemove={removeColumn}
                 onRun={runColumn}
@@ -476,11 +481,14 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
         </div>
       </div>
 
-      <PromptsModal
-        open={promptsModalOpen}
-        onClose={() => setPromptsModalOpen(false)}
-        onChanged={loadPrompts}
-      />
+      {dbProjectId && (
+        <PromptsModal
+          open={promptsModalOpen}
+          projectId={dbProjectId}
+          onClose={() => setPromptsModalOpen(false)}
+          onChanged={loadPrompts}
+        />
+      )}
 
       {editTarget && (
         <PromptEditModal

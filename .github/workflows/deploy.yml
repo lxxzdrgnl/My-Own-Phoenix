@@ -31,7 +31,11 @@ jobs:
             docker compose build phoenix-dashboard
             docker compose up -d --force-recreate --no-deps phoenix-dashboard
 
-            # Restart eval-worker
+            # Rebuild + restart eval-worker so worker.py / prompts.py updates
+            # actually land in the running image. Previously this step only
+            # recreated the container, leaving a stale image baked at first
+            # provisioning and silently shipping outdated worker code.
+            docker compose build phoenix-eval-worker
             docker compose up -d --force-recreate --no-deps phoenix-eval-worker
 
             # Health check (wait for startup + migration)
