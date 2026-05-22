@@ -17,7 +17,7 @@ export interface Trace {
   status: string;
   spanKind: string;
   /** True when this trace contains ≥1 GUARDRAIL span with `guardrail.triggered=true`. */
-  hasGuardrailTriggered: boolean;
+  hasGuardrailTriggered?: boolean;
 }
 
 // ─── Guardrail span types ─────────────────────────────────────────────────
@@ -80,6 +80,8 @@ export interface Annotation {
   label: string;
   score: number;
   annotatorKind?: "LLM" | "HUMAN";
+  /** Optional free-text explanation/comment attached to the annotation. */
+  explanation?: string;
 }
 
 export interface PromptVersion {
@@ -204,6 +206,7 @@ async function fetchSpansAndAnnotations(
               label: a.result?.label ?? "",
               score: a.result?.score ?? 0,
               annotatorKind: a.annotator_kind ?? undefined,
+              explanation: a.result?.explanation ?? "",
             });
           }
         })
@@ -214,7 +217,10 @@ async function fetchSpansAndAnnotations(
   return { allSpans, annMap };
 }
 
-/** Merge all annotations from a trace's spans into one list (deduped by name) */
+/** Merge all annotations from a trace's spans into one list.
+ *  Deduplicated by (name, annotatorKind) so AI and HUMAN annotations on the
+ *  same eval are both preserved — required by the human-review comparison
+ *  and consumed by callers that key on `${name}-${annotatorKind}`. */
 function mergeTraceAnnotations(traceId: string, allSpans: any[], annMap: Record<string, Annotation[]>): Annotation[] {
   const traceSpanIds = allSpans
     .filter((s) => s.context?.trace_id === traceId)
@@ -225,9 +231,10 @@ function mergeTraceAnnotations(traceId: string, allSpans: any[], annMap: Record<
   const seen = new Set<string>();
   for (const sid of traceSpanIds) {
     for (const ann of annMap[sid] ?? []) {
-      if (!seen.has(ann.name)) {
+      const key = `${ann.name}|${ann.annotatorKind ?? "LLM"}`;
+      if (!seen.has(key)) {
         merged.push(ann);
-        seen.add(ann.name);
+        seen.add(key);
       }
     }
   }
@@ -475,7 +482,7 @@ export interface TraceTree {
   latency: number;
   time: string;
   /** True when this trace contains ≥1 GUARDRAIL span with `guardrail.triggered=true`. */
-  hasGuardrailTriggered: boolean;
+  hasGuardrailTriggered?: boolean;
 }
 
 function buildSpanTree(rawSpans: any[], annMap: Record<string, Annotation[]>): RawSpan[] {
@@ -534,14 +541,18 @@ function buildSpanTree(rawSpans: any[], annMap: Record<string, Annotation[]>): R
     }
   }
 
-  // Merge all descendant annotations into root spans
+  // Merge all descendant annotations into root spans — keyed by
+  // (name, annotatorKind) so AI and HUMAN annotations on the same eval are
+  // both bubbled up (needed by human-review pairs and per-kind badge keys).
   for (const root of roots) {
-    const existing = new Set(root.annotations.map((a) => a.name));
+    const keyOf = (a: Annotation) => `${a.name}|${a.annotatorKind ?? "LLM"}`;
+    const existing = new Set(root.annotations.map(keyOf));
     function collectAnnotations(node: RawSpan) {
       for (const ann of node.annotations) {
-        if (!existing.has(ann.name)) {
+        const k = keyOf(ann);
+        if (!existing.has(k)) {
           root.annotations.push(ann);
-          existing.add(ann.name);
+          existing.add(k);
         }
       }
       for (const child of node.children) collectAnnotations(child);

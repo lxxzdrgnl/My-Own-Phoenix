@@ -23,9 +23,11 @@ interface AnnotationFormProps {
   spanId: string;
   existingAnnotations?: Annotation[];
   onSaved?: () => void;
+  /** Pre-select this eval name (e.g. when triggered from a specific eval row). */
+  prefillEvalName?: string;
 }
 
-export function AnnotationForm({ open, onClose, spanId, existingAnnotations = [], onSaved }: AnnotationFormProps) {
+export function AnnotationForm({ open, onClose, spanId, existingAnnotations = [], onSaved, prefillEvalName }: AnnotationFormProps) {
   const t = useT();
   const [evalOptions, setEvalOptions] = useState<EvalOption[]>([]);
   const [selectedEval, setSelectedEval] = useState("");
@@ -54,14 +56,14 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
   useEffect(() => {
     if (open) {
       loadEvals();
-      setSelectedEval("");
+      setSelectedEval(prefillEvalName ?? "");
       setCustomName("");
       setLabel("");
       setScore("1.0");
       setComment("");
       setError(undefined);
     }
-  }, [open, loadEvals]);
+  }, [open, loadEvals, prefillEvalName]);
 
   useEffect(() => {
     if (selectedEval === "__custom__") {

@@ -138,19 +138,26 @@ const CANCELLED_LABELS = new Set(["cancelled"]);
 export function AnnotationBadges({
   annotations,
   onDelete,
+  /** If true, include HUMAN annotations. Default: false — HUMAN evals live in
+   *  the Trace Detail "평가" panel, not the badge stripe. */
+  includeHuman = false,
 }: {
   annotations: Annotation[];
   onDelete?: (name: string) => void;
+  includeHuman?: boolean;
 }) {
   const visible = annotations.filter(
-    (a) => !HIDDEN_ANNOTATIONS.has(a.name) && !CANCELLED_LABELS.has(a.label),
+    (a) =>
+      !HIDDEN_ANNOTATIONS.has(a.name) &&
+      !CANCELLED_LABELS.has(a.label) &&
+      (includeHuman || a.annotatorKind !== "HUMAN"),
   );
   if (!visible.length) return null;
   return (
     <div className="flex flex-wrap gap-1.5 py-0.5">
       {visible.map((a) => (
         <AnnotationBadge
-          key={a.name}
+          key={`${a.name}-${a.annotatorKind ?? "LLM"}`}
           annotation={a}
           onDelete={onDelete ? () => onDelete(a.name) : undefined}
         />

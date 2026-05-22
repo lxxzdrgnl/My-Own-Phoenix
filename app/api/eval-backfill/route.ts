@@ -66,6 +66,131 @@ function splitPromptForSystem(template: string): { system: string | null; user: 
   return { system: lines.slice(0, dataStart).join("\n").trim(), user: lines.slice(dataStart).join("\n").trim() };
 }
 
+// ── Code-rule evaluator (parity with eval-worker/worker.py:_eval_code_rule) ──
+
+type RuleResult = { label: string; score: number; explanation: string };
+
+interface CodeRule {
+  check: string;
+  op: string;
+  value: string;
+  caseSensitive?: boolean;
+}
+
+interface RuleConfig {
+  rules: CodeRule[];
+  logic?: "any" | "all";
+  match?: { label?: string; score?: number };
+  clean?: { label?: string; score?: number };
+}
+
+function spanLatencyMs(span: Record<string, unknown>): number {
+  const start = String(span.start_time ?? "");
+  const end = String(span.end_time ?? "");
+  if (!start || !end) return 0;
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  if (Number.isFinite(s) && Number.isFinite(e)) return Math.max(0, e - s);
+  return 0;
+}
+
+function runCodeRule(
+  ruleConfig: RuleConfig,
+  query: string,
+  response: string,
+  context: string,
+  span: Record<string, unknown>,
+): RuleResult {
+  const rules = ruleConfig.rules ?? [];
+  const logic = ruleConfig.logic ?? "any";
+  const matchRes = ruleConfig.match ?? { label: "detected", score: 1.0 };
+  const cleanRes = ruleConfig.clean ?? { label: "clean", score: 0.0 };
+
+  const attrs = (span.attributes ?? {}) as Record<string, unknown>;
+  const fieldValues: Record<string, string | number> = {
+    response,
+    query,
+    context,
+    total_tokens: Number(attrs["llm.token_count.total"] ?? 0) || 0,
+    prompt_tokens: Number(attrs["llm.token_count.prompt"] ?? 0) || 0,
+    completion_tokens: Number(attrs["llm.token_count.completion"] ?? 0) || 0,
+    latency_ms: spanLatencyMs(span),
+    cost: 0,
+    model_name: String(attrs["llm.model_name"] ?? ""),
+    status: String(span.status_code ?? "OK"),
+    span_kind: String(attrs["openinference.span.kind"] ?? ""),
+  };
+
+  const results: boolean[] = [];
+  for (const rule of rules) {
+    const checkField = rule.check ?? "response";
+    const op = rule.op ?? "contains_any";
+    const value = rule.value ?? "";
+    const caseSensitive = !!rule.caseSensitive;
+    const fieldVal = fieldValues[checkField] ?? "";
+    let matched = false;
+
+    try {
+      if (typeof fieldVal === "string") {
+        const text = caseSensitive ? fieldVal : fieldVal.toLowerCase();
+        const cmpVal = caseSensitive ? value : value.toLowerCase();
+
+        if (op === "contains_any") {
+          const kws = cmpVal.split(",").map((k) => k.trim()).filter(Boolean);
+          matched = kws.some((k) => text.includes(k));
+        } else if (op === "not_contains_any") {
+          const kws = cmpVal.split(",").map((k) => k.trim()).filter(Boolean);
+          matched = !kws.some((k) => text.includes(k));
+        } else if (op === "matches_regex") {
+          const flags = caseSensitive ? "" : "i";
+          matched = new RegExp(value, flags).test(fieldVal);
+        } else if (op === "length_gt") {
+          matched = fieldVal.length > Number(value);
+        } else if (op === "length_lt") {
+          matched = fieldVal.length < Number(value);
+        } else if (op === "is_empty") {
+          matched = fieldVal.trim().length === 0;
+        } else if (op === "is_not_empty") {
+          matched = fieldVal.trim().length > 0;
+        } else if (op === "equals") {
+          matched = text === cmpVal;
+        } else if (op === "not_equals") {
+          matched = text !== cmpVal;
+        }
+      } else {
+        const num = Number(fieldVal);
+        if (op === "gt") matched = num > Number(value);
+        else if (op === "lt") matched = num < Number(value);
+        else if (op === "gte") matched = num >= Number(value);
+        else if (op === "lte") matched = num <= Number(value);
+        else if (op === "between") {
+          const parts = value.split(",").map((v) => v.trim());
+          if (parts.length === 2) matched = Number(parts[0]) <= num && num <= Number(parts[1]);
+        } else if (op === "equals") matched = num === Number(value);
+      }
+    } catch {
+      // Bad regex / number — treat as non-match.
+    }
+
+    results.push(matched);
+  }
+
+  const triggered = results.length === 0 ? false : logic === "all" ? results.every(Boolean) : results.some(Boolean);
+
+  if (triggered) {
+    return {
+      label: matchRes.label ?? "detected",
+      score: Number(matchRes.score ?? 1.0),
+      explanation: "Rule matched",
+    };
+  }
+  return {
+    label: cleanRes.label ?? "clean",
+    score: Number(cleanRes.score ?? 0.0),
+    explanation: "",
+  };
+}
+
 // ── POST /api/eval-backfill ──
 
 export const POST = authedHandler(async (req: NextRequest, uid: string) => {
@@ -103,8 +228,27 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
   const evalPrompt = await prisma.evalPrompt.findFirst({
     where: { name: evalName, OR: [{ projectId: null }, { projectId: "" }, { projectId }] },
   });
-  if (!evalPrompt || !evalPrompt.template) {
-    return apiError(req, ErrorCode.EVAL_NOT_FOUND, `Eval "${evalName}" not found or has no template`);
+  if (!evalPrompt) {
+    return apiError(req, ErrorCode.EVAL_NOT_FOUND, `Eval "${evalName}" not found`);
+  }
+
+  const evalType = evalPrompt.evalType ?? "llm";
+  const isCodeRule = evalType === "code_rule";
+
+  // Validate: LLM evals need a template; code_rule evals need a ruleConfig.
+  if (!isCodeRule && !evalPrompt.template) {
+    return apiError(req, ErrorCode.EVAL_NOT_FOUND, `Eval "${evalName}" has no template`);
+  }
+  let ruleConfig: RuleConfig | null = null;
+  if (isCodeRule) {
+    try {
+      ruleConfig = JSON.parse(evalPrompt.ruleConfig ?? "{}") as RuleConfig;
+    } catch {
+      return apiError(req, ErrorCode.BAD_REQUEST, `Eval "${evalName}" has invalid ruleConfig`);
+    }
+    if (!ruleConfig?.rules?.length) {
+      return apiError(req, ErrorCode.BAD_REQUEST, `Eval "${evalName}" has no rules configured`);
+    }
   }
 
   const startTime = new Date(startDate).toISOString();
@@ -168,31 +312,37 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
       context = parts.join("\n---\n");
     }
 
-    // Run eval
+    // Run eval — branch by evalType
     try {
-      const filled = evalPrompt.template
-        .replace(/\{context\}/g, context || "(no context)")
-        .replace(/\{response\}/g, response || "(no response)")
-        .replace(/\{query\}/g, query || "(no query)");
-
-      const { system, user } = splitPromptForSystem(filled);
-      const messages: { role: string; content: string }[] = [];
-      if (system) messages.push({ role: "system", content: system });
-      messages.push({ role: "user", content: user });
-
-      const r = await llmEval(messages, evalPrompt.model ?? "gpt-4o-mini", { userId: uid, projectId });
-      if (r && r.label) {
-        const label = String(r.label);
-        let score: number;
-        if (outputMode === "binary" || r.score === undefined) {
-          score = PASS_LABELS.has(label.toLowerCase()) ? 1.0 : 0.0;
-        } else {
-          score = Number(r.score) || 0;
-        }
-        await phoenixUploadAnnotation(spanId, evalName, "LLM", label, score, String(r.explanation ?? ""));
+      if (isCodeRule && ruleConfig) {
+        const r = runCodeRule(ruleConfig, query, response, context, root);
+        await phoenixUploadAnnotation(spanId, evalName, "CODE", r.label, r.score, r.explanation);
         evaluated++;
       } else {
-        skipped++;
+        const filled = evalPrompt.template
+          .replace(/\{context\}/g, context || "(no context)")
+          .replace(/\{response\}/g, response || "(no response)")
+          .replace(/\{query\}/g, query || "(no query)");
+
+        const { system, user } = splitPromptForSystem(filled);
+        const messages: { role: string; content: string }[] = [];
+        if (system) messages.push({ role: "system", content: system });
+        messages.push({ role: "user", content: user });
+
+        const r = await llmEval(messages, evalPrompt.model ?? "gpt-4o-mini", { userId: uid, projectId });
+        if (r && r.label) {
+          const label = String(r.label);
+          let score: number;
+          if (outputMode === "binary" || r.score === undefined) {
+            score = PASS_LABELS.has(label.toLowerCase()) ? 1.0 : 0.0;
+          } else {
+            score = Number(r.score) || 0;
+          }
+          await phoenixUploadAnnotation(spanId, evalName, "LLM", label, score, String(r.explanation ?? ""));
+          evaluated++;
+        } else {
+          skipped++;
+        }
       }
     } catch (e) {
       console.error(`Backfill eval "${evalName}" failed for span ${spanId}:`, e);

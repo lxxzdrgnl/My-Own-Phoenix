@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Users, ArrowRight, Eye } from "lucide-react";
+import { ArrowRight, Eye } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { fetchTraces, type Trace } from "@/lib/phoenix";
+import { fetchTraces, fetchTraceTrees, type Trace, type TraceTree } from "@/lib/phoenix";
 import { useProjectSse } from "@/lib/hooks/use-project-sse";
-import { AiHumanComparison } from "@/components/dashboard/widgets/ai-human-comparison";
+import {
+  AiHumanComparison,
+  pairsFromTraces,
+} from "@/components/dashboard/widgets/ai-human-comparison";
+import { StatCard } from "@/components/dashboard/widgets/stat-card";
 import { LoadingState } from "@/components/ui/empty-state";
 
 const SAMPLE_TRACES: Trace[] = [
@@ -59,15 +63,20 @@ interface Props {
 export function HumanReviewView({ phoenixProject, projectId, slug }: Props) {
   const t = useT();
   const [traces, setTraces] = useState<Trace[]>([]);
+  const [traceTrees, setTraceTrees] = useState<TraceTree[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSample, setShowSample] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const ts = await fetchTraces(phoenixProject);
+      const [ts, trees] = await Promise.all([
+        fetchTraces(phoenixProject),
+        fetchTraceTrees(phoenixProject),
+      ]);
       ts.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
       setTraces(ts);
+      setTraceTrees(trees);
     } catch (e) {
       console.error(e);
     }
@@ -84,105 +93,187 @@ export function HumanReviewView({ phoenixProject, projectId, slug }: Props) {
 
   const hasHuman = traces.some((tr) => tr.annotations.some((a) => a.annotatorKind === "HUMAN"));
 
+  // Stats source: real traces or sample data when in sample mode
+  const statSource = showSample && !hasHuman ? SAMPLE_TRACES : traces;
+  const stats = useMemo(() => computeStats(statSource), [statSource]);
+
   return (
     <div className="p-6">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-5 flex items-center gap-2">
-          <Users className="size-5" />
-          <h1 className="text-xl font-semibold tracking-tight">{t.humanReview.title}</h1>
+        {/* Header */}
+        <div className="mb-5 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">{t.humanReview.title}</h1>
+            <p className="text-sm text-muted-foreground">{t.humanReview.pageDescription}</p>
+          </div>
+          {showSample && !hasHuman && (
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+              {t.humanReview.sampleBadge}
+            </span>
+          )}
         </div>
-        <p className="mb-6 text-sm text-muted-foreground">{t.humanReview.pageDescription}</p>
 
         {loading ? (
           <LoadingState />
-        ) : hasHuman ? (
-          <AiHumanComparison traces={traces} projectId={projectId} slug={slug} />
-        ) : showSample ? (
-          <div>
-            <div className="mb-3 inline-block rounded-md border border-dashed bg-muted/20 px-3 py-1.5 text-[11px] text-muted-foreground">
-              {t.humanReview.sampleBadge}
-            </div>
-            <div className="opacity-70">
-              <AiHumanComparison traces={SAMPLE_TRACES} slug={slug} />
-            </div>
-            <button
-              onClick={() => setShowSample(false)}
-              className="mt-4 text-xs text-muted-foreground hover:text-foreground"
-            >
-              ← back
-            </button>
-          </div>
         ) : (
-          <EmptyOnboarding traces={traces} slug={slug} onShowSample={() => setShowSample(true)} t={t} />
+          <>
+            {/* Stat cards (always shown) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <div className="rounded-xl border bg-card h-28">
+                <StatCard
+                  value={
+                    stats.total > 0
+                      ? `${stats.tracesWithHuman}/${stats.total}`
+                      : "0/0"
+                  }
+                  label={t.humanReview.kpiCoverage}
+                  trend={`${stats.coveragePct}%`}
+                />
+              </div>
+              <div className="rounded-xl border bg-card h-28">
+                <StatCard
+                  value={stats.comparable > 0 ? String(stats.comparable) : "—"}
+                  label={t.humanReview.kpiComparable}
+                  trend={
+                    stats.evalNames.length > 0
+                      ? `${stats.evalNames.length} eval`
+                      : t.humanReview.kpiNeedsHuman
+                  }
+                />
+              </div>
+              <div className="rounded-xl border bg-card h-28">
+                <StatCard
+                  value={stats.comparable > 0 ? String(stats.diffCount) : "—"}
+                  label={t.humanReview.kpiDisagreement}
+                  trend={stats.comparable > 0 ? `${stats.diffPct}% mismatch` : "—"}
+                />
+              </div>
+              <div className="rounded-xl border bg-card h-28">
+                <StatCard
+                  value={stats.comparable > 0 ? `${stats.agreePct}%` : "—"}
+                  label={t.humanReview.kpiAgreement}
+                  trend={
+                    stats.comparable > 0
+                      ? `${stats.comparable - stats.diffCount}/${stats.comparable}`
+                      : "—"
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Main */}
+            {hasHuman ? (
+              <AiHumanComparison
+                traces={traces}
+                traceTrees={traceTrees}
+                projectId={projectId}
+                projectName={phoenixProject}
+                slug={slug}
+                onRefresh={load}
+              />
+            ) : showSample ? (
+              <div className="space-y-4">
+                <div className="opacity-70">
+                  <AiHumanComparison traces={SAMPLE_TRACES} slug={slug} />
+                </div>
+                <button
+                  onClick={() => setShowSample(false)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  {t.humanReview.backToOnboarding}
+                </button>
+              </div>
+            ) : (
+              <EmptyOnboarding
+                slug={slug}
+                onShowSample={() => setShowSample(true)}
+                t={t}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
   );
 }
 
+// ─── Stats helper ────────────────────────────────────────────────────────────
+
+function computeStats(traces: Trace[]) {
+  const total = traces.length;
+  const tracesWithHuman = traces.filter((tr) =>
+    tr.annotations.some((a) => a.annotatorKind === "HUMAN"),
+  ).length;
+  const coveragePct = total > 0 ? Math.round((tracesWithHuman / total) * 100) : 0;
+
+  const pairs = pairsFromTraces(traces);
+  const comparable = pairs.length;
+  const diffCount = pairs.filter((p) => p.isDiff).length;
+  const diffPct = comparable > 0 ? Math.round((diffCount / comparable) * 100) : 0;
+  const agreePct = comparable > 0 ? 100 - diffPct : 0;
+
+  const evalNames = Array.from(new Set(pairs.map((p) => p.evalName)));
+
+  return {
+    total,
+    tracesWithHuman,
+    coveragePct,
+    comparable,
+    diffCount,
+    diffPct,
+    agreePct,
+    evalNames,
+  };
+}
+
+// ─── Empty onboarding ────────────────────────────────────────────────────────
+
 function EmptyOnboarding({
-  traces,
   slug,
   onShowSample,
   t,
 }: {
-  traces: Trace[];
   slug: string;
   onShowSample: () => void;
   t: ReturnType<typeof useT>;
 }) {
   const recentHref = `/${slug}/requests`;
+  const steps = [
+    t.humanReview.emptyStep1,
+    t.humanReview.emptyStep2,
+    t.humanReview.emptyStep3,
+    t.humanReview.emptyStep4,
+  ];
+
   return (
-    <div className="rounded-xl border bg-card p-8 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="size-12 rounded-full bg-muted flex items-center justify-center">
-          <Users className="size-6 text-muted-foreground" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold">{t.humanReview.emptyTitle}</h2>
-          <p className="text-xs text-muted-foreground">
-            {t.humanReview.countSummary
-              .replace("{covered}", "0")
-              .replace("{total}", String(traces.length))
-              .replace("{pct}", "0")}
-          </p>
-        </div>
-      </div>
+    <div className="rounded-xl border bg-card p-6">
+      <h2 className="text-lg font-semibold tracking-tight">{t.humanReview.emptyTitle}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t.humanReview.emptyHowTo}</p>
 
-      <div className="rounded-md border bg-muted/10 p-4 mb-4">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-          {t.humanReview.emptyHowTo}
-        </p>
-        <ol className="space-y-1.5 text-sm">
-          <li className="flex gap-2">
-            <span className="text-muted-foreground">1.</span>
-            {t.humanReview.emptyStep1}
+      <ol className="mt-6 space-y-3">
+        {steps.map((step, i) => (
+          <li key={i} className="flex items-baseline gap-4">
+            <span
+              className="w-6 shrink-0 text-xs font-semibold tabular-nums text-muted-foreground/60"
+              style={{ fontFamily: "'Geist Mono', 'SF Mono', monospace" }}
+            >
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span className="text-sm leading-snug">{step}</span>
           </li>
-          <li className="flex gap-2">
-            <span className="text-muted-foreground">2.</span>
-            {t.humanReview.emptyStep2}
-          </li>
-          <li className="flex gap-2">
-            <span className="text-muted-foreground">3.</span>
-            {t.humanReview.emptyStep3}
-          </li>
-          <li className="flex gap-2">
-            <span className="text-muted-foreground">4.</span>
-            {t.humanReview.emptyStep4}
-          </li>
-        </ol>
-      </div>
+        ))}
+      </ol>
 
-      <div className="flex gap-2">
+      <div className="mt-6 flex gap-2 border-t pt-4">
         <Link
           href={recentHref}
-          className="inline-flex items-center gap-1.5 rounded-md border bg-foreground px-3 py-2 text-xs font-medium text-background hover:bg-foreground/90"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
         >
           {t.humanReview.openRecentTrace} <ArrowRight className="size-3" />
         </Link>
         <button
           onClick={onShowSample}
-          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium hover:bg-muted"
         >
           <Eye className="size-3" /> {t.humanReview.viewSample}
         </button>

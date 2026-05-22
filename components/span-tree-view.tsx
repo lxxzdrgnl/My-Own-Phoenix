@@ -1,7 +1,7 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { type RawSpan, type TraceTree, type Annotation } from "@/lib/phoenix";
 import { AnnotationBadges } from "@/components/annotation-badge";
@@ -30,6 +30,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { GuardrailDetail } from "@/components/span-detail/guardrail-detail";
+import { TraceDetailTabs } from "@/components/trace-detail-tabs";
+import { useProjectOptional } from "@/lib/project-context";
 import { useT } from "@/lib/i18n";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -451,8 +453,10 @@ function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; o
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefresh }: {
+function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotation, onDeleteTrace, onRefresh }: {
   trace: TraceTree;
+  enabledEvals: string[];
+  projectName?: string;
   onDeleteAnnotation?: (spanId: string, name: string) => void;
   onDeleteTrace?: (traceId: string) => void;
   onRefresh?: () => void;
@@ -462,6 +466,7 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
   const [annotateSpanId, setAnnotateSpanId] = useState<string | null>(null);
   const [annotateAnnotations, setAnnotateAnnotations] = useState<Annotation[]>([]);
   const [datasetModalOpen, setDatasetModalOpen] = useState(false);
+  const projectCtx = useProjectOptional();
 
   function handleAnnotate(spanId: string, annotations: Annotation[]) {
     setAnnotateSpanId(spanId);
@@ -512,10 +517,24 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
               second: "2-digit",
             })}
           </p>
-          <div className="mt-1 flex items-center gap-1.5">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {trace.rootSpan.annotations.length > 0 && (
               <AnnotationBadges annotations={trace.rootSpan.annotations} />
             )}
+            {(() => {
+              const have = new Set(trace.rootSpan.annotations.map((a) => a.name));
+              const pending = enabledEvals.filter((n) => !have.has(n));
+              return pending.map((name) => (
+                <span
+                  key={`pending-${name}`}
+                  title={t.traceTabs?.pending ?? "평가 대기"}
+                  className="inline-flex items-center gap-1 rounded border border-dashed border-foreground/20 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {name} <span className="font-bold">−</span>
+                </span>
+              ));
+            })()}
             <RoleGate>
               <button
                 onClick={(e) => {
@@ -573,6 +592,13 @@ function TraceAccordionItem({ trace, onDeleteAnnotation, onDeleteTrace, onRefres
 
       {/* Span timeline bar — only when expanded */}
       {expanded && <SpanTimeline rootSpan={trace.rootSpan} />}
+
+      {/* Evaluations / Annotations / Raw tabs */}
+      {expanded && (
+        <div className="border-t">
+          <TraceDetailTabs trace={trace} projectId={projectCtx?.id} projectName={projectName} onRefresh={onRefresh} />
+        </div>
+      )}
 
       {/* Expanded: tree + detail + graph */}
       {expanded && (
@@ -673,6 +699,18 @@ export function SpanTreeView({
   onRefresh?: () => void;
 }) {
   const confirm = useConfirm();
+  const projectCtx = useProjectOptional();
+  const [enabledEvals, setEnabledEvals] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!projectCtx?.id) return;
+    apiFetch(`/api/eval-config?projectId=${encodeURIComponent(projectCtx.id)}`)
+      .then((r) => r.json())
+      .then((d: { configs?: { evalName: string; enabled: boolean }[] }) => {
+        setEnabledEvals((d.configs ?? []).filter((c) => c.enabled).map((c) => c.evalName));
+      })
+      .catch(() => {});
+  }, [projectCtx?.id]);
 
   async function handleDeleteTrace(traceId: string) {
     const ok = await confirm({
@@ -711,6 +749,8 @@ export function SpanTreeView({
         <TraceAccordionItem
           key={t.traceId}
           trace={t}
+          enabledEvals={enabledEvals}
+          projectName={projectName}
           onDeleteAnnotation={projectName ? handleDeleteAnnotation : undefined}
           onDeleteTrace={handleDeleteTrace}
           onRefresh={onRefresh}

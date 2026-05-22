@@ -103,6 +103,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
   const t = useT();
   const [traces, setTraces] = useState<Trace[]>([]);
   const [traceTrees, setTraceTrees] = useState<TraceTree[]>([]);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [tracesLoading, setTracesLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"traces" | "measure">(defaultTab);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -166,6 +167,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
       t.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
       setTraces(t);
       setTraceTrees(trees);
+      setInitialLoaded(true);
     } catch (e) {
       console.error(e);
     }
@@ -306,7 +308,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
     });
   }, [rmfMetrics]);
 
-  if (tracesLoading) {
+  if (tracesLoading && !initialLoaded) {
     return <LoadingState className="h-full" />;
   }
 

@@ -10,7 +10,16 @@
 -- 1. Add new nullable column for the "last updated by" audit field.
 ALTER TABLE "DashboardLayout" ADD COLUMN "lastUpdatedBy" TEXT;
 
--- 2. Stamp lastUpdatedBy with the original userId of the layout we'll keep.
+-- 2. Backfill projectId from the legacy `project` (projectName) column.
+--    Rows in production were created before projectId existed and have
+--    projectId = NULL, using the `project` text column instead.
+UPDATE "DashboardLayout" dl
+   SET "projectId" = p.id
+  FROM "Project" p
+ WHERE dl."projectId" IS NULL
+   AND p.name = dl.project;
+
+-- 3. Stamp lastUpdatedBy with the original userId of the layout we'll keep.
 --    Priority (lower wins):
 --      1. project.name = 'dexter' AND user.email = 'yihsean@gmail.com'
 --      2. project_member.role = 'owner'
@@ -43,7 +52,7 @@ UPDATE "DashboardLayout" dl
   FROM chosen c
  WHERE dl.id = c.id;
 
--- 3. Delete every row that wasn't chosen.
+-- 4. Delete every row that wasn't chosen.
 --    Anything without a projectId, or whose userId isn't a current project
 --    member, also gets dropped (handled by the WHERE in the CTE above).
 DELETE FROM "DashboardLayout"
@@ -71,7 +80,7 @@ DELETE FROM "DashboardLayout"
    ) keep
  );
 
--- 4. Schema reshape: drop per-user columns/constraints, make projectId unique
+-- 5. Schema reshape: drop per-user columns/constraints, make projectId unique
 --    and required, add FK for lastUpdatedBy.
 ALTER TABLE "DashboardLayout" DROP CONSTRAINT IF EXISTS "DashboardLayout_userId_fkey";
 ALTER TABLE "DashboardLayout" DROP CONSTRAINT IF EXISTS "DashboardLayout_userId_project_key";

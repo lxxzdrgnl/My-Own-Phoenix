@@ -8,7 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import { useProjectOptional } from "@/lib/project-context";
-import { TraceDetailTabs } from "./trace-detail-tabs";
+import { TraceDetailTabs } from "@/components/trace-detail-tabs";
 
 export function TraceDetailView({ projectName, traceId }: { projectName: string; traceId: string }) {
   const t = useT();

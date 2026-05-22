@@ -3,10 +3,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { type Trace, type Annotation } from "@/lib/phoenix";
+import { type Trace, type TraceTree, type Annotation } from "@/lib/phoenix";
 import { FAIL_LABELS } from "@/lib/constants";
-import { Button } from "@/components/ui/button";
-import { AddDiffToDatasetDialog, type DiffRowInput } from "@/components/modals/add-diff-to-dataset-dialog";
+import { SpanTreeView } from "@/components/span-tree-view";
 
 // ── Pure helpers (also exported for tests) ──
 
@@ -98,32 +97,37 @@ export function confusionMatrix(pairs: ComparablePair[]): ConfusionCounts {
 
 // ── Component ──
 
-type Tab = "disagreement" | "confusion" | "scatter";
-
 export function AiHumanComparison({
   traces,
-  projectId,
+  traceTrees,
+  projectId: _projectId,
+  projectName,
   slug,
+  onRefresh,
 }: {
   traces: Trace[];
+  traceTrees?: TraceTree[];
   projectId?: string;
+  projectName?: string;
   slug?: string;
+  onRefresh?: () => void;
 }) {
   const t = useT();
-  const [tab, setTab] = useState<Tab>("disagreement");
   const [selectedEval, setSelectedEval] = useState<string>("");
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const allPairs = useMemo(() => pairsFromTraces(traces), [traces]);
 
+  // All eval names that appear on any annotation (AI or HUMAN), so the
+  // filter dropdown shows the user's review even when there is no AI
+  // counterpart to pair with.
   const evalNames = useMemo(() => {
     const set = new Set<string>();
-    for (const p of allPairs) set.add(p.evalName);
+    for (const tr of traces) {
+      for (const a of tr.annotations) set.add(a.name);
+    }
     return Array.from(set).sort();
-  }, [allPairs]);
+  }, [traces]);
 
-  // Initialize default eval selection
   useEffect(() => {
     if (selectedEval === "" && evalNames.length > 0) {
       setSelectedEval(evalNames[0]);
@@ -138,72 +142,32 @@ export function AiHumanComparison({
     [allPairs, selectedEval],
   );
 
-  const total = traces.length;
-  const tracesWithHuman = new Set(
-    traces
-      .filter((tr) => tr.annotations.some((a) => a.annotatorKind === "HUMAN"))
-      .map((tr) => tr.spanId),
-  ).size;
   const compared = filtered.length;
-  const diffCount = filtered.filter((p) => p.isDiff).length;
-  const pct = compared > 0 ? Math.round((diffCount / compared) * 100) : 0;
-  const coveragePct = total > 0 ? Math.round((tracesWithHuman / total) * 100) : 0;
-
   const cm = useMemo(() => confusionMatrix(filtered), [filtered]);
 
-  const selectedKeys = Object.keys(checked).filter((k) => checked[k]);
-  const selectedRows: DiffRowInput[] = filtered
-    .filter((p) => checked[`${p.spanId}|${p.evalName}`])
-    .map((p) => ({
-      spanId: p.spanId,
-      traceId: p.traceId,
-      query: p.query,
-      response: p.response,
-      context: p.context,
-      evalName: p.evalName,
-      aiLabel: p.ai.label,
-      aiScore: p.ai.score,
-      humanLabel: p.human.label,
-      humanScore: p.human.score,
-    }));
+  // ── Disagreement list source (with fallback) ──
+  // Priority 1: trace IDs that have diff pairs on selected eval.
+  // Fallback: all human-reviewed trace IDs (when no diffs found, so the user
+  // still sees the traces they reviewed instead of an empty list).
+  const diffPairs = useMemo(() => filtered.filter((p) => p.isDiff), [filtered]);
+  const humanReviewedTraceIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const tr of traces) {
+      if (tr.annotations.some((a) => a.annotatorKind === "HUMAN")) s.add(tr.traceId);
+    }
+    return s;
+  }, [traces]);
+  const disagreementTraceIds = useMemo(() => {
+    if (diffPairs.length > 0) return new Set(diffPairs.map((p) => p.traceId));
+    return humanReviewedTraceIds;
+  }, [diffPairs, humanReviewedTraceIds]);
+  const isFallbackList = diffPairs.length === 0 && humanReviewedTraceIds.size > 0;
 
   return (
-    <div className="rounded-xl border bg-card">
-      {/* Header */}
-      <div className="border-b px-4 py-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <p className="text-xs text-muted-foreground">
-              {t.humanReview.countSummary
-                .replace("{covered}", String(tracesWithHuman))
-                .replace("{total}", String(total))
-                .replace("{pct}", String(coveragePct))}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t.humanReview.diffSummary
-                .replace("{diff}", String(diffCount))
-                .replace("{compared}", String(compared))
-                .replace("{pct}", String(pct))}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{t.humanReview.annotationFilter}:</span>
-            <select
-              value={selectedEval}
-              onChange={(e) => setSelectedEval(e.target.value)}
-              className="h-8 rounded-md border bg-background px-2 text-xs"
-            >
-              {evalNames.length === 0 && <option value="">—</option>}
-              {evalNames.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {/* Tabs */}
-        <div className="mt-3 flex gap-1 border-b -mb-3">
+    <div>
+      {/* Toolbar: tabs (left) + annotation filter (right) */}
+      <div className="mb-4 flex items-end justify-between gap-3 flex-wrap border-b">
+        <div className="flex gap-1">
           {(
             [
               ["disagreement", t.humanReview.tabDisagreement],
@@ -214,7 +178,7 @@ export function AiHumanComparison({
             <button
               key={k}
               onClick={() => setTab(k)}
-              className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 tab === k
                   ? "border-foreground text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -224,179 +188,325 @@ export function AiHumanComparison({
             </button>
           ))}
         </div>
+        <div className="flex items-center gap-2 pb-2">
+          <span className="text-xs text-muted-foreground">
+            {t.humanReview.annotationFilter}
+          </span>
+          <select
+            value={selectedEval}
+            onChange={(e) => setSelectedEval(e.target.value)}
+            className="h-8 rounded-md border bg-background px-2 text-xs"
+          >
+            {evalNames.length === 0 && <option value="">—</option>}
+            {evalNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Body */}
-      <div className="p-4">
-        {compared === 0 ? (
-          <p className="text-sm text-muted-foreground py-8 text-center">{t.humanReview.noComparable}</p>
-        ) : tab === "disagreement" ? (
-          <DisagreementTab
-            pairs={filtered.filter((p) => p.isDiff)}
-            checked={checked}
-            setChecked={setChecked}
-            slug={slug}
-            t={t}
-          />
-        ) : tab === "confusion" ? (
+      {tab === "disagreement" ? (
+        <DisagreementTab
+          traceIds={disagreementTraceIds}
+          traceTrees={traceTrees}
+          projectName={projectName}
+          onRefresh={onRefresh}
+          isFallbackList={isFallbackList}
+          t={t}
+        />
+      ) : compared === 0 ? (
+        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+          {t.humanReview.noComparable}
+        </div>
+      ) : tab === "confusion" ? (
+        <div className="rounded-xl border bg-card p-6">
           <ConfusionTab counts={cm} t={t} />
-        ) : (
-          <ScatterTab pairs={filtered} slug={slug} />
-        )}
-      </div>
-
-      {/* Action bar */}
-      {tab === "disagreement" && selectedKeys.length > 0 && (
-        <div className="flex items-center justify-between border-t px-4 py-2">
-          <span className="text-xs text-muted-foreground">
-            {t.humanReview.selectedCount.replace("{n}", String(selectedKeys.length))}
-          </span>
-          <Button size="sm" onClick={() => setDialogOpen(true)} className="text-xs">
-            {t.humanReview.addToDataset}
-          </Button>
+        </div>
+      ) : (
+        <div className="rounded-xl border bg-card p-6">
+          <ScatterTab pairs={filtered} slug={slug} t={t} />
         </div>
       )}
-
-      <AddDiffToDatasetDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        projectId={projectId}
-        evalName={selectedEval}
-        rows={selectedRows}
-        onSaved={() => setChecked({})}
-      />
     </div>
   );
 }
 
+// ─── Disagreement tab ─────────────────────────────────────────────────────────
+
 function DisagreementTab({
+  traceIds,
+  traceTrees,
+  projectName,
+  onRefresh,
+  isFallbackList,
+  t,
+}: {
+  traceIds: Set<string>;
+  traceTrees?: TraceTree[];
+  projectName?: string;
+  onRefresh?: () => void;
+  isFallbackList: boolean;
+  t: ReturnType<typeof useT>;
+}) {
+  const filteredTrees = useMemo(
+    () => (traceTrees ?? []).filter((tr) => traceIds.has(tr.traceId)),
+    [traceTrees, traceIds],
+  );
+
+  if (traceIds.size === 0)
+    return (
+      <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+        {t.humanReview.noComparable}
+      </div>
+    );
+
+  // Sample mode (no traceTrees available) — graceful empty card.
+  if (!traceTrees) {
+    return (
+      <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+        {t.humanReview.noComparable}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {isFallbackList && (
+        <div className="flex items-start gap-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <span aria-hidden className="mt-[2px]">·</span>
+          <span>{t.humanReview.fallbackListNote}</span>
+        </div>
+      )}
+      <SpanTreeView traces={filteredTrees} projectName={projectName} onRefresh={onRefresh} />
+    </div>
+  );
+}
+
+// ─── Confusion matrix tab (monochrome) ────────────────────────────────────────
+
+function ConfusionTab({ counts, t }: { counts: ConfusionCounts; t: ReturnType<typeof useT> }) {
+  const diffTotal = counts.aiPassHumanFail + counts.aiFailHumanPass;
+  const agreeTotal = counts.aiPassHumanPass + counts.aiFailHumanFail;
+
+  // Rows = Human (truth), Cols = AI (prediction)
+  // [row][col]
+  //   row 0 = Human Pass, row 1 = Human Fail
+  //   col 0 = AI Pass,    col 1 = AI Fail
+  const matrix: { value: number; isDiff: boolean }[][] = [
+    [
+      { value: counts.aiPassHumanPass, isDiff: false },
+      { value: counts.aiFailHumanPass, isDiff: true },
+    ],
+    [
+      { value: counts.aiPassHumanFail, isDiff: true },
+      { value: counts.aiFailHumanFail, isDiff: false },
+    ],
+  ];
+
+  const colHeaders = [t.humanReview.aiPass, t.humanReview.aiFail];
+  const rowHeaders = [t.humanReview.humanPass, t.humanReview.humanFail];
+
+  return (
+    <div className="mx-auto" style={{ maxWidth: 460 }}>
+      {/* Top: AI axis caption */}
+      <div className="mb-1 ml-[88px]">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground/60">
+          AI
+        </p>
+      </div>
+
+      {/* Grid: [row-header-col | col-header-1 | col-header-2]
+                 ─                             ─
+                 row 1 label  | cell           | cell
+                 row 2 label  | cell           | cell  */}
+      <div className="grid grid-cols-[88px_1fr_1fr] gap-px">
+        {/* Empty corner */}
+        <div />
+        {/* Column headers */}
+        {colHeaders.map((h, i) => (
+          <div key={`col-${i}`} className="pb-2 text-center text-xs font-medium">
+            {h}
+          </div>
+        ))}
+
+        {/* Body rows */}
+        {matrix.map((row, rIdx) => (
+          <Row key={rIdx} rowLabel={rowHeaders[rIdx]} cells={row} />
+        ))}
+      </div>
+
+      {/* Bottom: Human axis caption */}
+      <div className="mt-1 ml-[88px]">
+        <p className="text-right text-[10px] uppercase tracking-[0.22em] text-muted-foreground/60">
+          HUMAN
+        </p>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-5 flex items-center justify-center gap-5 text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block size-1.5 rounded-full bg-foreground/40" />
+          <span>{t.humanReview.confusionLegendAgree}</span>
+          <span className="tabular-nums font-semibold text-foreground">{agreeTotal}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block size-1.5 rounded-full bg-foreground" />
+          <span>{t.humanReview.confusionLegendDiff}</span>
+          <span className="tabular-nums font-semibold text-foreground">{diffTotal}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function Row({
+  rowLabel,
+  cells,
+}: {
+  rowLabel: string;
+  cells: { value: number; isDiff: boolean }[];
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-end pr-3 text-xs font-medium text-right">
+        {rowLabel}
+      </div>
+      {cells.map((c, i) => (
+        <ConfusionCell key={i} value={c.value} isDiff={c.isDiff} />
+      ))}
+    </>
+  );
+}
+
+function ConfusionCell({ value }: { value: number; isDiff: boolean }) {
+  const isMuted = value === 0;
+  return (
+    <div className="aspect-square flex items-center justify-center rounded-md border bg-card">
+      <span
+        className={`text-5xl font-black tabular-nums tracking-tight ${
+          isMuted ? "text-muted-foreground/30" : "text-foreground"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ─── Scatter tab (monochrome) ─────────────────────────────────────────────────
+
+function ScatterTab({
   pairs,
-  checked,
-  setChecked,
   slug,
   t,
 }: {
   pairs: ComparablePair[];
-  checked: Record<string, boolean>;
-  setChecked: (v: Record<string, boolean>) => void;
   slug?: string;
   t: ReturnType<typeof useT>;
 }) {
-  if (pairs.length === 0)
-    return <p className="text-sm text-muted-foreground py-8 text-center">—</p>;
+  const size = 360;
+  const padL = 44;
+  const padR = 20;
+  const padT = 20;
+  const padB = 36;
+  const innerW = size - padL - padR;
+  const innerH = size - padT - padB;
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+
+  const diffPairs = pairs.filter((p) => p.isDiff);
+  const matchPairs = pairs.filter((p) => !p.isDiff);
+
+  function xOf(v: number) {
+    return padL + innerW * Math.max(0, Math.min(1, v));
+  }
+  function yOf(v: number) {
+    return padT + innerH - innerH * Math.max(0, Math.min(1, v));
+  }
+
   return (
-    <div className="space-y-1.5">
-      {pairs.map((p) => {
-        const key = `${p.spanId}|${p.evalName}`;
-        const reasonLabel =
-          p.diffReason === "label" ? t.humanReview.diffReasonLabel : t.humanReview.diffReasonScore;
-        const href = slug ? `/${slug}/requests` : "#";
-        return (
-          <div
-            key={key}
-            className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
-          >
-            <input
-              type="checkbox"
-              checked={!!checked[key]}
-              onChange={(e) => setChecked({ ...checked, [key]: e.target.checked })}
-              className="size-3.5"
+    <div className="flex flex-col items-center">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="text-foreground"
+      >
+        {/* Gridlines */}
+        {ticks.map((tk) => (
+          <g key={`gx-${tk}`}>
+            <line
+              x1={xOf(tk)}
+              y1={padT}
+              x2={xOf(tk)}
+              y2={padT + innerH}
+              stroke="currentColor"
+              strokeOpacity={tk === 0 ? 0.4 : 0.08}
             />
-            <a
-              href={href}
-              className="font-mono text-[11px] truncate flex-1 hover:underline"
-              title={p.traceId}
+            <line
+              x1={padL}
+              y1={yOf(tk)}
+              x2={padL + innerW}
+              y2={yOf(tk)}
+              stroke="currentColor"
+              strokeOpacity={tk === 0 ? 0.4 : 0.08}
+            />
+          </g>
+        ))}
+
+        {/* Reference diagonal */}
+        <line
+          x1={xOf(0)}
+          y1={yOf(0)}
+          x2={xOf(1)}
+          y2={yOf(1)}
+          stroke="currentColor"
+          strokeOpacity={0.18}
+          strokeDasharray="3 4"
+        />
+
+        {/* Tick labels */}
+        {ticks.map((tk) => (
+          <g key={`lab-${tk}`}>
+            <text
+              x={xOf(tk)}
+              y={padT + innerH + 14}
+              textAnchor="middle"
+              className="fill-current"
+              fillOpacity={0.5}
+              fontSize="10"
+              style={{ fontFamily: "'Geist Mono', monospace" }}
             >
-              {p.traceId.slice(0, 12)}…
-            </a>
-            <span className="rounded bg-muted px-1.5 py-0.5 tabular-nums">
-              AI:{p.ai.label} ({p.ai.score.toFixed(2)})
-            </span>
-            <span className="rounded bg-muted px-1.5 py-0.5 tabular-nums">
-              Human:{p.human.label} ({p.human.score.toFixed(2)})
-            </span>
-            <span className="text-muted-foreground">{reasonLabel}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+              {tk.toFixed(2)}
+            </text>
+            <text
+              x={padL - 8}
+              y={yOf(tk) + 3}
+              textAnchor="end"
+              className="fill-current"
+              fillOpacity={0.5}
+              fontSize="10"
+              style={{ fontFamily: "'Geist Mono', monospace" }}
+            >
+              {tk.toFixed(2)}
+            </text>
+          </g>
+        ))}
 
-function ConfusionTab({ counts, t }: { counts: ConfusionCounts; t: ReturnType<typeof useT> }) {
-  const cells: { key: string; label: string; value: number; cls: string }[] = [
-    {
-      key: "pp",
-      label: `${t.humanReview.aiPass} / ${t.humanReview.humanPass}`,
-      value: counts.aiPassHumanPass,
-      cls: "bg-emerald-500/20",
-    },
-    {
-      key: "pf",
-      label: `${t.humanReview.aiPass} / ${t.humanReview.humanFail}`,
-      value: counts.aiPassHumanFail,
-      cls: "bg-yellow-500/20",
-    },
-    {
-      key: "fp",
-      label: `${t.humanReview.aiFail} / ${t.humanReview.humanPass}`,
-      value: counts.aiFailHumanPass,
-      cls: "bg-yellow-500/20",
-    },
-    {
-      key: "ff",
-      label: `${t.humanReview.aiFail} / ${t.humanReview.humanFail}`,
-      value: counts.aiFailHumanFail,
-      cls: "bg-red-500/20",
-    },
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto">
-      {cells.map((c) => (
-        <div key={c.key} className={`rounded-md p-4 ${c.cls}`}>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{c.label}</p>
-          <p className="text-2xl font-bold tabular-nums">{c.value}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ScatterTab({ pairs, slug }: { pairs: ComparablePair[]; slug?: string }) {
-  const size = 280;
-  const pad = 24;
-  return (
-    <div className="flex justify-center">
-      <svg width={size} height={size} className="border rounded">
-        <line
-          x1={pad}
-          y1={size - pad}
-          x2={size - pad}
-          y2={size - pad}
-          stroke="currentColor"
-          strokeOpacity="0.3"
-        />
-        <line x1={pad} y1={pad} x2={pad} y2={size - pad} stroke="currentColor" strokeOpacity="0.3" />
-        <line
-          x1={pad}
-          y1={size - pad}
-          x2={size - pad}
-          y2={pad}
-          stroke="currentColor"
-          strokeOpacity="0.15"
-          strokeDasharray="2 4"
-        />
-        {pairs.map((p) => {
-          const x = pad + (size - 2 * pad) * Math.max(0, Math.min(1, p.ai.score));
-          const y = size - pad - (size - 2 * pad) * Math.max(0, Math.min(1, p.human.score));
+        {/* Match dots (rendered first so diffs paint on top) */}
+        {matchPairs.map((p) => {
           const href = slug ? `/${slug}/requests` : undefined;
           const dot = (
             <circle
-              cx={x}
-              cy={y}
-              r={p.isDiff ? 4 : 3}
-              fill={p.isDiff ? "#ef4444" : "#3b82f6"}
-              fillOpacity={0.7}
+              cx={xOf(p.ai.score)}
+              cy={yOf(p.human.score)}
+              r={3}
+              fill="none"
+              stroke="currentColor"
+              strokeOpacity={0.45}
+              strokeWidth={1}
             >
               <title>{`${p.traceId} (AI=${p.ai.score.toFixed(2)}, Human=${p.human.score.toFixed(2)})`}</title>
             </circle>
@@ -409,26 +519,75 @@ function ScatterTab({ pairs, slug }: { pairs: ComparablePair[]; slug?: string })
             <g key={`${p.spanId}|${p.evalName}`}>{dot}</g>
           );
         })}
+
+        {/* Diff dots — solid filled, larger */}
+        {diffPairs.map((p) => {
+          const href = slug ? `/${slug}/requests` : undefined;
+          const dot = (
+            <circle
+              cx={xOf(p.ai.score)}
+              cy={yOf(p.human.score)}
+              r={4.5}
+              fill="currentColor"
+              fillOpacity={0.92}
+            >
+              <title>{`${p.traceId} (AI=${p.ai.score.toFixed(2)}, Human=${p.human.score.toFixed(2)})`}</title>
+            </circle>
+          );
+          return href ? (
+            <a key={`${p.spanId}|${p.evalName}`} href={href}>
+              {dot}
+            </a>
+          ) : (
+            <g key={`${p.spanId}|${p.evalName}`}>{dot}</g>
+          );
+        })}
+
+        {/* Axis labels */}
         <text
-          x={size / 2}
-          y={size - 4}
+          x={padL + innerW / 2}
+          y={size - 8}
           textAnchor="middle"
           className="fill-current"
+          fillOpacity={0.65}
           fontSize="10"
+          style={{ letterSpacing: "0.14em", textTransform: "uppercase" }}
         >
-          AI score →
+          {t.humanReview.scatterXAxis}
         </text>
         <text
-          x={4}
-          y={size / 2}
+          x={12}
+          y={padT + innerH / 2}
           textAnchor="middle"
-          transform={`rotate(-90 8 ${size / 2})`}
+          transform={`rotate(-90 12 ${padT + innerH / 2})`}
           className="fill-current"
+          fillOpacity={0.65}
           fontSize="10"
+          style={{ letterSpacing: "0.14em", textTransform: "uppercase" }}
         >
-          Human score →
+          {t.humanReview.scatterYAxis}
         </text>
       </svg>
+
+      {/* Legend */}
+      {pairs.length > 0 && (
+        <div className="mt-4 flex items-center gap-5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block size-2 rounded-full bg-foreground" />
+            <span>{t.humanReview.confusionLegendDiff}</span>
+            <span className="tabular-nums font-semibold text-foreground">
+              {diffPairs.length}
+            </span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block size-2 rounded-full border border-foreground/45 bg-transparent" />
+            <span>{t.humanReview.confusionLegendAgree}</span>
+            <span className="tabular-nums font-semibold text-foreground">
+              {matchPairs.length}
+            </span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

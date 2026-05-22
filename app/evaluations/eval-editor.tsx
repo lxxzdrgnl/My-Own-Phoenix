@@ -514,6 +514,12 @@ export function EvalEditor({
             selectedEval={selectedEval}
             projectId={projectId}
             editTemplate={editTemplate}
+            editEvalType={editEvalType}
+            hasRules={
+              editEvalType === "code_rule" &&
+              Array.isArray((editRuleConfig as { rules?: unknown[] })?.rules) &&
+              ((editRuleConfig as { rules: unknown[] }).rules.length ?? 0) > 0
+            }
           />
         )}
 

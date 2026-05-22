@@ -57,12 +57,12 @@ export function QueryBar({ ast, onChange, knownAnnotations }: Props) {
   return (
     <div className="w-full">
       <div className="relative w-full">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={t.projects.queryPlaceholder}
-          className={`h-9 w-full pl-8 pr-9 text-sm font-mono ${
+          className={`h-8 w-full pl-7 pr-8 text-xs font-mono ${
             hasErrors ? "border-destructive" : ""
           }`}
           spellCheck={false}
@@ -75,7 +75,7 @@ export function QueryBar({ ast, onChange, knownAnnotations }: Props) {
             onClick={() => setText("")}
             className="absolute right-2 top-1/2 -translate-y-1/2"
           >
-            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+            <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
           </button>
         )}
       </div>

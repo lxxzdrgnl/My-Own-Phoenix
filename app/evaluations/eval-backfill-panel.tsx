@@ -18,17 +18,24 @@ interface EvalBackfillPanelProps {
   selectedEval: string | null;
   projectId: string | undefined;
   editTemplate: string;
+  editEvalType?: string;
+  hasRules?: boolean;
 }
 
 export function EvalBackfillPanel({
   selectedEval,
   projectId,
   editTemplate,
+  editEvalType = "llm_prompt",
+  hasRules = false,
 }: EvalBackfillPanelProps) {
   const t = useT();
   const [backfillRange, setBackfillRange] = useState<DateRange>(() => getPresetRange(7));
   const [backfilling, setBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
+
+  const isCodeRule = editEvalType === "code_rule";
+  const isRunnable = isCodeRule ? hasRules : !!editTemplate;
 
   async function handleBackfill() {
     if (!selectedEval || !projectId) return;
@@ -77,7 +84,7 @@ export function EvalBackfillPanel({
             size="sm"
             variant="outline"
             onClick={handleBackfill}
-            disabled={backfilling || !editTemplate}
+            disabled={backfilling || !isRunnable}
             className="gap-1.5 text-xs h-8 shrink-0"
           >
             {backfilling ? t.common.running : t.common.run}
