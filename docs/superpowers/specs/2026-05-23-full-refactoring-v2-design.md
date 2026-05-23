@@ -474,6 +474,37 @@ lib/
 - **UI 라벨**: i18n 미커버 잔여 라벨 → `lib/i18n/{ko,en}.ts`에 추가
 - **하드코딩 환경값**: Phoenix base URL 등 → 이미 env로 분리되어 있는지 점검
 
+### 6e-2. 공통 logger 도입 (신규)
+
+현재 `console.log/.error/.warn` 직접 사용이 **115곳**에 산재. 구조화 안 됨 (태그/level/context 없음).
+
+**신규 `lib/logger.ts`**:
+```typescript
+type Level = "debug" | "info" | "warn" | "error";
+interface LogContext { route?: string; userId?: string; projectId?: string; [k: string]: unknown }
+
+export const logger = {
+  debug: (msg: string, ctx?: LogContext) => emit("debug", msg, ctx),
+  info:  (msg: string, ctx?: LogContext) => emit("info",  msg, ctx),
+  warn:  (msg: string, ctx?: LogContext) => emit("warn",  msg, ctx),
+  error: (msg: string, err?: unknown, ctx?: LogContext) => emit("error", msg, { ...ctx, err: serializeError(err) }),
+};
+```
+
+특성:
+- 서버: JSON-lines stdout (Docker/journald 친화)
+- 클라이언트: `console.*`로 폴백 (dev에서만)
+- prod에서 `level=debug` 무시 (env 기반)
+- error에 `Error` 인스턴스 직렬화 헬퍼 포함
+- PII 노출 방지를 위한 redaction hook (간단한 key 화이트리스트)
+
+**마이그레이션**:
+- 115곳 → `logger.X(msg, { ...ctx })` 또는 `logger.error(msg, err, ctx)`
+- 단계적 PR (도메인별)
+
+**하네스 룰 연동**:
+- PostToolUse: `console\.(log|error|warn)` 직접 사용 발견 시 경고 (Stage 4+ 활성, logger 만들어진 이후)
+
 ### 6f. 작업 분리
 - Sub-PR A: `lib/config/*` 상수 파일 + 사용처 교체
 - Sub-PR B: 반복 함수 추출 + 사용처 교체
