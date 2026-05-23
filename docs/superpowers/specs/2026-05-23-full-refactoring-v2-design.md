@@ -345,7 +345,7 @@ builder 본체 + 각 단계(prompt fields, variables, examples) 컴포넌트로 
 - 그 외 발견되는 그룹
 
 ### 4h. 임계치 정책
-분할 임계 = **500줄**. 500을 넘으면 책임이 너무 많다는 신호 → 분할 검토. (CLAUDE.md 컨벤션으로 명시 — Phase 8)
+분할 임계 = **500줄**. 500을 넘으면 책임이 너무 많다는 신호 → 분할 검토. (CLAUDE.md 컨벤션으로 명시 — Phase 9)
 
 ---
 
@@ -404,33 +404,118 @@ export function paginatedResponse<T>(items: T[], take: number, getCursor: (last:
 
 ---
 
-## Phase 6 — Dead code 2차
+## Phase 6 — 하드코딩 추출 / 상수·헬퍼화
 
-### 6a. 자동 스캔
+**목표**: 프로젝트 곳곳에 흩어진 magic number / 하드코딩 문자열 / 반복 패턴을 상수·헬퍼·디자인 패턴으로 추출.
+
+### 6a. 식별된 하드코딩 (audit)
+
+grep으로 확인된 대표 사례:
+
+| 위치 | 현재 | 추출 대상 |
+|---|---|---|
+| `lib/phoenix-server.ts` 등 다수 | `AbortSignal.timeout(15000)` | `DEFAULT_API_TIMEOUT_MS = 15_000` |
+| `app/api/openapi.json/route.ts` | `AbortSignal.timeout(5000)` | `SHORT_API_TIMEOUT_MS = 5_000` |
+| `app/api/sse/project/[id]/route.ts` | `setInterval(..., 30000)` ping | `SSE_PING_INTERVAL_MS = 30_000` |
+| `lib/phoenix.ts` | `limit=1000`, chunk size `50` | `PHOENIX_FETCH_LIMIT`, `PHOENIX_BATCH_SIZE` |
+| `app/api/datasets/rows/route.ts` | `pageSize` 기본 50, 최대 500 | `DATASET_DEFAULT_PAGE_SIZE`, `DATASET_MAX_PAGE_SIZE` |
+| `app/api/projects/join/route.ts` | `rateLimit("...", 5, 60_000)` | `RATE_LIMIT_JOIN = { max: 5, windowMs: 60_000 }` |
+| `lib/dashboard-utils.ts` | 모델 가격표 inline | `lib/model-pricing.ts` 별도 파일 |
+| `lib/span-extraction.ts` | `maxLen = 80` | `INPUT_PREVIEW_MAX_LEN` |
+| `lib/constants.ts` | `MAX_CHAT_SUGGESTIONS = 4` | ✓ 이미 상수 (모범 사례) |
+| `app/datasets/dataset-manager.tsx` | `useState(50)` for pageSize | 위 상수 import |
+| `app/api/eval-backfill/route.ts` | `limit: "200"` | `EVAL_BACKFILL_LIMIT` |
+
+전체 식별은 구현 phase에서 자동/수동 grep으로 완전 스캔.
+
+### 6b. 상수 파일 구조
+
+기존 `lib/constants.ts`는 도메인 한정 (chat/prompt template) → 일반 상수는 별도 위치:
+
+```
+lib/
+  constants.ts                # 기존 (chat suggestions, prompt template)
+  config/
+    timeouts.ts               # API/SSE/fetch 타임아웃
+    pagination.ts             # 페이지 사이즈 / fetch limit
+    rate-limits.ts            # rate limit 설정
+    phoenix-limits.ts         # Phoenix 호출 limit·chunk
+  model-pricing.ts            # 모델별 input/output 단가
+```
+
+또는 단일 파일 `lib/config/index.ts`로 도메인 그룹별 export. **결정**: 다중 파일 (도메인 응집).
+
+### 6c. 반복 함수 추출
+
+식별된 후보:
+- **Phoenix span chunk 페치**: `for (let i = 0; i < ids.length; i += 50)` 패턴이 여러 곳 → `chunkFetch(ids, fetchFn, chunkSize)`
+- **Trace ID 생성**: `rest-${Date.now()}-${Math.random()...}` → `generateThreadId(prefix)`
+- **Date bucketing**: `new Date(x).toISOString().slice(0, 10)` (day) / `slice(0, 13)` (hour) → `bucketByDay(date)`, `bucketByHour(date)`
+- **Label classification**: PASS/FAIL set 검사 패턴이 여러 곳 → `classifyLabel(label): "pass" | "fail" | "unknown"` 헬퍼 (`lib/eval-labels.ts`)
+- **퍼센티지 계산**: `pct(n, d)` 이미 `dashboard-utils.ts`에 있음 → 사용처 확산
+- **encodeURIComponent + URL build**: `lib/phoenix-urls.ts`로 추출
+
+### 6d. 디자인 패턴 추출 (React)
+
+- **모달 open/close state**: `const [open, setOpen] = useState(false)` 반복 → `useDisclosure()` 훅
+  ```typescript
+  const modal = useDisclosure();
+  <Button onClick={modal.open}>...
+  <ModalShell open={modal.isOpen} onClose={modal.close}>
+  ```
+- **Polling**: `useEffect(() => { const id = setInterval(...); return () => clearInterval(id); })` 반복 → `usePolling(fn, interval)` 훅
+- **debounced search input**: `useDebouncedValue(value, ms)` 훅 추출
+- **clipboard copy**: `useCopyToClipboard()` 훅 — 현재 `navigator.clipboard.writeText` 반복
+- **toast/notification**: 현재 ad-hoc alert/inline error → `useToast()` (이미 있으면 채택 확산, 없으면 신규)
+
+### 6e. 하드코딩 문자열 정리
+
+- **에러 메시지**: route 안 `"Not a project member"`, `"Invalid input"` 등 → `lib/api-error-messages.ts`로 모으거나 ErrorCode enum 메시지 매핑 강화
+- **UI 라벨**: i18n 미커버 잔여 라벨 → `lib/i18n/{ko,en}.ts`에 추가
+- **하드코딩 환경값**: Phoenix base URL 등 → 이미 env로 분리되어 있는지 점검
+
+### 6f. 작업 분리
+- Sub-PR A: `lib/config/*` 상수 파일 + 사용처 교체
+- Sub-PR B: 반복 함수 추출 + 사용처 교체
+- Sub-PR C: React 훅(useDisclosure/usePolling/useCopy/useDebounce) 추출 + 채택
+- Sub-PR D: 하드코딩 문자열 i18n/에러 메시지 정리
+
+### 6g. 하네스 룰 추가 (Phase 9 연동)
+
+추출 후 PostToolUse 경고에 추가:
+- `AbortSignal.timeout(\d+)` 직접 사용 발견 → `DEFAULT_API_TIMEOUT_MS` 등 import 권유
+- 새 magic number (3자리 이상) 도입 시 경고
+- 모달 useState pattern 발견 → `useDisclosure` 권유
+
+---
+
+## Phase 7 — Dead code 2차
+
+### 7a. 자동 스캔
 - `knip` 1회 실행 (또는 `ts-prune`) → 미사용 export 리스트
 - 결과를 검토하여 false positive 제거 후 일괄 정리
 
-### 6b. 알려진 후보
+### 7b. 알려진 후보
 - 최근 8일간 추가된 미사용 export
 - `.claude/worktrees/agent-*` 디렉터리 (오래된 worktree 잔재) — 사용자에게 정리 권유 (자동 삭제는 위험)
 - 사용처 0건인 컴포넌트
 - 사용처 0건인 lib 유틸
 
-### 6c. 정리 원칙
+### 7c. 정리 원칙
 - export 했지만 사용처 없음 → 삭제
 - 파일 전체가 dead → 삭제
 - 외부 API 일부일 가능성 있는 lib (예: `phoenix-server.ts`)은 보존 (worker/connector에서 사용 가능)
 
 ---
 
-## Phase 7 — 문서 갱신
+## Phase 8 — 문서 갱신
 
-### 7a. `README.md`
+### 8a. `README.md`
 - 본 리팩토링 결과 폴더 구조 반영
 - Quick Start (Docker Compose) 검증
 - Architecture 짧은 다이어그램 (Mermaid 또는 ASCII)
 
-### 7b. `app/docs/sections/api.tsx`
+### 8b. `app/docs/sections/api.tsx`
 50개 route를 그룹별로 문서화:
 - Projects & Members
 - Providers & Keys
@@ -442,7 +527,7 @@ export function paginatedResponse<T>(items: T[], take: number, getCursor: (last:
 
 ---
 
-## Phase 8 — 영구 하네스 (Permanent Hybrid Enforcement)
+## Phase 9 — 영구 하네스 (Permanent Hybrid Enforcement)
 
 **배경**: 이전 human-eval 구현 때 Claude가 기존 패턴을 무시하고 자기 마음대로 새로 만들어버린 사례 발생. 단순 `CLAUDE.md`는 무시될 여지가 있어 **하이브리드 하네스**(soft 주입 + hard 차단)를 구축한다.
 
@@ -452,7 +537,7 @@ export function paginatedResponse<T>(items: T[], take: number, getCursor: (last:
 - 새로 clone하거나 새 개발자/AI 세션이 프로젝트에 진입하면 **자동 활성화**
 - 향후 새 컨벤션이 생기면 hook 규칙에 추가하여 누적 강화 가능
 
-### 8a-0. `.gitignore` 수정 (선결 조건)
+### 9a-0. `.gitignore` 수정 (선결 조건)
 
 현재 `CLAUDE.md`가 gitignored → 팀원/새 세션에서 로드 안 됨. 수정 필요:
 
@@ -466,7 +551,7 @@ export function paginatedResponse<T>(items: T[], take: number, getCursor: (last:
 
 `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/`를 **추적**. 사용자별 설정만 `.claude/settings.local.json`(local)으로 격리.
 
-### 8a. `CLAUDE.md` 컨벤션 문서 (Soft layer)
+### 9a. `CLAUDE.md` 컨벤션 문서 (Soft layer)
 
 루트 `CLAUDE.md` 작성. Claude Code가 세션마다 자동 로드.
 
@@ -516,7 +601,7 @@ export function paginatedResponse<T>(items: T[], take: number, getCursor: (last:
 - monotone palette + `#10b981` / `#ef4444`만 (다른 hex/Tailwind 색 추가 금지)
 ```
 
-### 8b. SessionStart hook — 컨벤션 컨텍스트 주입
+### 9b. SessionStart hook — 컨벤션 컨텍스트 주입
 
 `.claude/hooks/session-start-conventions.py`:
 
@@ -535,7 +620,7 @@ CONVENTIONS = """⚠️ MY-OWN-PHOENIX 컨벤션 (위반 시 PreToolUse hook이 
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": CONVENTIONS}}))
 ```
 
-### 8c. PreToolUse hook — Hard block (forbidden patterns)
+### 9c. PreToolUse hook — Hard block (forbidden patterns)
 
 `.claude/hooks/pre-tool-convention-check.py`:
 
@@ -610,7 +695,7 @@ if violations:
     sys.exit(0)
 ```
 
-### 8d. Pre-implementation gate — "NEVER INVENT" 사전 차단
+### 9d. Pre-implementation gate — "NEVER INVENT" 사전 차단
 
 `.claude/hooks/pre-new-file-gate.py`:
 
@@ -634,7 +719,7 @@ Write tool이 **신규 파일** 생성 시 (Edit은 통과), 다음을 자동 gr
 
 우회 방법: 환경변수 + 사유 명시 (이력 추적 가능). 사용자가 직접 hook 비활성화 옵션도 제공.
 
-### 8e. PostToolUse hook — Soft warnings
+### 9e. PostToolUse hook — Soft warnings
 
 `.claude/hooks/post-edit-warn.py`:
 
@@ -650,7 +735,7 @@ Edit/Write 직후 그 파일을 다시 스캔하여 soft 위반 발견 시 Claud
 
 출력은 PostToolUse 결과로 Claude에게 보이며, 다음 turn에서 인지하고 수정할 수 있음.
 
-### 8f. `.claude/settings.json` 등록
+### 9f. `.claude/settings.json` 등록
 
 ```json
 {
@@ -671,14 +756,39 @@ Edit/Write 직후 그 파일을 다시 스캔하여 soft 위반 발견 시 Claud
 }
 ```
 
-### 8g. 점진적 활성화 전략
-하네스가 Phase 1-7 작업 중 자기 자신을 차단하면 진행 불가 → 단계적 적용:
-1. Phase 1-7 전체 완료 후 hook 작성 (`modal.tsx` 등이 실제 삭제된 상태여야 차단 룰이 의미 있음)
-2. 먼저 SessionStart + PostToolUse만 활성화 (warning only) — 1주 관찰
-3. 위반이 줄어들면 PreToolUse 차단 활성화
-4. Pre-new-file gate는 마지막에 (가장 짜증날 가능성) — 사용자 토글 가능하게
+### 9g. 점진적 활성화 전략 — **하네스가 가장 먼저 제작됨**
 
-### 8h. 사용자 토글 옵션
+하네스를 모든 리팩토링의 **첫 단계**로 제작하여 이후 모든 phase 작업이 하네스의 가이드를 받음. 단, 룰이 자기 자신의 제작/리팩토링을 차단하지 않도록 룰별로 활성 조건을 분리:
+
+**Stage 0 (즉시, Phase 1 전)**: hook 인프라 전체 작성 + 다음만 활성화
+- SessionStart 컨벤션 주입 (정보 제공)
+- PostToolUse soft warning (차단 없음)
+- PreToolUse 중 **이미 위반 사항이 없는 룰**만 hard block:
+  - `requireAuth` 직접 사용 금지 (현재 0건)
+  - raw `NextResponse.json({error})` 금지 (현재 0건이거나 거의 0건 — 사전 점검)
+  - monotone palette 위반 금지 (기존 위반은 grandfathered, 신규만 차단)
+- Pre-new-file gate: **soft 모드** (경고만, 차단 안 함)
+
+**Stage 1 (Phase 1 모달 통합 완료 후)**:
+- `@/components/ui/modal` import 금지 hard block 활성
+- 신규 모달 파일이 `components/modals/` 밖일 때 hard block 활성
+
+**Stage 2 (Phase 3 디자인 시스템 완료 후)**:
+- raw 타이포 클래스 (`text-lg+font-semibold` 등) hard block 활성
+
+**Stage 3 (Phase 4 파일 분할 완료 후)**:
+- `@/lib/phoenix/<sub>` 직접 import 금지 hard block 활성
+- `@/lib/openapi/<sub>` 직접 import 금지 hard block 활성
+
+**Stage 4 (Phase 5 API 완료 후)**:
+- API 응답 포맷 위반 hard block 활성 (단일 raw / 리스트 envelope)
+
+**Stage 5 (전체 완료 후)**:
+- Pre-new-file gate strict 모드 활성 (유사 파일 존재 시 차단)
+
+활성 토글은 hook 스크립트 상단의 `STAGE` 상수 (또는 환경변수 `PHOENIX_HARNESS_STAGE=0..5`)로 제어. 각 phase 완료 PR에서 STAGE 값을 1씩 올림.
+
+### 9h. 사용자 토글 옵션
 환경변수로 hook 단계 토글:
 - `PHOENIX_HARNESS=off` → 모든 hook 비활성
 - `PHOENIX_HARNESS=soft` → SessionStart + PostToolUse만 (기본값 권장)
@@ -686,12 +796,12 @@ Edit/Write 직후 그 파일을 다시 스캔하여 soft 위반 발견 시 Claud
 
 `.claude/settings.json` hook 스크립트 첫 줄에서 변수 체크 후 조용히 종료.
 
-### 8i. 디버깅 가능성
+### 9i. 디버깅 가능성
 - 모든 hook은 `.claude/hooks/log/YYYY-MM-DD.log`에 결정과 사유를 append
 - 차단 시 사용자가 로그로 원인 추적 가능
 - 로그 디렉토리는 gitignore 추가: `.claude/hooks/log/`
 
-### 8j. 영구 유지 / 확장성
+### 9j. 영구 유지 / 확장성
 
 **유지 책임**: 향후 새 컨벤션(예: 새 상태관리 라이브러리 도입, 새 폼 패턴 표준)이 정해지면 다음을 동시에 갱신:
 1. `CLAUDE.md` — 인간 가독 컨벤션
@@ -709,7 +819,7 @@ Edit/Write 직후 그 파일을 다시 스캔하여 soft 위반 발견 시 Claud
 (r'console\.log\s*\(', "❌ console.log 금지. logger 사용", lambda fp: fp.endswith(".ts") or fp.endswith(".tsx")),
 ```
 
-### 8k. 산출물 요약
+### 9k. 산출물 요약
 
 | 파일 | 역할 | git tracked |
 |---|---|---|
@@ -729,18 +839,34 @@ Edit/Write 직후 그 파일을 다시 스캔하여 soft 위반 발견 시 Claud
 
 ## Implementation Order & Risk
 
-| Phase | 설명 | Risk | 의존 | 예상 PR 수 |
-|---|---|---|---|---|
-| 1 | Modal 통합 (ModalShell + ModalForm + 위치 통일 + modal.tsx 삭제) | Medium (11파일 마이그) | — | 1 |
-| 2 | 훅 채택 (useFormSubmit / useResourceList) | Low | Phase 1 | 2 (form / list) |
-| 3 | Design System Layer (Typography + Section + Layout + 재사용) | Low | — | 4 sub-PR (A/B/C/D) |
-| 4 | 큰 파일 분할 (phoenix, openapi, span-tree, prompt-builder, dataset-manager, trace-detail, chat-section) | Medium (import path) | Phase 1, 2 | 3 (lib / components / app) |
-| 5 | API consistency (50 route 감사 + 응답·페이지네이션 표준) | Medium | — | 2 (감사 / fix) |
-| 6 | Dead code 2차 (knip + 수동 정리) | Low | Phase 4 | 1 |
-| 7 | 문서 (README + API docs section) | None | Phase 1-6 | 1 |
-| 8 | 영구 하네스 (CLAUDE.md + .claude/hooks + .gitignore) | Low (스크립트 작성) | Phase 1-7 (룰이 의미 있는 상태에서 활성화) | 3 (CLAUDE.md / hooks 스크립트 / 점진 활성화) |
+**중요 — 실행 순서**: 하네스(Phase 9)를 **가장 먼저** 제작하여 이후 모든 phase가 하네스 가이드를 받음. 단, 자기 자신 차단 방지를 위해 hook은 Stage 0 (soft 모드)으로 시작 → 각 phase 완료 시 해당 Stage 활성화 (Phase 9g 참조).
 
-총 ~17 PR (또는 phase 묶어서 더 적게).
+| 실행 # | Spec Phase | 설명 | Risk | 예상 PR 수 |
+|---|---|---|---|---|
+| 1 | Phase 9 | **영구 하네스 (Stage 0)** — CLAUDE.md + .claude/hooks/* + .gitignore. Soft mode (정보 주입 + PostToolUse 경고 + 위반 0인 룰만 hard block) | Low | 2 (인프라 / Stage 0 활성) |
+| 2 | Phase 1 | Modal 통합 (ModalShell + ModalForm + modal.tsx 삭제 + 위치 통일) | Medium (11파일 마이그) | 1 |
+| 3 | — | Harness Stage 1 활성 (modal import 차단) | None | 1 (작은 hook 패치) |
+| 4 | Phase 2 | 훅 채택 (useFormSubmit / useResourceList) | Low | 2 (form / list) |
+| 5 | Phase 3 | Design System Layer (Typography + Section + Layout + 재사용) | Low | 4 sub-PR (A/B/C/D) |
+| 6 | — | Harness Stage 2 활성 (raw 타이포 클래스 차단) | None | 1 |
+| 7 | Phase 4 | 큰 파일 분할 (phoenix, openapi, span-tree, prompt-builder, dataset-manager, trace-detail, chat-section) | Medium | 3 (lib / components / app) |
+| 8 | — | Harness Stage 3 활성 (phoenix/openapi 서브모듈 import 차단) | None | 1 |
+| 9 | Phase 5 | API consistency (50 route 감사 + 응답·페이지네이션 표준) | Medium | 2 (감사 / fix) |
+| 10 | — | Harness Stage 4 활성 (API 응답 포맷 차단) | None | 1 |
+| 11 | Phase 6 | 하드코딩 추출 / 상수·헬퍼화 | Low | 4 sub-PR (A/B/C/D) |
+| 12 | Phase 7 | Dead code 2차 (knip + 수동 정리) | Low | 1 |
+| 13 | Phase 8 | 문서 (README + API docs section) | None | 1 |
+| 14 | — | Harness Stage 5 활성 (pre-new-file-gate strict) | None | 1 |
+
+총 ~25 PR. 작은 PR로 쪼개되 phase 묶어서 진행 가능.
+
+**의존 관계**:
+- Phase 2 (form 훅) ⊃ Phase 1 (ModalForm의 saving/error 연결)
+- Phase 4 (큰 파일 분할) ⊃ Phase 1, 2 (분할 후 패턴 채택 더 깔끔)
+- Phase 6 (하드코딩) ⊂ Phase 5 (API 페이지네이션 상수가 Phase 5에서 정해진 표준 따름)
+- Phase 7 (dead code) ⊃ Phase 4 (분할 후 dead 더 잘 보임)
+- Phase 8 (문서) ⊃ Phase 1-7
+- Harness Stage 활성은 각각 해당 Phase 완료 직후
 
 ---
 
