@@ -29,4 +29,5 @@ prisma/dev.db-journal
 .claude/worktrees/
 .claude/settings.local.json
 .claude/hooks/log/
+.claude/.venv/
 postgres_data/
