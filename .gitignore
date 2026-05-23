@@ -30,4 +30,6 @@ prisma/dev.db-journal
 .claude/settings.local.json
 .claude/hooks/log/
 .claude/.venv/
+.claude/hooks/**/__pycache__/
+.pytest_cache/
 postgres_data/
