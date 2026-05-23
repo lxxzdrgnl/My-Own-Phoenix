@@ -70,7 +70,8 @@ CLAUDE.md                                    # NEW — convention doc (was gitig
 
 **Stage 0 rules** (the only ones that hard-block at this stage):
 - `requireAuth(` inside `app/api/**` → deny (verified zero current uses)
-- `NextResponse.json({error` inside `app/api/**` → deny (verified zero current uses)
+
+**Note on `NextResponse.json({error` rule**: Initially planned as Stage 0, but Task 1 audit found 14 existing uses, most in legitimate exception cases (proxy passthrough routes `[..._path]`, `v1/[...path]`; public Bearer-auth endpoints `/api/collect`, `/api/connectors`). Rule moved to **Stage 4** (Phase 5 API consistency) where each case is reviewed individually with an explicit allowlist for proxy/public routes.
 
 All other rules in `pre-tool-convention-check.py` are **defined but gated** behind `STAGE >= N` checks so later phases can flip them on without re-editing the script.
 
@@ -665,12 +666,12 @@ Rules table (with their gating `min_stage`):
 | min_stage | Pattern | Reason |
 |---|---|---|
 | 0 | `\brequireAuth\s*\(` (in `app/api/`) | authedHandler 사용 |
-| 0 | `NextResponse\.json\s*\(\s*\{\s*error\s*:` (in `app/api/`) | apiError(req, ErrorCode.X, msg) 사용 |
 | 1 | `from\s+["\']@/components/ui/modal["\']` | modal.tsx는 삭제됨. ModalShell 사용 |
 | 1 | new modal `.tsx` outside `components/modals/` | components/modals/ 안에 만들기 |
 | 2 | raw typography classes (`text-(lg\|xl\|2xl\|3xl)` + `font-(semibold\|bold)`) in `.tsx` | <Heading>/<Text> 사용 |
 | 3 | `from\s+["\']@/lib/phoenix/[a-z]+["\']` (submodule) | @/lib/phoenix barrel만 |
 | 3 | `from\s+["\']@/lib/openapi/[a-z]+["\']` | @/lib/openapi barrel만 |
+| 4 | `NextResponse\.json\s*\(\s*\{\s*error\s*:` (in `app/api/`, with proxy/public allowlist) | apiError(req, ErrorCode.X, msg) 사용 |
 
 Future stages add more — the rule list is the single source of truth, gated per-rule.
 
@@ -703,23 +704,43 @@ def test_blocks_requireAuth_in_api_route():
     assert "authedHandler" in payload["hookSpecificOutput"]["permissionDecisionReason"]
 
 
-def test_blocks_raw_error_json_in_api_route():
+def test_raw_error_json_NOT_blocked_at_stage_0():
+    """Stage 4 rule — must NOT block at Stage 0 (14 legitimate uses exist)."""
     rc, stdout, _ = run_hook(
         "pre-tool-convention-check.py",
         _payload("app/api/foo/route.ts", 'return NextResponse.json({ error: "bad" }, { status: 400 });'),
+        env_overrides={"PHOENIX_HARNESS_STAGE": "0"},
+    )
+    assert rc == 0
+    assert stdout.strip() == ""
+
+
+def test_raw_error_json_blocked_at_stage_4():
+    rc, stdout, _ = run_hook(
+        "pre-tool-convention-check.py",
+        _payload("app/api/foo/route.ts", 'return NextResponse.json({ error: "bad" }, { status: 400 });'),
+        env_overrides={"PHOENIX_HARNESS_STAGE": "4"},
     )
     payload = json.loads(stdout)
     assert payload["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert "apiError" in payload["hookSpecificOutput"]["permissionDecisionReason"]
 
 
-def test_allows_apiError_in_api_route():
-    rc, stdout, _ = run_hook(
-        "pre-tool-convention-check.py",
-        _payload("app/api/foo/route.ts", 'return apiError(req, ErrorCode.VALIDATION_FAILED, "bad");'),
-    )
-    assert rc == 0
-    assert stdout.strip() == ""
+def test_raw_error_json_allowlist_at_stage_4():
+    """Proxy/public routes are exempt even at Stage 4."""
+    for allowed_path in (
+        "app/api/[..._path]/route.ts",
+        "app/api/v1/[...path]/route.ts",
+        "app/api/collect/route.ts",
+        "app/api/connectors/projects/route.ts",
+    ):
+        rc, stdout, _ = run_hook(
+            "pre-tool-convention-check.py",
+            _payload(allowed_path, 'return NextResponse.json({ error: "bad" }, { status: 400 });'),
+            env_overrides={"PHOENIX_HARNESS_STAGE": "4"},
+        )
+        assert rc == 0, f"{allowed_path} should be allowed: {stdout}"
+        assert stdout.strip() == ""
 
 
 def test_requireAuth_not_blocked_outside_api():
@@ -849,9 +870,6 @@ RULES = [
     (0, re.compile(r"\brequireAuth\s*\("),
      "❌ requireAuth 직접 사용 금지. authedHandler 래퍼 사용.",
      lambda p: p.startswith("app/api/")),
-    (0, re.compile(r"NextResponse\.json\s*\(\s*\{\s*error\s*:"),
-     "❌ raw error JSON 금지. apiError(req, ErrorCode.X, msg) 사용.",
-     lambda p: p.startswith("app/api/")),
 
     # ── Stage 1 (activated after Phase 1 modal unification) ──
     (1, re.compile(r"""from\s+["']@/components/ui/modal["']"""),
@@ -870,6 +888,19 @@ RULES = [
     (3, re.compile(r"""from\s+["']@/lib/openapi/[a-z][^"']*["']"""),
      "❌ @/lib/openapi 서브모듈 직접 import 금지. barrel(@/lib/openapi)만 사용.",
      lambda p: p.endswith(".ts") or p.endswith(".tsx")),
+
+    # ── Stage 4 (activated after Phase 5 API consistency cleanup) ──
+    # Allowlist: proxy/public routes that legitimately use raw error JSON
+    # because they predate or bypass the authedHandler/apiError stack.
+    (4, re.compile(r"NextResponse\.json\s*\(\s*\{\s*error\s*:"),
+     "❌ raw error JSON 금지. apiError(req, ErrorCode.X, msg) 사용.",
+     lambda p: (
+         p.startswith("app/api/")
+         and "[..._path]" not in p
+         and "v1/[...path]" not in p
+         and not p.startswith("app/api/collect/")
+         and not p.startswith("app/api/connectors/")
+     )),
 ]
 
 
@@ -939,7 +970,7 @@ Run:
 ```bash
 python3 -m pytest .claude/hooks/__tests__/test_pre_tool_convention.py -v
 ```
-Expected: 12 tests pass.
+Expected: 14 tests pass (raw error JSON rule moved to Stage 4 + allowlist test added).
 
 - [ ] **Step 5: Commit**
 
