@@ -633,13 +633,14 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
             </div>
           </div>
 
-          {/* Graph — full width below */}
+          {/* Graph — full width below. pii_guard spans excluded (too noisy) */}
           {trace.rootSpan.children.length > 0 && (
             <div className="border-t p-3">
               <SpanGraph
                 rootSpan={trace.rootSpan}
                 selectedId={selectedSpan?.spanId}
                 onSelect={setSelectedSpan}
+                excludeSpanKinds={["GUARDRAIL"]}
               />
             </div>
           )}

@@ -26,18 +26,28 @@ const KIND_COLORS: Record<string, string> = {
 function kindColor(k: string) { return KIND_COLORS[k.toUpperCase()] ?? "#737373"; }
 function fmtMs(ms: number) { return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`; }
 
-function buildGraph(root: RawSpan) {
+function buildGraph(root: RawSpan, exclude?: Set<string>) {
   const nodes = new Map<string, GNode>();
   const levels: string[][] = [];
   const q: { s: RawSpan; l: number }[] = [{ s: root, l: 0 }];
   while (q.length) {
     const { s, l } = q.shift()!;
     if (nodes.has(s.spanId)) continue;
+    if (exclude && exclude.has((s.spanKind ?? "").toUpperCase())) {
+      // Skip this span entirely AND its descendants — they're not meaningful
+      // standalone in the graph view.
+      continue;
+    }
     if (!levels[l]) levels[l] = [];
     levels[l].push(s.spanId);
     nodes.set(s.spanId, {
       id: s.spanId, name: s.name.length > 14 ? s.name.slice(0, 12) + "…" : s.name,
-      kind: s.spanKind, latency: s.latency, childIds: s.children.map(c => c.spanId), x: 0, y: 0,
+      kind: s.spanKind,
+      latency: s.latency,
+      childIds: s.children
+        .filter((c) => !exclude || !exclude.has((c.spanKind ?? "").toUpperCase()))
+        .map((c) => c.spanId),
+      x: 0, y: 0,
     });
     for (const c of s.children) q.push({ s: c, l: l + 1 });
   }
@@ -151,11 +161,13 @@ function drawGraph(
 // ─── Component ──────────────────────────────────────────────────────────
 
 export function SpanGraph({
-  rootSpan, selectedId, onSelect,
+  rootSpan, selectedId, onSelect, excludeSpanKinds,
 }: {
   rootSpan: RawSpan;
   selectedId?: string | null;
   onSelect?: (span: RawSpan) => void;
+  /** Span kinds (uppercase) to omit from the graph entirely. */
+  excludeSpanKinds?: string[];
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -174,7 +186,10 @@ export function SpanGraph({
     const map = new Map<string, RawSpan>();
     (function walk(s: RawSpan) { map.set(s.spanId, s); s.children.forEach(walk); })(rootSpan);
     spanMapRef.current = map;
-    graphRef.current = buildGraph(rootSpan);
+    const exclude = excludeSpanKinds && excludeSpanKinds.length > 0
+      ? new Set(excludeSpanKinds.map((k) => k.toUpperCase()))
+      : undefined;
+    graphRef.current = buildGraph(rootSpan, exclude);
 
     // Auto-fit
     const el = wrapRef.current;
@@ -182,7 +197,7 @@ export function SpanGraph({
       const fit = Math.min(1, (el.clientWidth - 40) / (graphRef.current.w + PAD * 2));
       setZoom(Math.max(MIN_Z, fit));
     }
-  }, [rootSpan]);
+  }, [rootSpan, excludeSpanKinds]);
 
   // Render
   useEffect(() => {
