@@ -1331,6 +1331,31 @@ def test_warns_on_native_confirm(tmp_path):
     assert "ConfirmDialog" in stdout or "useConfirm" in stdout
 
 
+def test_console_NOT_warned_at_stage_0(tmp_path):
+    """Stage 4 rule — logger.ts doesn't exist yet at Stage 0."""
+    f = tmp_path / "x.ts"
+    f.write_text("console.error('boom');")
+    rc, stdout, _ = run_hook(
+        "post-edit-warn.py",
+        _post(str(f)),
+        env_overrides={"CLAUDE_PROJECT_DIR": str(tmp_path), "PHOENIX_HARNESS_STAGE": "0"},
+    )
+    assert rc == 0
+    assert "logger" not in stdout
+
+
+def test_console_warned_at_stage_4(tmp_path):
+    f = tmp_path / "x.ts"
+    f.write_text("console.error('boom');")
+    rc, stdout, _ = run_hook(
+        "post-edit-warn.py",
+        _post(str(f)),
+        env_overrides={"CLAUDE_PROJECT_DIR": str(tmp_path), "PHOENIX_HARNESS_STAGE": "4"},
+    )
+    assert rc == 0
+    assert "logger" in stdout
+
+
 def test_off_disables_warnings(tmp_path):
     f = tmp_path / "big.ts"
     f.write_text("\n".join([f"// line {i}" for i in range(600)]))
@@ -1382,20 +1407,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common
 
 
-# (regex, message, path_predicate)
+# (min_stage, regex, message, path_predicate)
 WARNING_RULES = [
-    (re.compile(r"\bset[A-Z][a-zA-Z]*Saving\b|\bsetSaving\b"),
+    (0, re.compile(r"\bset[A-Z][a-zA-Z]*Saving\b|\bsetSaving\b"),
      "⚠️ setSaving 패턴 발견 — useFormSubmit (@/lib/hooks/use-form-submit) 검토.",
      lambda p: p.endswith(".tsx")),
-    (re.compile(r"if\s*\(\s*!\s*confirm\s*\("),
+    (0, re.compile(r"if\s*\(\s*!\s*confirm\s*\("),
      "⚠️ native confirm() 발견 — ConfirmDialog/useConfirm (@/components/ui/confirm-dialog) 사용.",
      lambda p: p.endswith(".tsx") or p.endswith(".ts")),
-    (re.compile(r"AbortSignal\.timeout\(\s*\d{3,}\s*\)"),
+    (0, re.compile(r"AbortSignal\.timeout\(\s*\d{3,}\s*\)"),
      "⚠️ AbortSignal.timeout magic number — lib/config/timeouts.ts 의 명명 상수로 추출.",
      lambda p: p.endswith(".ts") or p.endswith(".tsx")),
-    (re.compile(r"//\s*TODO|//\s*FIXME"),
+    (0, re.compile(r"//\s*TODO|//\s*FIXME"),
      "⚠️ TODO/FIXME 추가 — 이슈로 등록하거나 즉시 해결 권장.",
      lambda p: p.endswith(".ts") or p.endswith(".tsx")),
+    # Stage 4+ (Phase 6에서 lib/logger.ts 도입 후 활성)
+    (4, re.compile(r"\bconsole\.(log|error|warn|info|debug)\s*\("),
+     "⚠️ raw console.* 발견 — lib/logger.ts 의 logger.X(msg, ctx) 사용.",
+     lambda p: (p.endswith(".ts") or p.endswith(".tsx"))
+               and not p.startswith(".claude/")
+               and not p.startswith("scripts/")),
 ]
 
 
@@ -1432,7 +1463,9 @@ def main() -> int:
     if line_count > 500:
         warnings.append(f"⚠️ 파일이 {line_count}줄 (500 초과) — 분할 검토.")
 
-    for pattern, msg, guard in WARNING_RULES:
+    for min_stage, pattern, msg, guard in WARNING_RULES:
+        if not common.should_run(min_stage=min_stage):
+            continue
         if not guard(fp_rel):
             continue
         if pattern.search(content):
@@ -1459,7 +1492,7 @@ Run:
 ```bash
 python3 -m pytest .claude/hooks/__tests__/test_post_edit_warn.py -v
 ```
-Expected: 6 tests pass.
+Expected: 8 tests pass (6 base + 2 console stage gating).
 
 - [ ] **Step 5: Commit**
 
