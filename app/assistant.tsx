@@ -7,7 +7,7 @@ import {
   type ChatModelAdapter,
 } from "@assistant-ui/react";
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
-import { PanelLeftClose, PanelLeft, X, Plus, LogOut } from "lucide-react";
+import { PanelLeftClose, PanelLeft, X, Plus, LogOut, Pencil, Check } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -17,6 +17,25 @@ import { useT } from "@/lib/i18n";
 import { ProjectSelector } from "@/components/project-selector";
 import { Sidebar, SidebarItemDiv } from "@/components/ui/sidebar";
 
+
+// Wraps useLocalRuntime so we can reset the runtime by changing the key on
+// this component. useLocalRuntime caches the LocalRuntimeCore in useState, so
+// remounting AssistantRuntimeProvider alone is NOT enough — the cached runtime
+// keeps stale thread state (including isRunning), which can leave Composer
+// frozen after switching to a new chat.
+function ChatRuntimeProvider({
+  chatAdapter,
+  children,
+}: {
+  chatAdapter: ChatModelAdapter;
+  children: React.ReactNode;
+}) {
+  // History 는 Thread 의 historyMessages prop 으로 정적 렌더되므로 runtime 에
+  // initialMessages 를 넘기지 않는다. 넘기면 ThreadPrimitive.Messages 가
+  // 같은 메시지를 한 번 더 그려서 화면에 중복 표시됨.
+  const runtime = useLocalRuntime(chatAdapter);
+  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
+}
 
 interface DbThread {
   id: string;
@@ -121,11 +140,25 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         return;
       }
 
-      // Create thread on first message
+      // Extract text from ContentPart[] or string
+      const getTextContent = (content: any): string => {
+        if (typeof content === "string") return content;
+        if (Array.isArray(content)) {
+          return content
+            .filter((p: any) => p.type === "text")
+            .map((p: any) => p.text)
+            .join(" ");
+        }
+        return "";
+      };
+
+      const lastMsg = messages[messages.length - 1];
+      const userText = getTextContent(lastMsg?.content);
+
+      // Create thread on first message — title = 첫 질문 (최대 30자)
       if (!threadIdRef.current) {
         threadIdRef.current = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const lastMsg = messages[messages.length - 1];
-        const title = (typeof lastMsg?.content === "string" ? lastMsg.content : t.chat.newChat ?? "New Chat").slice(0, 30);
+        const title = (userText || t.chat.newChat || "New Chat").slice(0, 30);
         try {
           const res = await apiFetch("/api/user-threads", {
             method: "POST",
@@ -141,21 +174,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         } catch (e) { console.error(e); }
       }
 
-      // Extract text from ContentPart[] or string
-      const getTextContent = (content: any): string => {
-        if (typeof content === "string") return content;
-        if (Array.isArray(content)) {
-          return content
-            .filter((p: any) => p.type === "text")
-            .map((p: any) => p.text)
-            .join(" ");
-        }
-        return "";
-      };
-
       // Save user message
-      const lastMsg = messages[messages.length - 1];
-      const userText = getTextContent(lastMsg?.content);
       if (activeDbIdRef.current && userText) saveMessage(activeDbIdRef.current, "user", userText);
 
       // Build message list with history
@@ -168,7 +187,9 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
 
       // Send via relay
       if (!relayUserIdRef.current || !relayProjectIdRef.current) {
-        yield { content: [{ type: "text" as const, text: "No agent connected. Connect an agent in Project Settings." }] };
+        const errText = "No agent connected. Connect an agent in Project Settings.";
+        yield { content: [{ type: "text" as const, text: errText }] };
+        if (activeDbIdRef.current) saveMessage(activeDbIdRef.current, "assistant", errText);
         return;
       }
 
@@ -186,7 +207,9 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
 
       if (!relayRes.ok) {
         const err = await relayRes.json().catch(() => ({ error: "Agent not connected" }));
-        yield { content: [{ type: "text" as const, text: `Error: ${err.error || err.message || "Failed"}` }] };
+        const errText = `Error: ${err.error || err.message || "Failed"}`;
+        yield { content: [{ type: "text" as const, text: errText }] };
+        if (activeDbIdRef.current) saveMessage(activeDbIdRef.current, "assistant", errText);
         return;
       }
 
@@ -229,17 +252,6 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
       }
     },
   }), []);
-
-  const initialMessages = useMemo(() =>
-    history.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [runtimeKey]
-  );
-
-  const runtime = useLocalRuntime(chatAdapter, { initialMessages });
 
   const handleSelectThread = useCallback(async (thread: DbThread) => {
     if (activeDbIdRef.current === thread.id) return;
@@ -297,8 +309,35 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
     [activeThreadDbId],
   );
 
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  const handleStartRename = useCallback((thread: DbThread) => {
+    setEditingThreadId(thread.id);
+    setEditingTitle(thread.title);
+  }, []);
+
+  const handleCommitRename = useCallback(async () => {
+    const id = editingThreadId;
+    const title = editingTitle.trim();
+    setEditingThreadId(null);
+    if (!id || !title) return;
+    // 낙관적 업데이트
+    setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)));
+    try {
+      await apiFetch(`/api/user-threads/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+    } catch (e) { console.error(e); }
+  }, [editingThreadId, editingTitle]);
+
   return (
-    <AssistantRuntimeProvider key={`${project}-${runtimeKey}`} runtime={runtime}>
+    <ChatRuntimeProvider
+      key={`${project}-${runtimeKey}`}
+      chatAdapter={chatAdapter}
+    >
       <div className="flex h-full flex-col">
         <div className="flex flex-1 min-h-0">
           {/* Sidebar */}
@@ -341,25 +380,58 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
                     No conversations yet.
                   </p>
                 )}
-                {threads.map((thread) => (
-                  <SidebarItemDiv
-                    key={thread.id}
-                    active={activeThreadDbId === thread.id}
-                    className="justify-between"
-                    onClick={() => handleSelectThread(thread)}
-                  >
-                    <span className="truncate flex-1 pr-1">{thread.title}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteThread(thread.id);
-                      }}
-                      className="shrink-0 rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
+                {threads.map((thread) => {
+                  const isEditing = editingThreadId === thread.id;
+                  return (
+                    <SidebarItemDiv
+                      key={thread.id}
+                      active={activeThreadDbId === thread.id}
+                      className="justify-between"
+                      onClick={isEditing ? undefined : () => handleSelectThread(thread)}
                     >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </SidebarItemDiv>
-                ))}
+                      {isEditing ? (
+                        <>
+                          <input
+                            autoFocus
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); handleCommitRename(); }
+                              else if (e.key === "Escape") { e.preventDefault(); setEditingThreadId(null); }
+                            }}
+                            onBlur={handleCommitRename}
+                            className="flex-1 min-w-0 bg-transparent outline-none border-b border-foreground/40 pr-1 text-sm"
+                          />
+                          <button
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={(e) => { e.stopPropagation(); handleCommitRename(); }}
+                            className="shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="truncate flex-1 pr-1">{thread.title}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleStartRename(thread); }}
+                            className="shrink-0 rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-muted transition-all"
+                            title="Rename"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteThread(thread.id); }}
+                            className="shrink-0 rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </SidebarItemDiv>
+                  );
+                })}
               </div>
 
               {/* Logout */}
@@ -393,6 +465,6 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
           </div>
         </div>
       </div>
-    </AssistantRuntimeProvider>
+    </ChatRuntimeProvider>
   );
 }
