@@ -10,6 +10,8 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n";
 import { AgentEditModal } from "@/components/modals/agent-edit-modal";
 import { useResourceList } from "@/lib/hooks/use-resource-list";
+import { Heading } from "@/components/ui/typography";
+import { Stack } from "@/components/ui/stack";
 
 export interface AgentEntry {
   id: string;
@@ -50,12 +52,10 @@ export function AgentsSection() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">{t.settings.agentsTitle}</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {t.settings.agentsDesc}
-        </p>
-      </div>
+      <Stack gap="xs" className="mb-8">
+        <Heading level="section">{t.settings.agentsTitle}</Heading>
+        <p className="text-sm text-muted-foreground">{t.settings.agentsDesc}</p>
+      </Stack>
 
       {loading && <LoadingState />}
 
@@ -64,9 +64,7 @@ export function AgentsSection() {
           {/* Agent list */}
           <section>
             <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                {t.settings.templates}
-              </h3>
+              <Heading level="sub">{t.settings.templates}</Heading>
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {agents.length}
               </span>
@@ -128,18 +126,18 @@ export function AgentsSection() {
                       <div className="border-t bg-muted/5 px-4 py-3 space-y-3">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">{t.settings.endpoint}</p>
+                            <Heading level="sub">{t.settings.endpoint}</Heading>
                             <p className="mt-1 font-mono text-xs text-foreground/80 break-all">{a.endpoint}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">{t.settings.assistantId}</p>
+                            <Heading level="sub">{t.settings.assistantId}</Heading>
                             <p className="mt-1 font-mono text-xs text-foreground/80">{a.assistantId}</p>
                           </div>
                         </div>
 
                         {promptKeys.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50">{t.settings.evalPrompts}</p>
+                            <Heading level="sub">{t.settings.evalPrompts}</Heading>
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               {promptKeys.map((key) => (
                                 <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
