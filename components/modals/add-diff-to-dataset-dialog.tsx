@@ -2,10 +2,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
+import { ModalShell, ModalHeader, ModalBody } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Database, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 export interface DiffRowInput {
@@ -139,13 +139,10 @@ export function AddDiffToDatasetDialog({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalHeader onClose={onClose}>
-        <div className="flex items-center gap-2">
-          <Database className="size-4" />
-          {t.humanReview.addToDataset}
-        </div>
-      </ModalHeader>
+    <ModalShell open={open} onClose={onClose} size="sm">
+      <ModalHeader
+        title={t.humanReview.addToDataset}
+      />
       <ModalBody>
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
@@ -203,9 +200,9 @@ export function AddDiffToDatasetDialog({
               </div>
             </div>
           )}
-          {err && <p className="text-xs text-red-500">{err}</p>}
+          {err && <p className="text-xs text-[#ef4444]">{err}</p>}
         </div>
       </ModalBody>
-    </Modal>
+    </ModalShell>
   );
 }
