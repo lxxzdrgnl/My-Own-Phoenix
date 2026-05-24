@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ModalForm } from "@/components/ui/modal-form";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api-client";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { useT } from "@/lib/i18n";
 
 export function CreateProjectModal({
@@ -19,40 +19,30 @@ export function CreateProjectModal({
   const router = useRouter();
   const t = useT();
   const [name, setName] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+
+  const { submit, saving, error, clearError } = useFormSubmit<{ name: string }>(
+    "/api/projects",
+    "POST",
+    {
+      onSuccess: (data) => {
+        onCreated?.({ id: data.id, name: data.name ?? name.trim() });
+        setName("");
+        onClose();
+        router.push(`/${data.slug}/dashboard`);
+      },
+    }
+  );
 
   // name 초기화 — 모달이 닫힐 때
   const handleClose = () => {
     setName("");
-    setError(null);
+    clearError();
     onClose();
   };
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await apiFetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        onCreated?.({ id: data.id, name: data.name ?? name.trim() });
-        handleClose();
-        router.push(`/${data.slug}/dashboard`);
-      } else {
-        setError("프로젝트 생성에 실패했습니다.");
-      }
-    } catch (e) {
-      console.error(e);
-      setError("프로젝트 생성에 실패했습니다.");
-    } finally {
-      setSaving(false);
-    }
+    await submit({ name: name.trim() });
   };
 
   return (
@@ -62,7 +52,7 @@ export function CreateProjectModal({
       onSubmit={handleSubmit}
       title={t.projects.createProject}
       saving={saving}
-      error={error}
+      error={error ?? null}
       submitLabel={t.common.create}
       cancelLabel={t.common.cancel}
       submitDisabled={!name.trim()}
