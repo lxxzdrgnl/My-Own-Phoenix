@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  fetchPrompts,
-  fetchPromptVersions,
   fetchPromptVersionTags,
   addPromptVersionTag,
   deletePromptVersionTag,
@@ -27,10 +25,11 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
+import { ModalShell, ModalHeader, ModalBody } from "@/components/ui/modal-shell";
+import { ModalForm } from "@/components/ui/modal-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FormLabel, FormError } from "@/components/ui/form-field";
+import { FormLabel } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -131,8 +130,8 @@ export function PromptsModal({ open, onClose, onChanged, projectId }: PromptsMod
   }
 
   return (
-    <Modal open={open} onClose={onClose} className="w-[720px]">
-      <ModalHeader onClose={onClose}>{t.promptsModal.title}</ModalHeader>
+    <ModalShell open={open} onClose={onClose} size="lg">
+      <ModalHeader title={t.promptsModal.title} />
       <ModalBody>
         <button
           onClick={() => setInnerModal("create")}
@@ -294,7 +293,7 @@ export function PromptsModal({ open, onClose, onChanged, projectId }: PromptsMod
           onSave={handleInnerSave}
         />
       )}
-    </Modal>
+    </ModalShell>
   );
 }
 
@@ -374,11 +373,18 @@ export function PromptFormModal({
   }
 
   return (
-    <Modal open onClose={onClose} z={60}>
-      <ModalHeader onClose={onClose}>
-        {mode === "create" ? t.promptsModal.newPrompt : `${t.common.edit}: ${name}`}
-      </ModalHeader>
-      <ModalBody className="flex flex-col gap-3">
+    <ModalForm
+      open
+      onClose={onClose}
+      onSubmit={handleSave}
+      title={mode === "create" ? t.promptsModal.newPrompt : `${t.common.edit}: ${name}`}
+      saving={saving}
+      error={error || null}
+      submitLabel={mode === "create" ? t.common.create : t.promptsModal.saveNewVersion}
+      cancelLabel={t.common.cancel}
+      size="md"
+    >
+      <div className="flex flex-col gap-3">
         <div className="flex gap-3">
           <div className="flex-1">
             <FormLabel>{t.promptsModal.model}</FormLabel>
@@ -445,16 +451,7 @@ export function PromptFormModal({
             placeholder="{{query}}"
           />
         </div>
-        <FormError message={error} />
-        <div className="flex justify-end gap-2 pt-1">
-          <Button variant="outline" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? t.common.loading : mode === "create" ? t.common.create : t.promptsModal.saveNewVersion}
-          </Button>
-        </div>
-      </ModalBody>
-    </Modal>
+      </div>
+    </ModalForm>
   );
 }
