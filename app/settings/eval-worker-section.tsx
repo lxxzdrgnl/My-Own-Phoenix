@@ -1,12 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/empty-state";
-import { CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
 import { useSettingsForm } from "@/lib/hooks";
 import { useT } from "@/lib/i18n";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
+import { LoadingButton } from "@/components/ui/loading-button";
 
 const DEFAULTS = {
   evalWorkerEnabled: "true",
@@ -26,40 +29,34 @@ export function EvalWorkerSection() {
     <div>
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">{t.settings.evalWorker}</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <Heading level="section">{t.settings.evalWorker}</Heading>
+        <Text variant="caption" className="mt-1.5">
           {t.settings.evalWorkerDesc}
-        </p>
+        </Text>
       </div>
 
       {loading && <LoadingState />}
 
       {!loading && (
-        <div className="space-y-8">
+        <Stack gap="xl">
           {/* Worker Status */}
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                {t.settings.status}
-              </h3>
-              <div className="h-px flex-1 bg-border" />
-            </div>
+          <SectionCard title={t.settings.status}>
             <div className="rounded-lg border bg-muted/5 px-5 py-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <Inline gap="sm">
                     <p className="text-sm font-medium">{t.settings.worker}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       isEnabled ? "bg-[#10b981] text-white" : "bg-muted text-muted-foreground"
                     }`}>
                       {isEnabled ? t.settings.running : t.settings.paused}
                     </span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  </Inline>
+                  <Text variant="caption" className="mt-1">
                     {isEnabled
                       ? t.settings.workerRunningDesc
                       : t.settings.workerPausedDesc}
-                  </p>
+                  </Text>
                 </div>
                 <button
                   onClick={() => update("evalWorkerEnabled", isEnabled ? "false" : "true")}
@@ -75,25 +72,19 @@ export function EvalWorkerSection() {
                 </button>
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           {/* Configuration */}
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                {t.settings.configuration}
-              </h3>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <div className="space-y-2">
+          <SectionCard title={t.settings.configuration}>
+            <Stack gap="xs">
               {/* Default Eval Model */}
               <div className="rounded-lg border px-5 py-4">
                 <div className="flex items-center justify-between gap-6">
                   <div>
                     <p className="text-sm font-medium">{t.settings.defaultModel}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <Text variant="caption" className="mt-0.5">
                       {t.settings.defaultModelDesc}
-                    </p>
+                    </Text>
                   </div>
                   <div className="w-56 shrink-0">
                     <ModelSelector
@@ -109,11 +100,11 @@ export function EvalWorkerSection() {
                 <div className="flex items-center justify-between gap-6">
                   <div>
                     <p className="text-sm font-medium">{t.settings.pollingInterval}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <Text variant="caption" className="mt-0.5">
                       {t.settings.pollingIntervalDesc}
-                    </p>
+                    </Text>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <Inline gap="sm">
                     <Input
                       type="number"
                       min={5}
@@ -122,8 +113,8 @@ export function EvalWorkerSection() {
                       onChange={(e) => update("evalPollInterval", e.target.value)}
                       className="w-20 text-center text-sm tabular-nums"
                     />
-                    <span className="text-xs text-muted-foreground/60">sec</span>
-                  </div>
+                    <Text variant="caption" as="span">sec</Text>
+                  </Inline>
                 </div>
               </div>
 
@@ -132,11 +123,11 @@ export function EvalWorkerSection() {
                 <div className="flex items-center justify-between gap-6">
                   <div>
                     <p className="text-sm font-medium">{t.settings.lookbackWindow}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <Text variant="caption" className="mt-0.5">
                       {t.settings.lookbackWindowDesc}
-                    </p>
+                    </Text>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <Inline gap="sm">
                     <Input
                       type="number"
                       min={1}
@@ -145,8 +136,8 @@ export function EvalWorkerSection() {
                       onChange={(e) => update("evalLookbackMinutes", e.target.value)}
                       className="w-20 text-center text-sm tabular-nums"
                     />
-                    <span className="text-xs text-muted-foreground/60">min</span>
-                  </div>
+                    <Text variant="caption" as="span">min</Text>
+                  </Inline>
                 </div>
               </div>
 
@@ -155,9 +146,9 @@ export function EvalWorkerSection() {
                 <div className="flex items-center justify-between gap-6">
                   <div>
                     <p className="text-sm font-medium">{t.settings.maxLlmEvalsPerTrace}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <Text variant="caption" className="mt-0.5">
                       {t.settings.maxLlmEvalsPerTraceDesc}
-                    </p>
+                    </Text>
                   </div>
                   <Input
                     type="number"
@@ -169,26 +160,33 @@ export function EvalWorkerSection() {
                   />
                 </div>
               </div>
-            </div>
-          </section>
+            </Stack>
+          </SectionCard>
 
           {/* Save bar */}
-          <div className="flex items-center gap-3 border-t pt-5">
-            <Button onClick={save} disabled={saving || !dirty} size="sm">
-              {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+          <Inline gap="sm" className="border-t pt-5">
+            <LoadingButton
+              onClick={save}
+              disabled={!dirty}
+              loading={saving}
+              loadingText={t.settings.saveChanges}
+              size="sm"
+            >
               {t.settings.saveChanges}
-            </Button>
+            </LoadingButton>
             {saved && (
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Inline gap="xs">
                 <CheckCircle className="h-3.5 w-3.5 text-[#10b981]" />
-                {t.settings.savedRestart}
-              </span>
+                <Text variant="caption" as="span">{t.settings.savedRestart}</Text>
+              </Inline>
             )}
             {dirty && !saved && (
-              <span className="text-xs text-muted-foreground/50">{t.settings.unsavedChanges}</span>
+              <Text variant="caption" as="span" className="text-muted-foreground/50">
+                {t.settings.unsavedChanges}
+              </Text>
             )}
-          </div>
-        </div>
+          </Inline>
+        </Stack>
       )}
     </div>
   );
