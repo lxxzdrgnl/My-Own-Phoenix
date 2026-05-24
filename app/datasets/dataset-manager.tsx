@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { useResourceList } from "@/lib/hooks/use-resource-list";
 
 import { useDatasetGeneration } from "./hooks/use-dataset-generation";
 import { useDatasetEvaluation } from "./hooks/use-dataset-evaluation";
@@ -55,9 +56,19 @@ interface EvalOption {
 export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   const t = useT();
   const confirm = useConfirm();
-  const [datasets, setDatasets] = useState<DatasetMeta[]>([]);
+  const datasetsEndpoint = projectId
+    ? `/api/datasets?projectId=${encodeURIComponent(projectId)}`
+    : null;
+  const {
+    items: datasets,
+    setItems: setDatasets,
+    loading,
+    reload: reloadDatasets,
+  } = useResourceList<DatasetMeta>(
+    datasetsEndpoint ?? "/api/datasets",
+    { dataKey: "datasets" },
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<DatasetRow[]>([]);
@@ -115,22 +126,6 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
     setRunEvalNames,
     setRuns: (updater) => setRuns(prev => updater(prev)),
   });
-
-  // ── Load datasets ──
-  const loadDatasets = useCallback(async () => {
-    if (!projectId) {
-      setDatasets([]);
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await apiFetch(`/api/datasets?projectId=${encodeURIComponent(projectId)}`);
-      const data = await res.json();
-      setDatasets(data.datasets ?? []);
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  }, [projectId]);
-  useEffect(() => { loadDatasets(); }, [loadDatasets]);
 
   useEffect(() => {
     apiFetch("/api/agent-config").then(r => r.json()).then(d => setAgentConfigs(d.configs ?? [])).catch(() => {});
@@ -190,7 +185,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   }
 
   async function handleDatasetSaved(saved: DatasetMeta) {
-    await loadDatasets();
+    await reloadDatasets();
     if (saved?.id) selectDataset(saved.id);
   }
 
@@ -204,7 +199,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: target.id, rows: data.rows }),
       });
-      await loadDatasets(); selectDataset(target.id);
+      await reloadDatasets(); selectDataset(target.id);
     } else {
       const res = await apiFetch("/api/datasets", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -212,7 +207,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
       });
       let result: any = {};
       try { result = await res.json(); } catch (e) { console.error(e); }
-      await loadDatasets();
+      await reloadDatasets();
       if (result.dataset?.id) selectDataset(result.dataset.id);
     }
   }
@@ -226,7 +221,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
     if (!ok) return;
     await apiFetch("/api/datasets", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     if (selectedId === id) { setSelectedId(null); setRows([]); setHeaders([]); }
-    loadDatasets();
+    reloadDatasets();
   }
 
   function handleCancel() {
@@ -277,7 +272,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         body: JSON.stringify({ id: selectedId, rowIndex }),
       });
       setTotalRows(prev => prev - 1);
-      loadDatasets();
+      reloadDatasets();
       loadPage(selectedId, page);
     }
   }
@@ -440,7 +435,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                                     body: JSON.stringify({ id: selectedId, rowIndices: [...selectedRowIndices] }),
                                   });
                                   setSelectedRowIndices(new Set());
-                                  loadDatasets();
+                                  reloadDatasets();
                                   loadPage(selectedId, 0);
                                 }
                               }}
