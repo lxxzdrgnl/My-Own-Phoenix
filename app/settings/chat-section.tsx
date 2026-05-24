@@ -2,16 +2,19 @@
 import { apiFetch } from "@/lib/api-client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Trash2, Bot, Plus, CheckCircle, Loader2, ChevronDown, X } from "lucide-react";
+import { Trash2, Bot, Plus, CheckCircle, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FormLabel, FormError } from "@/components/ui/form-field";
+import { FormLabel } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { ChatSuggestion, MAX_CHAT_SUGGESTIONS, parseChatSuggestions } from "@/lib/constants";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n";
+import { Heading } from "@/components/ui/typography";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { InlineError } from "@/components/ui/inline-error";
 
 interface AgentConfig {
   id: string;
@@ -71,7 +74,7 @@ export function ChatSection() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">{t.settings.chatTitle}</h2>
+        <Heading level="section">{t.settings.chatTitle}</Heading>
         <p className="mt-1.5 text-sm text-muted-foreground">
           {t.settings.chatDesc}
         </p>
@@ -83,9 +86,7 @@ export function ChatSection() {
         <div className="space-y-8">
           <section>
             <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                {t.settings.projectAgentMapping}
-              </h3>
+              <Heading level="sub">{t.settings.projectAgentMapping}</Heading>
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {configs.length}
               </span>
@@ -309,13 +310,12 @@ function ConfigTab({
           </select>
         </div>
       </div>
-      {error && <FormError message={error} />}
+      <InlineError>{error}</InlineError>
       <div className="flex items-center gap-2">
         {dirty && (
-          <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={saving || !selectedTemplateId}>
-            {saving ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
+          <LoadingButton size="sm" className="h-7 text-xs" onClick={handleSave} disabled={!selectedTemplateId} loading={saving} loadingText={t.settings.saveChanges}>
             {t.settings.saveChanges}
-          </Button>
+          </LoadingButton>
         )}
         {saved && !dirty && (
           <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -416,10 +416,9 @@ function QuestionsTab({ project }: { project: string }) {
             </button>
           )}
           {dirty && (
-            <Button onClick={handleSave} disabled={saving} size="sm" className="h-7 text-xs">
-              {saving ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
+            <LoadingButton onClick={handleSave} loading={saving} loadingText={t.common.save} size="sm" className="h-7 text-xs">
               {t.common.save}
-            </Button>
+            </LoadingButton>
           )}
           {saved && !dirty && (
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -544,7 +543,7 @@ function AddProjectForm({
   return (
     <div className="rounded-lg border p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">{t.settings.newProjectConnection}</p>
+        <Heading level="section" as="h4">{t.settings.newProjectConnection}</Heading>
         <button onClick={onCancel} className="rounded p-1 text-muted-foreground/40 hover:text-foreground">
           <X className="h-4 w-4" />
         </button>
@@ -604,13 +603,12 @@ function AddProjectForm({
         </div>
       )}
 
-      {error && <FormError message={error} />}
+      <InlineError>{error}</InlineError>
 
       <div className="flex items-center gap-2 border-t pt-3">
-        <Button size="sm" className="text-xs" onClick={handleSave} disabled={saving || !project.trim() || isDuplicate || !selectedTemplateId}>
-          {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+        <LoadingButton size="sm" className="text-xs" onClick={handleSave} loading={saving} loadingText={t.common.create} disabled={!project.trim() || isDuplicate || !selectedTemplateId}>
           {t.common.create}
-        </Button>
+        </LoadingButton>
         <Button variant="ghost" size="sm" className="text-xs" onClick={onCancel}>{t.common.cancel}</Button>
       </div>
     </div>
