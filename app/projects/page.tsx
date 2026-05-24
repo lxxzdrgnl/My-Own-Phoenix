@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { useResourceList } from "@/lib/hooks/use-resource-list";
 import { ProjectCard } from "@/components/project-card";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,7 @@ export default function ProjectsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const t = useT();
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items: projects, setItems: setProjects, loading, reload: loadProjects } = useResourceList<ProjectItem>("/api/projects");
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
 
@@ -36,24 +36,6 @@ export default function ProjectsPage() {
       router.replace("/");
     }
   }, [user, authLoading, router]);
-
-  const loadProjects = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/projects");
-      if (res.ok) {
-        const data = await res.json();
-        setProjects(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) loadProjects();
-  }, [user, loadProjects]);
 
   const handleRename = useCallback(async (projectId: string, newName: string) => {
     try {
@@ -70,7 +52,7 @@ export default function ProjectsPage() {
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [setProjects]);
 
   if (authLoading || !user) return null;
 
