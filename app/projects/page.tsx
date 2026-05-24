@@ -7,12 +7,11 @@ import { useAuth } from "@/lib/auth-context";
 import { ProjectCard } from "@/components/project-card";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
 import { FolderOpen, Plus } from "lucide-react";
 import { JoinProjectModal } from "@/components/modals/join-project-modal";
 import { Nav } from "@/components/nav";
 import { useT } from "@/lib/i18n";
+import { CreateProjectModal } from "@/components/modals/create-project-modal";
 
 interface ProjectItem {
   id: string;
@@ -30,8 +29,6 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [creating, setCreating] = useState(false);
 
   // Not logged in → redirect to landing
   useEffect(() => {
@@ -75,28 +72,6 @@ export default function ProjectsPage() {
     }
   }, []);
 
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await apiFetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setShowCreate(false);
-        setNewName("");
-        router.push(`/${data.slug}/dashboard`);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setCreating(false);
-    }
-  };
-
   if (authLoading || !user) return null;
 
   if (loading) {
@@ -112,29 +87,10 @@ export default function ProjectsPage() {
 
   return (
     <>
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} className="w-[420px]">
-        <ModalHeader onClose={() => setShowCreate(false)}>{t.projects.createProject}</ModalHeader>
-        <ModalBody>
-          <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">{t.projects.projectName}</label>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="my-legal-rag"
-                autoFocus
-                className="mt-1"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>{t.common.cancel}</Button>
-              <Button type="submit" disabled={!newName.trim() || creating}>
-                {creating ? t.projects.creating : t.common.create}
-              </Button>
-            </div>
-          </form>
-        </ModalBody>
-      </Modal>
+      <CreateProjectModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
 
       <JoinProjectModal open={showJoin} onClose={() => { setShowJoin(false); loadProjects(); }} />
 
