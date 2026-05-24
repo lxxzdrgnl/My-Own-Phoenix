@@ -1,7 +1,7 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import {
   Plus, Pencil, Trash2, ChevronRight, ChevronDown, Bot,
 } from "lucide-react";
@@ -9,6 +9,7 @@ import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n";
 import { AgentEditModal } from "@/components/modals/agent-edit-modal";
+import { useResourceList } from "@/lib/hooks/use-resource-list";
 
 export interface AgentEntry {
   id: string;
@@ -22,24 +23,14 @@ export interface AgentEntry {
 
 export function AgentsSection() {
   const t = useT();
-  const [agents, setAgents] = useState<AgentEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items: agents, loading, reload } = useResourceList<AgentEntry>(
+    "/api/agent-templates",
+    { dataKey: "templates" },
+  );
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<AgentEntry | null>(null);
   const confirm = useConfirm();
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch("/api/agent-templates");
-      const data = await res.json();
-      setAgents(data.templates ?? []);
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   async function handleDelete(agent: AgentEntry) {
     const ok = await confirm({
@@ -49,7 +40,7 @@ export function AgentsSection() {
     });
     if (!ok) return;
     await apiFetch(`/api/agent-templates?id=${agent.id}`, { method: "DELETE" });
-    await load();
+    await reload();
   }
 
   function parseEvalPrompts(raw: string): Record<string, string> {
@@ -184,7 +175,7 @@ export function AgentsSection() {
         open={showForm}
         onClose={() => { setShowForm(false); setEditTarget(null); }}
         agent={editTarget ?? undefined}
-        onSaved={() => { setShowForm(false); setEditTarget(null); load(); }}
+        onSaved={() => { setShowForm(false); setEditTarget(null); reload(); }}
       />
     </div>
   );
