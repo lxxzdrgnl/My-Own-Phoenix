@@ -1,7 +1,8 @@
 "use client";
 
-import { apiFetch } from "@/lib/api-client";
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api-client";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,7 +81,9 @@ export function EvalEditor({
   const [editModel, setEditModel] = useState(defaultEvalModel);
 
   const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
+
+  const saveGlobalHook = useFormSubmit("/api/eval-prompts", "PUT");
+  const saveProjectHook = useFormSubmit("/api/eval-config", "PUT");
 
   // ── Initialize editor state when selectedEval changes ──
   useEffect(() => {
@@ -117,45 +120,39 @@ export function EvalEditor({
 
   // ── Save ──
 
+  const saving = saveGlobalHook.saving || saveProjectHook.saving;
 
   async function handleSaveProject() {
     if (!selectedEval || !selectedProject) return;
-    setSaving(true);
     const isCustom = !globalPrompts.some((p) => p.name === selectedEval && !p.isCustom);
-    try {
-      // Save global prompt data (type, model, badge, rule config)
-      await apiFetch("/api/eval-prompts", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: selectedEval,
-          projectId: null,
-          evalType: editEvalType,
-          outputMode: /"score":\s*0\.0-1\.0/.test(editTemplate) ? "score" : "binary",
-          template: editTemplate,
-          ruleConfig: editEvalType === "code_rule" ? editRuleConfig : undefined,
-          badgeLabel: editBadgeLabel,
-          model: editModel,
-          isCustom,
-        }),
+
+    // Save global prompt data (type, model, badge, rule config)
+    const globalResult = await saveGlobalHook.submit({
+      name: selectedEval,
+      projectId: null,
+      evalType: editEvalType,
+      outputMode: /"score":\s*0\.0-1\.0/.test(editTemplate) ? "score" : "binary",
+      template: editTemplate,
+      ruleConfig: editEvalType === "code_rule" ? editRuleConfig : undefined,
+      badgeLabel: editBadgeLabel,
+      model: editModel,
+      isCustom,
+    });
+    if (globalResult === null) return;
+
+    // Save project-scoped template override (skip in globalMode)
+    if (!globalMode && projectId) {
+      const projectResult = await saveProjectHook.submit({
+        projectId,
+        evalName: selectedEval,
+        template: editTemplate,
       });
-      // Save project-scoped template override (skip in globalMode)
-      if (!globalMode && projectId) {
-        await apiFetch("/api/eval-config", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            projectId,
-            evalName: selectedEval,
-            template: editTemplate,
-          }),
-        });
-      }
-      setDirty(false);
-      onProjectConfigReload();
-      refreshBadgeLabels();
-    } catch (e) { console.error(e); }
-    setSaving(false);
+      if (projectResult === null) return;
+    }
+
+    setDirty(false);
+    onProjectConfigReload();
+    refreshBadgeLabels();
   }
 
 
@@ -506,6 +503,11 @@ export function EvalEditor({
               )}
             </div>
           </div>
+          {(saveGlobalHook.error || saveProjectHook.error) && (
+            <p className="text-xs text-[#ef4444] mt-1">
+              {saveGlobalHook.error ?? saveProjectHook.error}
+            </p>
+          )}
         </div>
 
         {/* Backfill */}

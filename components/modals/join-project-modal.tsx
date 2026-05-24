@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { ModalForm } from "@/components/ui/modal-form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { apiFetch } from "@/lib/api-client";
 import { Check } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 
 interface JoinProjectModalProps {
   open: boolean;
@@ -16,43 +15,34 @@ interface JoinProjectModalProps {
 export function JoinProjectModal({ open, onClose }: JoinProjectModalProps) {
   const t = useT();
   const [code, setCode] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "pending" | "error">("idle");
   const [projectName, setProjectName] = useState("");
-  const [error, setError] = useState("");
+  const [mode, setMode] = useState<"form" | "pending">("form");
+
+  const { submit, saving, error, clearError } = useFormSubmit<{ code: string }>(
+    "/api/projects/join",
+    "POST",
+    {
+      onSuccess: (result) => {
+        setProjectName(result?.project?.name || "");
+        setMode("pending");
+      },
+    }
+  );
 
   const handleSubmit = async () => {
     if (!code.trim()) return;
-    setStatus("loading");
-    setError("");
-    try {
-      const res = await apiFetch("/api/projects/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.message || "Failed to join");
-        setStatus("error");
-        return;
-      }
-      setProjectName(data.project?.name || "");
-      setStatus("pending");
-    } catch {
-      setError("Network error");
-      setStatus("error");
-    }
+    await submit({ code: code.trim() });
   };
 
   const handleClose = () => {
     setCode("");
-    setStatus("idle");
-    setError("");
+    setMode("form");
+    clearError();
     setProjectName("");
     onClose();
   };
 
-  if (status === "pending") {
+  if (mode === "pending") {
     return (
       <ModalForm
         open={open}
@@ -83,18 +73,18 @@ export function JoinProjectModal({ open, onClose }: JoinProjectModalProps) {
       onClose={handleClose}
       onSubmit={handleSubmit}
       title={t.joinModal.title}
-      saving={status === "loading"}
+      saving={saving}
       error={error || null}
       submitLabel={t.projects.join}
       cancelLabel={t.common.cancel}
-      submitDisabled={!code.trim() || status === "loading"}
+      submitDisabled={!code.trim() || saving}
       size="sm"
     >
       <div>
         <label className="text-sm font-medium">{t.joinModal.inviteCode}</label>
         <Input
           value={code}
-          onChange={(e) => { setCode(e.target.value); setError(""); }}
+          onChange={(e) => { setCode(e.target.value); clearError(); }}
           placeholder={t.joinModal.placeholder}
           autoFocus
           className="mt-1 font-mono"

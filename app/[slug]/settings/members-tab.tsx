@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProject } from "@/lib/project-context";
 import { apiFetch } from "@/lib/api-client";
+import { useResourceList } from "@/lib/hooks/use-resource-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
@@ -41,39 +42,52 @@ export function MembersTab() {
   const { id: projectId } = useProject();
   const confirm = useConfirm();
   const t = useT();
-  const [members, setMembers] = useState<Member[]>([]);
   const [currentRole, setCurrentRole] = useState("");
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [codes, setCodes] = useState<InviteCode[]>([]);
-  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
   const [genRole, setGenRole] = useState("editor");
   const [genMaxUses, setGenMaxUses] = useState("10");
   const [genExpiry, setGenExpiry] = useState("7");
 
+  const membersEndpoint = `/api/projects/${projectId}/members`;
+
+  const membersTransform = useCallback(
+    (raw: { members?: Member[]; currentRole?: string }) => {
+      setCurrentRole(raw.currentRole ?? "");
+      return raw.members ?? [];
+    },
+    [],
+  );
+
+  const {
+    items: members,
+    setItems: setMembers,
+    loading,
+    reload: reloadMembers,
+  } = useResourceList<Member>(membersEndpoint, { transform: membersTransform });
+
   const isOwner = currentRole === "owner";
 
-  const load = useCallback(async () => {
-    try {
-      const membersRes = await apiFetch(`/api/projects/${projectId}/members`).then(r => r.json());
-      setMembers(membersRes.members || []);
-      const role = membersRes.currentRole || "";
-      setCurrentRole(role);
-
-      if (role === "owner") {
-        const [requestsRes, codesRes] = await Promise.all([
-          apiFetch(`/api/projects/${projectId}/join-requests`).then(r => r.json()).catch(() => ({ requests: [] })),
-          apiFetch(`/api/projects/${projectId}/invite-codes`).then(r => r.json()).catch(() => ({ codes: [] })),
-        ]);
-        setRequests(requestsRes.requests || []);
-        setCodes(codesRes.codes || []);
-      }
-    } catch (e) { console.error(e); }
-    setLoading(false);
+  const loadOwnerData = useCallback(async () => {
+    const [requestsRes, codesRes] = await Promise.all([
+      apiFetch(`/api/projects/${projectId}/join-requests`).then(r => r.json()).catch(() => ({ requests: [] })),
+      apiFetch(`/api/projects/${projectId}/invite-codes`).then(r => r.json()).catch(() => ({ codes: [] })),
+    ]);
+    setRequests(requestsRes.requests || []);
+    setCodes(codesRes.codes || []);
   }, [projectId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (isOwner) {
+      void loadOwnerData();
+    }
+  }, [isOwner, loadOwnerData]);
+
+  const reload = useCallback(async () => {
+    await reloadMembers();
+  }, [reloadMembers]);
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -87,7 +101,7 @@ export function MembersTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, role }),
     });
-    load();
+    reload();
   };
 
   const handleRemove = async (userId: string) => {
@@ -102,7 +116,7 @@ export function MembersTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),
     });
-    load();
+    reload();
   };
 
   const handleApprove = async (requestId: string) => {
@@ -111,7 +125,8 @@ export function MembersTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId, action: "approve" }),
     });
-    load();
+    reload();
+    void loadOwnerData();
   };
 
   const handleReject = async (requestId: string) => {
@@ -120,7 +135,8 @@ export function MembersTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId, action: "reject" }),
     });
-    load();
+    reload();
+    void loadOwnerData();
   };
 
   const handleGenerate = async () => {
@@ -138,7 +154,8 @@ export function MembersTab() {
         const data = await res.json();
         copyCode(data.code.code);
         setShowGenerate(false);
-        load();
+        reload();
+        void loadOwnerData();
       } else {
         const err = await res.json().catch(() => ({}));
         alert(`Failed: ${err.message || res.status}`);
@@ -155,7 +172,7 @@ export function MembersTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ codeId }),
     });
-    load();
+    void loadOwnerData();
   };
 
   if (loading) return <LoadingState />;

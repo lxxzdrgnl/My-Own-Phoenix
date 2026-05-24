@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { Zap, MessageSquare, CircleOff, Check, ArrowRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
@@ -59,9 +60,15 @@ interface EvalSettingsPanelProps {
 export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
   const t = useT();
   const [contextSource, setContextSource] = useState("auto");
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  const { submit, saving } = useFormSubmit("/api/settings", "PUT", {
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
 
   useEffect(() => {
     apiFetch(`/api/settings?scope=project&projectId=${projectId}`)
@@ -75,17 +82,7 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
   const handleSave = async (value: string) => {
     if (value === contextSource) return;
     setContextSource(value);
-    setSaving(true);
-    try {
-      await apiFetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "evalContextSource", value, scope: "project", projectId }),
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (e) { console.error(e); }
-    setSaving(false);
+    await submit({ key: "evalContextSource", value, scope: "project", projectId });
   };
 
   const activeSource = CONTEXT_SOURCES.find((s) => s.id === contextSource) ?? CONTEXT_SOURCES[0];

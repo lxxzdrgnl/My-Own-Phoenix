@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   fetchPromptVersionTags,
   addPromptVersionTag,
@@ -26,6 +26,7 @@ import { Nav } from "@/components/nav";
 import { PromptFormModal, PromptFormInitial } from "@/components/modals/prompts-modal";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useResourceList } from "@/lib/hooks/use-resource-list";
 
 interface VersionWithTags extends PromptVersion {
   tags: PromptTag[];
@@ -37,38 +38,67 @@ interface PromptWithVersions {
 }
 
 export function PromptsManager({ projectId }: { projectId: string }) {
-  const [prompts, setPrompts] = useState<PromptWithVersions[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [modal, setModal] = useState<null | "create" | "edit">(null);
   const [editTarget, setEditTarget] = useState<PromptFormInitial | null>(null);
   const confirm = useConfirm();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/prompts`);
-      const data = await res.json();
-      const scoped: Array<{ prompt: PromptInfo; versions: PromptVersion[] }> = data.prompts ?? [];
-      const result: PromptWithVersions[] = [];
-      for (const { prompt: p, versions } of scoped) {
-        const versionsWithTags: VersionWithTags[] = [];
-        for (const v of versions) {
-          const tags = await fetchPromptVersionTags(v.id);
-          versionsWithTags.push({ ...v, tags });
-        }
-        result.push({ info: p, versions: versionsWithTags });
-      }
-      setPrompts(result);
-    } catch (e) {
-      console.error(e);
-    }
-    setLoading(false);
-  }, [projectId]);
+  const enrichingRef = useRef(false);
 
+  const {
+    items: prompts,
+    setItems: setPrompts,
+    loading,
+    reload,
+  } = useResourceList<PromptWithVersions>(
+    `/api/projects/${encodeURIComponent(projectId)}/prompts`,
+    {
+      transform: (data) => {
+        const scoped: Array<{ prompt: PromptInfo; versions: PromptVersion[] }> =
+          data.prompts ?? [];
+        return scoped.map(({ prompt: p, versions }) => ({
+          info: p,
+          versions: versions.map((v) => ({ ...v, tags: [] })),
+        }));
+      },
+    },
+  );
+
+  // tag 보강: prompts 로드 완료 후 각 버전의 태그를 비동기로 채움
   useEffect(() => {
-    load();
-  }, [load]);
+    if (loading || prompts.length === 0) return;
+    if (enrichingRef.current) return;
+    enrichingRef.current = true;
+
+    (async () => {
+      try {
+        const enriched = await Promise.all(
+          prompts.map(async (p) => {
+            const versionsWithTags = await Promise.all(
+              p.versions.map(async (v) => {
+                if (v.tags.length > 0) return v;
+                const tags = await fetchPromptVersionTags(v.id);
+                return { ...v, tags };
+              }),
+            );
+            return { ...p, versions: versionsWithTags };
+          }),
+        );
+        setPrompts(enriched);
+      } catch (e) {
+        // logger 사용 대신 태그 보강 실패는 조용히 무시 (tags는 non-critical)
+      } finally {
+        enrichingRef.current = false;
+      }
+    })();
+  // prompts 객체 자체가 바뀔 때만 실행 (loading 완료 시점)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  const load = useCallback(async () => {
+    enrichingRef.current = false;
+    await reload();
+  }, [reload]);
 
   async function handleDelete(name: string) {
     const ok = await confirm({

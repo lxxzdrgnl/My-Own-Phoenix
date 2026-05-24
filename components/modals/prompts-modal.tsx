@@ -14,6 +14,7 @@ import {
   PromptTag,
 } from "@/lib/phoenix";
 import { apiFetch } from "@/lib/api-client";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import {
   Plus,
   Tag,
@@ -332,8 +333,16 @@ export function PromptFormModal({
   const [model, setModel] = useState(initial?.model ?? "gpt-4o-mini");
   const [temperature, setTemperature] = useState(initial?.temperature ?? 0.7);
   const [versionDesc, setVersionDesc] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+
+  const endpoint =
+    mode === "create"
+      ? `/api/projects/${encodeURIComponent(projectId ?? "")}/prompts`
+      : `/api/projects/${encodeURIComponent(projectId ?? "")}/prompts`;
+  const { submit, saving, error, setError } = useFormSubmit<{ phoenixName: string }>(
+    endpoint,
+    "POST",
+    { onSuccess: () => { onSave(); onClose(); } },
+  );
 
   async function handleSave() {
     if (!name.trim() || !system.trim()) {
@@ -344,32 +353,27 @@ export function PromptFormModal({
       setError("Project context is required to create a prompt.");
       return;
     }
-    setSaving(true);
-    setError("");
-    try {
-      if (mode === "create") {
+
+    if (mode === "create") {
+      try {
         await createPrompt(name, desc, system, user, model, temperature);
-        // Register the prompt under the current project so it shows up in this
-        // project's playground and stays hidden from others. Phoenix names are
-        // global, so this mapping is the only enforcement of project scoping.
-        const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId!)}/prompts`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phoenixName: name }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ message: "Failed to scope prompt to project" }));
-          throw new Error(err.message ?? "Failed to scope prompt to project");
-        }
-      } else {
-        await updatePrompt(name, desc, versionDesc || `v${Date.now()}`, system, user, model, temperature);
+      } catch (e: any) {
+        setError(e.message);
+        return;
       }
-      onSave();
-      onClose();
-    } catch (e: any) {
-      setError(e.message);
+      // Register the prompt under the current project so it shows up in this
+      // project's playground and stays hidden from others. Phoenix names are
+      // global, so this mapping is the only enforcement of project scoping.
+      await submit({ phoenixName: name });
+    } else {
+      try {
+        await updatePrompt(name, desc, versionDesc || `v${Date.now()}`, system, user, model, temperature);
+        onSave();
+        onClose();
+      } catch (e: any) {
+        setError(e.message);
+      }
     }
-    setSaving(false);
   }
 
   return (

@@ -9,6 +9,7 @@ import { CheckCircle, Copy, Check, RefreshCw, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import {
   DEFAULT_PROMPT_TEMPLATE,
   PROMPT_TEMPLATE_KEY,
@@ -28,14 +29,37 @@ export function GeneralSection() {
   // Profile nickname state
   const [nickname, setNickname] = useState("");
   const [savedNickname, setSavedNickname] = useState("");
-  const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
   // Default prompt template state
   const [template, setTemplate] = useState<PromptTemplate>(DEFAULT_PROMPT_TEMPLATE);
   const [savedTemplate, setSavedTemplate] = useState<PromptTemplate>(DEFAULT_PROMPT_TEMPLATE);
-  const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateSaved, setTemplateSaved] = useState(false);
+
+  const profileHook = useFormSubmit<{ name: string }>(
+    "/api/user/profile",
+    "PUT",
+    {
+      onSuccess: (_data) => {
+        setSavedNickname(nickname.trim());
+        setNickname(nickname.trim());
+        setProfileSaved(true);
+        setTimeout(() => setProfileSaved(false), 2000);
+      },
+    }
+  );
+
+  const templateHook = useFormSubmit<Record<string, string>>(
+    "/api/settings",
+    "PUT",
+    {
+      onSuccess: (_data) => {
+        setSavedTemplate(template);
+        setTemplateSaved(true);
+        setTimeout(() => setTemplateSaved(false), 2000);
+      },
+    }
+  );
 
   const loadStatus = useCallback(async () => {
     try {
@@ -68,47 +92,14 @@ export function GeneralSection() {
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
-  const handleSaveProfile = async () => {
-    setSavingProfile(true);
+  const handleSaveProfile = () => {
     setProfileSaved(false);
-    try {
-      const res = await apiFetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nickname }),
-      });
-      if (res.ok) {
-        setSavedNickname(nickname.trim());
-        setNickname(nickname.trim());
-        setProfileSaved(true);
-        setTimeout(() => setProfileSaved(false), 2000);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSavingProfile(false);
-    }
+    profileHook.submit({ name: nickname });
   };
 
-  const handleSaveTemplate = async () => {
-    setSavingTemplate(true);
+  const handleSaveTemplate = () => {
     setTemplateSaved(false);
-    try {
-      const res = await apiFetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [PROMPT_TEMPLATE_KEY]: JSON.stringify(template) }),
-      });
-      if (res.ok) {
-        setSavedTemplate(template);
-        setTemplateSaved(true);
-        setTimeout(() => setTemplateSaved(false), 2000);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSavingTemplate(false);
-    }
+    templateHook.submit({ [PROMPT_TEMPLATE_KEY]: JSON.stringify(template) });
   };
 
   const templateDirty =
@@ -178,12 +169,15 @@ export function GeneralSection() {
                   <Button
                     size="sm"
                     onClick={handleSaveProfile}
-                    disabled={savingProfile || nickname.trim() === savedNickname}
+                    disabled={profileHook.saving || nickname.trim() === savedNickname}
                   >
-                    {savingProfile && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                    {profileHook.saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
                     {profileSaved ? t.settings.saved : t.common.save}
                   </Button>
                 </div>
+                {profileHook.error && (
+                  <p className="text-sm text-[#ef4444]">{profileHook.error}</p>
+                )}
               </div>
             </div>
           </section>
@@ -228,13 +222,16 @@ export function GeneralSection() {
                 <Button
                   size="sm"
                   onClick={handleSaveTemplate}
-                  disabled={savingTemplate || !templateDirty}
+                  disabled={templateHook.saving || !templateDirty}
                 >
-                  {savingTemplate && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                  {templateHook.saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
                   {templateSaved && !templateDirty ? t.settings.saved : t.common.save}
                 </Button>
                 {templateSaved && !templateDirty && (
                   <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                )}
+                {templateHook.error && (
+                  <p className="text-sm text-[#ef4444]">{templateHook.error}</p>
                 )}
               </div>
             </div>

@@ -5,6 +5,7 @@ import { useT } from "@/lib/i18n";
 import { type TraceTree, type Annotation } from "@/lib/phoenix";
 import { AnnotationBadge } from "@/components/annotation-badge";
 import { apiFetch } from "@/lib/api-client";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { Bot, User, FileJson, ChevronDown, RefreshCw, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,14 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
   const [showRaw, setShowRaw] = useState(false);
   const [savingName, setSavingName] = useState<string | null>(null);
   const [runningEval, setRunningEval] = useState<string | null>(null);
+
+  const { submit: submitAnnotation } = useFormSubmit<{
+    spanId: string;
+    name: string;
+    label: string;
+    score: number;
+    explanation?: string;
+  }>("/api/annotations", "POST", { onSuccess: () => onRefresh?.() });
 
   async function runSingleEval(name: string) {
     if (!projectName) return;
@@ -103,25 +112,14 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
     explanation: string,
   ) {
     setSavingName(name);
-    try {
-      const res = await apiFetch("/api/annotations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          spanId: trace.rootSpan.spanId,
-          name,
-          label,
-          score,
-          explanation: explanation || undefined,
-        }),
-      });
-      if (!res.ok) throw new Error(`save failed: ${res.status}`);
-      onRefresh?.();
-    } catch (e) {
-      console.error("[trace-detail-tabs] save annotation failed", e);
-    } finally {
-      setSavingName(null);
-    }
+    await submitAnnotation({
+      spanId: trace.rootSpan.spanId,
+      name,
+      label,
+      score,
+      explanation: explanation || undefined,
+    });
+    setSavingName(null);
   }
 
   async function deleteHumanAnnotation(name: string) {

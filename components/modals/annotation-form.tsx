@@ -1,5 +1,4 @@
 "use client";
-import { apiFetch } from "@/lib/api-client";
 
 import { useState, useEffect, useCallback } from "react";
 import { ModalForm } from "@/components/ui/modal-form";
@@ -9,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormLabel } from "@/components/ui/form-field";
 import type { Annotation } from "@/lib/phoenix";
 import { useT } from "@/lib/i18n";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
+import { apiFetch } from "@/lib/api-client";
 
 interface EvalOption {
   name: string;
@@ -35,8 +36,10 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
   const [label, setLabel] = useState<"pass" | "fail" | "">("");
   const [score, setScore] = useState("1.0");
   const [comment, setComment] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | undefined>();
+
+  const { submit, saving, error, setError } = useFormSubmit("/api/annotations", "POST", {
+    onSuccess: () => { onSaved?.(); onClose(); },
+  });
 
   const loadEvals = useCallback(async () => {
     try {
@@ -80,38 +83,17 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
   async function handleSave() {
     if (!evalName) { setError("Select or enter an eval name."); return; }
     if (mode === "binary" && !label) { setError("Select Pass or Fail."); return; }
-    setError(undefined);
-    setSaving(true);
 
     const finalLabel = mode === "binary" ? label : (Number(score) >= 0.5 ? "pass" : "fail");
     const finalScore = mode === "binary" ? (label === "pass" ? 1.0 : 0.0) : Number(score);
 
-    try {
-      const res = await apiFetch("/api/annotations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          spanId,
-          name: evalName,
-          label: finalLabel,
-          score: finalScore,
-          explanation: comment.trim() || undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const d = await res.json();
-        setError(d.error ?? "Failed to save annotation.");
-        return;
-      }
-
-      onSaved?.();
-      onClose();
-    } catch {
-      setError("Network error.");
-    } finally {
-      setSaving(false);
-    }
+    await submit({
+      spanId,
+      name: evalName,
+      label: finalLabel,
+      score: finalScore,
+      explanation: comment.trim() || undefined,
+    });
   }
 
   const existingNames = new Set(existingAnnotations.map((a) => a.name));

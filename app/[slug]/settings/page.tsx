@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useProject } from "@/lib/project-context";
 import { MembersTab } from "./members-tab";
@@ -12,6 +12,8 @@ import { Trash2, Plus, CheckCircle, Loader2, AlertTriangle, ArrowRightLeft, Copy
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
+import { useResourceList } from "@/lib/hooks/use-resource-list";
 
 function useTabs() {
   const t = useT();
@@ -34,58 +36,69 @@ function ApiKeysTab() {
   const { id: projectId } = useProject();
   const confirm = useConfirm();
   const t = useT();
-  const [keys, setKeys] = useState<{ id: string; provider: string; isActive: boolean }[]>([]);
-  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<string | null>(null);
   const [newKey, setNewKey] = useState("");
-  const [saving, setSaving] = useState(false);
   const [traceKey, setTraceKey] = useState<string | null>(null);
-  const [generatingKey, setGeneratingKey] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const [provRes, keyRes, membersRes] = await Promise.all([
-        apiFetch(`/api/projects/${projectId}/providers`),
-        apiFetch(`/api/projects/${projectId}/trace-key`),
-        apiFetch(`/api/projects/${projectId}/members`),
-      ]);
-      const provData = await provRes.json();
-      if (provRes.ok) setKeys(provData.providers || []);
+  // providers list
+  const {
+    items: keys,
+    loading,
+    reload: reloadProviders,
+  } = useResourceList<{ id: string; provider: string; isActive: boolean }>(
+    `/api/projects/${projectId}/providers`,
+    { dataKey: "providers" },
+  );
 
-      const keyData = await keyRes.json();
-      if (keyRes.ok && keyData.key) setTraceKey(keyData.key);
+  // trace-key + members: fetched once on mount (side-effects outside useResourceList scope)
+  useEffect(() => {
+    Promise.all([
+      apiFetch(`/api/projects/${projectId}/trace-key`),
+      apiFetch(`/api/projects/${projectId}/members`),
+    ])
+      .then(async ([keyRes, membersRes]) => {
+        const keyData = await keyRes.json();
+        if (keyRes.ok && keyData.key) setTraceKey(keyData.key);
 
-      const membersData = await membersRes.json();
-      if (membersRes.ok) setIsOwner(membersData.currentRole === "owner");
-    } catch (e) { console.error(e); }
-    setLoading(false);
+        const membersData = await membersRes.json();
+        if (membersRes.ok) setIsOwner(membersData.currentRole === "owner");
+      })
+      .catch(console.error);
   }, [projectId]);
 
-  useEffect(() => { load(); }, [load]);
+  // add provider key
+  const { submit: submitAddKey, saving } = useFormSubmit<{ provider: string; apiKey: string }>(
+    `/api/projects/${projectId}/providers`,
+    "POST",
+    {
+      onSuccess: () => {
+        setAdding(null);
+        setNewKey("");
+        reloadProviders();
+      },
+    },
+  );
+
+  // generate trace key
+  const { submit: submitGenerateTraceKey, saving: generatingKey } = useFormSubmit(
+    `/api/projects/${projectId}/trace-key`,
+    "POST",
+    {
+      onSuccess: (data) => {
+        if (data?.key) setTraceKey(data.key);
+      },
+    },
+  );
 
   const handleAdd = async (provider: string) => {
     if (!newKey.trim()) return;
-    setSaving(true);
-    try {
-      const res = await apiFetch(`/api/projects/${projectId}/providers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, apiKey: newKey.trim() }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        let msg = `${res.status}`;
-        try { msg = JSON.parse(text).message || msg; } catch { msg = text || msg; }
-        alert(`Failed to save key: ${msg}`);
-      } else {
-        setAdding(null);
-        setNewKey("");
-        await load();
-      }
-    } catch (e) { console.error(e); }
-    setSaving(false);
+    const result = await submitAddKey({ provider, apiKey: newKey.trim() });
+    if (!result) {
+      // error is set in hook; surface via alert for backward compat
+      alert(`Failed to save key`);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -96,22 +109,12 @@ function ApiKeysTab() {
     });
     if (!ok) return;
     await apiFetch(`/api/projects/${projectId}/providers/${id}`, { method: "DELETE" });
-    load();
+    reloadProviders();
   };
 
   if (loading) return <p className="text-sm text-muted-foreground">{t.common.loading}</p>;
 
-  const handleGenerateTraceKey = async () => {
-    setGeneratingKey(true);
-    try {
-      const res = await apiFetch(`/api/projects/${projectId}/trace-key`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        setTraceKey(data.key);
-      }
-    } catch (e) { console.error(e); }
-    setGeneratingKey(false);
-  };
+  const handleGenerateTraceKey = () => submitGenerateTraceKey();
 
   const handleCopyKey = () => {
     if (traceKey) {
@@ -268,11 +271,9 @@ function DangerTab() {
   // Transfer state
   const [transferTarget, setTransferTarget] = useState("");
   const [transferConfirm, setTransferConfirm] = useState("");
-  const [transferring, setTransferring] = useState(false);
 
   // Delete state
   const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     apiFetch(`/api/projects/${projectId}/members`)
@@ -288,49 +289,41 @@ function DangerTab() {
   const isOwner = currentRole === "owner";
   const otherMembers = members.filter((m) => m.role !== "owner");
 
+  // transfer ownership
+  const { submit: submitTransfer, saving: transferring } = useFormSubmit<{
+    targetUserId: string;
+    confirmProjectName: string;
+  }>(`/api/projects/${projectId}/members`, "PATCH", {
+    onSuccess: () => {
+      setCurrentRole("editor");
+      setTransferTarget("");
+      setTransferConfirm("");
+      alert("Ownership transferred successfully.");
+      window.location.reload();
+    },
+  });
+
+  // delete project
+  const { submit: submitDelete, saving: deleting } = useFormSubmit<{ projectId: string }>(
+    "/api/projects",
+    "DELETE",
+    {
+      onSuccess: () => {
+        router.push("/projects");
+      },
+    },
+  );
+
   const handleTransfer = async () => {
     if (transferConfirm !== name) return;
-    setTransferring(true);
-    try {
-      const res = await apiFetch(`/api/projects/${projectId}/members`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId: transferTarget, confirmProjectName: name }),
-      });
-      if (res.ok) {
-        setCurrentRole("editor");
-        setTransferTarget("");
-        setTransferConfirm("");
-        alert("Ownership transferred successfully.");
-        window.location.reload();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        alert(`Failed: ${err.message || res.status}`);
-      }
-    } catch (e) { console.error(e); }
-    setTransferring(false);
+    const result = await submitTransfer({ targetUserId: transferTarget, confirmProjectName: name });
+    if (!result) alert(`Failed to transfer ownership`);
   };
 
   const handleDelete = async () => {
     if (deleteConfirm !== name) return;
-    setDeleting(true);
-    try {
-      const res = await apiFetch("/api/projects", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
-      });
-      if (res.ok) {
-        router.push("/projects");
-      } else {
-        const err = await res.json().catch(() => ({}));
-        alert(`Failed: ${err.message || res.status}`);
-        setDeleting(false);
-      }
-    } catch (e) {
-      console.error(e);
-      setDeleting(false);
-    }
+    const result = await submitDelete({ projectId });
+    if (!result) alert(`Failed to delete project`);
   };
 
   if (loading) return <p className="text-sm text-muted-foreground">{t.common.loading}</p>;

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { normalizeContent, updatePrompt, PromptVersion } from "@/lib/phoenix";
+import { normalizeContent, PromptVersion } from "@/lib/phoenix";
 import { ModalForm } from "@/components/ui/modal-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormLabel } from "@/components/ui/form-field";
 import { ModelSelector } from "@/components/model-selector";
 import { useT } from "@/lib/i18n";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 
 interface Props {
   promptName: string;
@@ -32,32 +33,34 @@ export function PromptEditModal({ promptName, version, onClose, onSave }: Props)
     version.invocation_parameters?.openai?.temperature ?? 0.7,
   );
   const [versionDesc, setVersionDesc] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { submit, saving, error, setError } = useFormSubmit("/api/v1/prompts", "POST", {
+    onSuccess: () => { onSave(); onClose(); },
+  });
 
   async function handleSubmit() {
     if (!system.trim()) {
       setError(t.promptsModal.nameRequired);
       return;
     }
-    setSaving(true);
-    setError(null);
-    try {
-      await updatePrompt(
-        promptName,
-        desc,
-        versionDesc || `v${Date.now()}`,
-        system,
-        user,
-        model,
-        temperature,
-      );
-      onSave();
-      onClose();
-    } catch (e: any) {
-      setError(e.message);
-    }
-    setSaving(false);
+    await submit({
+      prompt: { name: promptName, description: desc },
+      version: {
+        description: versionDesc || `v${Date.now()}`,
+        model_provider: "OPENAI",
+        model_name: model,
+        template_type: "CHAT",
+        template: {
+          type: "chat",
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+        },
+        template_format: "MUSTACHE",
+        invocation_parameters: { type: "openai", openai: { temperature } },
+      },
+    });
   }
 
   return (
