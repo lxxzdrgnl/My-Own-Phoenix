@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 type Size = "sm" | "md" | "lg" | "xl";
 
 const SIZE_CLASS: Record<Size, string> = {
-  sm: "sm:max-w-md",
-  md: "sm:max-w-lg",
-  lg: "sm:max-w-2xl",
-  xl: "sm:max-w-4xl",
+  sm: "sm:max-w-[476px]",
+  md: "sm:max-w-[540px]",
+  lg: "sm:max-w-[700px]",
+  xl: "sm:max-w-[924px]",
 };
 
 export function ModalShell({
