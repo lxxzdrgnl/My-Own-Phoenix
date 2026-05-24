@@ -2,7 +2,7 @@
 import { apiFetch } from "@/lib/api-client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
+import { ModalShell, ModalHeader } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -255,8 +255,8 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
   }
 
   return (
-    <Modal open={open} onClose={onClose} className="w-[960px] h-[600px]">
-      <ModalHeader onClose={onClose}>{t.evaluations.title}</ModalHeader>
+    <ModalShell open={open} onClose={onClose} size="xl" className="h-[600px] max-w-[960px] w-full">
+      <ModalHeader title={t.evaluations.title} />
       <div className="flex min-h-0 flex-1">
         {/* Left: eval list */}
         <div className="flex w-72 shrink-0 flex-col border-r overflow-hidden">
@@ -520,6 +520,6 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
           <Button onClick={handleConfirm} className="text-xs">{t.common.confirm}</Button>
         </div>
       </div>
-    </Modal>
+    </ModalShell>
   );
 }
