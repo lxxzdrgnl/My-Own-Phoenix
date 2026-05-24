@@ -5,17 +5,12 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Plus, Pencil, Trash2, ChevronRight, ChevronDown, Bot,
 } from "lucide-react";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { FormLabel, FormError } from "@/components/ui/form-field";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
-import { AGENT_TYPES } from "@/lib/constants";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n";
+import { AgentEditModal } from "@/components/modals/agent-edit-modal";
 
-interface AgentEntry {
+export interface AgentEntry {
   id: string;
   name: string;
   description: string;
@@ -185,128 +180,12 @@ export function AgentsSection() {
         </div>
       )}
 
-      {showForm && (
-        <AgentFormModal
-          mode={editTarget ? "edit" : "create"}
-          initial={editTarget}
-          onClose={() => { setShowForm(false); setEditTarget(null); }}
-          onSave={() => { setShowForm(false); setEditTarget(null); load(); }}
-        />
-      )}
+      <AgentEditModal
+        open={showForm}
+        onClose={() => { setShowForm(false); setEditTarget(null); }}
+        agent={editTarget ?? undefined}
+        onSaved={() => { setShowForm(false); setEditTarget(null); load(); }}
+      />
     </div>
-  );
-}
-
-// ── Agent Form Modal ──
-
-function AgentFormModal({ mode, initial, onClose, onSave }: {
-  mode: "create" | "edit";
-  initial?: AgentEntry | null;
-  onClose: () => void;
-  onSave: () => void;
-}) {
-  const t = useT();
-  const [name, setName] = useState(initial?.name ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [agentType, setAgentType] = useState(initial?.agentType ?? "langgraph");
-  const [endpoint, setEndpoint] = useState(initial?.endpoint ?? "http://localhost:2024");
-  const [assistantId, setAssistantId] = useState(initial?.assistantId ?? "agent");
-  const [evalHallucination, setEvalHallucination] = useState("");
-  const [evalCitation, setEvalCitation] = useState("");
-  const [evalToolCalling, setEvalToolCalling] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-
-  useEffect(() => {
-    if (initial?.evalPrompts) {
-      try {
-        const p = JSON.parse(initial.evalPrompts);
-        setEvalHallucination(p.hallucination ?? "");
-        setEvalCitation(p.citation ?? "");
-        setEvalToolCalling(p.tool_calling ?? "");
-      } catch (e) { console.error(e); }
-    }
-  }, [initial]);
-
-  async function handleSave() {
-    if (!name.trim()) { setError(`${t.settings.agentName} required.`); return; }
-    if (!endpoint.trim()) { setError(`${t.settings.endpointUrl} required.`); return; }
-    setError(undefined);
-    setSaving(true);
-
-    const evalPrompts: Record<string, string> = {};
-    if (evalHallucination.trim()) evalPrompts.hallucination = evalHallucination.trim();
-    if (evalCitation.trim()) evalPrompts.citation = evalCitation.trim();
-    if (evalToolCalling.trim()) evalPrompts.tool_calling = evalToolCalling.trim();
-
-    try {
-      const body: Record<string, unknown> = {
-        name: name.trim(), description: description.trim(), agentType,
-        endpoint: endpoint.trim(), assistantId: assistantId.trim(), evalPrompts,
-      };
-      if (mode === "edit" && initial?.id) body.id = initial.id;
-
-      const res = await apiFetch("/api/agent-templates", {
-        method: mode === "create" ? "POST" : "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) { setError((await res.json()).error ?? "Failed to save."); return; }
-      onSave();
-    } catch { setError("Network error."); } finally { setSaving(false); }
-  }
-
-  return (
-    <Modal open onClose={onClose} className="w-[560px]">
-      <ModalHeader onClose={onClose}>
-        {mode === "create" ? t.settings.registerAgent : `${t.settings.editAgent}: ${initial?.name}`}
-      </ModalHeader>
-      <ModalBody>
-        <div className="space-y-4">
-          <div>
-            <FormLabel>{t.settings.agentName}</FormLabel>
-            <Input placeholder="e.g. Legal RAG, Dexter" value={name} onChange={(e) => setName(e.target.value)} disabled={mode === "edit"} />
-          </div>
-          <div>
-            <FormLabel>{t.settings.description}</FormLabel>
-            <Input placeholder="Short description" value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <FormLabel>{t.settings.agentType}</FormLabel>
-              <select value={agentType} onChange={(e) => setAgentType(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring">
-                {AGENT_TYPES.map((at) => <option key={at.value} value={at.value}>{at.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <FormLabel>{t.settings.assistantId}</FormLabel>
-              <Input placeholder="agent" value={assistantId} onChange={(e) => setAssistantId(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <FormLabel>{t.settings.endpointUrl}</FormLabel>
-            <Input placeholder="http://localhost:2024" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} />
-          </div>
-          <div className="border-t pt-4">
-            <p className="text-sm font-medium mb-2">{t.settings.evalPrompts}</p>
-            <p className="text-xs text-muted-foreground mb-3">
-              {t.settings.evalPromptsDesc} {"{{context}}"}, {"{{response}}"}, {"{{query}}"}.
-            </p>
-            <div className="space-y-3">
-              <div><FormLabel>{t.settings.hallucination}</FormLabel><Textarea rows={3} placeholder="Default" value={evalHallucination} onChange={(e) => setEvalHallucination(e.target.value)} /></div>
-              <div><FormLabel>{t.settings.citation}</FormLabel><Textarea rows={3} placeholder="Default" value={evalCitation} onChange={(e) => setEvalCitation(e.target.value)} /></div>
-              <div><FormLabel>{t.settings.toolCalling}</FormLabel><Textarea rows={3} placeholder="Default" value={evalToolCalling} onChange={(e) => setEvalToolCalling(e.target.value)} /></div>
-            </div>
-          </div>
-          {error && <FormError message={error} />}
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>{t.common.cancel}</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? t.settings.saving : mode === "create" ? t.settings.register : t.common.save}
-            </Button>
-          </div>
-        </div>
-      </ModalBody>
-    </Modal>
   );
 }
