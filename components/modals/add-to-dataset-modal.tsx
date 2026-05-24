@@ -5,8 +5,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
-import { Plus, Database } from "lucide-react";
+import { ModalShell, ModalHeader, ModalBody } from "@/components/ui/modal-shell";
+import { Plus } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 interface DatasetOption {
@@ -114,13 +114,8 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "", res
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalHeader onClose={onClose}>
-        <div className="flex items-center gap-2">
-          <Database className="size-4" />
-          {t.addToDataset.title}
-        </div>
-      </ModalHeader>
+    <ModalShell open={open} onClose={onClose} size="md">
+      <ModalHeader title={t.addToDataset.title} />
       <ModalBody>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -186,6 +181,6 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "", res
           </div>
         </div>
       </ModalBody>
-    </Modal>
+    </ModalShell>
   );
 }
