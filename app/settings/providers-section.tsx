@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/empty-state";
 import { ProviderIcon } from "@/components/provider-icon";
 import { useT } from "@/lib/i18n";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 
 interface ProviderEntry {
   id: string;
@@ -104,62 +105,86 @@ function ProviderRow({
   const t = useT();
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   const isConfigured = !!existing;
 
+  // POST: 신규 추가
+  const addHook = useFormSubmit<{ provider: string; apiKey: string }>(
+    "/api/providers",
+    "POST",
+    {
+      onSuccess: () => {
+        setApiKey("");
+        setTestResult(null);
+        onUpdate();
+      },
+    }
+  );
+
+  // PUT: 기존 키 교체 (existing.id 기반 dynamic endpoint)
+  const updateHook = useFormSubmit<{ apiKey: string }>(
+    existing ? `/api/providers/${existing.id}` : "/api/providers",
+    "PUT",
+    {
+      onSuccess: () => {
+        setApiKey("");
+        setTestResult(null);
+        onUpdate();
+      },
+    }
+  );
+
+  // DELETE: 키 제거
+  const deleteHook = useFormSubmit(
+    existing ? `/api/providers/${existing.id}` : "/api/providers",
+    "DELETE",
+    {
+      onSuccess: () => {
+        setTestResult(null);
+        onUpdate();
+      },
+    }
+  );
+
+  // POST: 연결 테스트
+  const testHook = useFormSubmit<{ provider: string; apiKey: string }>(
+    "/api/providers/test",
+    "POST",
+    {
+      onSuccess: (data) => {
+        setTestResult(data as { success: boolean; error?: string });
+      },
+    }
+  );
+
   async function handleSave() {
     if (!apiKey.trim()) return;
-    setSaving(true);
-    try {
-      if (existing) {
-        await apiFetch(`/api/providers/${existing.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey }),
-        });
-      } else {
-        await apiFetch("/api/providers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ provider: providerKey, apiKey }),
-        });
-      }
-      setApiKey("");
-      setTestResult(null);
-      onUpdate();
-    } catch { console.error("Failed to save provider"); }
-    setSaving(false);
+    setTestResult(null);
+    if (existing) {
+      await updateHook.submit({ apiKey });
+    } else {
+      await addHook.submit({ provider: providerKey, apiKey });
+    }
   }
 
   async function handleTest() {
     if (!apiKey.trim()) return;
-    setTesting(true);
     setTestResult(null);
-    try {
-      const res = await apiFetch("/api/providers/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: providerKey, apiKey: apiKey.trim() }),
-      });
-      setTestResult(await res.json());
-    } catch {
-      setTestResult({ success: false, error: "Network error" });
+    const result = await testHook.submit({ provider: providerKey, apiKey: apiKey.trim() });
+    if (!result) {
+      // hook이 에러를 처리했지만 testResult도 업데이트
+      setTestResult({ success: false, error: testHook.error || "Network error" });
     }
-    setTesting(false);
   }
 
   async function handleDelete() {
     if (!existing) return;
-    setDeleting(true);
-    await apiFetch(`/api/providers/${existing.id}`, { method: "DELETE" });
-    setTestResult(null);
-    onUpdate();
-    setDeleting(false);
+    await deleteHook.submit();
   }
+
+  const saving = existing ? updateHook.saving : addHook.saving;
+  const saveError = existing ? updateHook.error : addHook.error;
 
   return (
     <div className="group rounded-lg border transition-colors hover:border-foreground/15">
@@ -188,10 +213,10 @@ function ProviderRow({
             <p className="flex-1 font-mono text-[11px] text-muted-foreground">{existing.apiKey}</p>
             <button
               onClick={handleDelete}
-              disabled={deleting}
+              disabled={deleteHook.saving}
               className="text-[11px] font-medium text-muted-foreground/60 transition-colors hover:text-foreground"
             >
-              {deleting ? "..." : t.settings.remove}
+              {deleteHook.saving ? "..." : t.settings.remove}
             </button>
           </div>
         )}
@@ -219,9 +244,9 @@ function ProviderRow({
             size="sm"
             className="h-9 px-3 text-xs"
             onClick={handleTest}
-            disabled={testing || !apiKey.trim()}
+            disabled={testHook.saving || !apiKey.trim()}
           >
-            {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : t.settings.test}
+            {testHook.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : t.settings.test}
           </Button>
           <Button
             size="sm"
@@ -232,6 +257,11 @@ function ProviderRow({
             {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : isConfigured ? t.settings.replace : t.common.save}
           </Button>
         </div>
+
+        {/* Save error */}
+        {saveError && (
+          <p className="text-sm text-[#ef4444]">{saveError}</p>
+        )}
 
         {/* Test result */}
         {testResult && (
