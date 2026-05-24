@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormLabel } from "@/components/ui/form-field";
 import { AGENT_TYPES } from "@/lib/constants";
-import { apiFetch } from "@/lib/api-client";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { useT } from "@/lib/i18n";
 import type { AgentEntry } from "@/app/settings/agents-section";
 
@@ -33,8 +33,12 @@ export function AgentEditModal({
   const [evalHallucination, setEvalHallucination] = useState("");
   const [evalCitation, setEvalCitation] = useState("");
   const [evalToolCalling, setEvalToolCalling] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | undefined>();
+
+  const apiEndpoint = "/api/agent-templates";
+  const apiMethod = mode === "create" ? "POST" : "PUT";
+  const { submit, saving, error, setError } = useFormSubmit(apiEndpoint, apiMethod, {
+    onSuccess: () => { onSaved?.(); onClose(); },
+  });
 
   useEffect(() => {
     setName(agent?.name ?? "");
@@ -62,40 +66,23 @@ export function AgentEditModal({
   async function handleSubmit() {
     if (!name.trim()) { setError(`${t.settings.agentName} required.`); return; }
     if (!endpoint.trim()) { setError(`${t.settings.endpointUrl} required.`); return; }
-    setError(undefined);
-    setSaving(true);
 
     const evalPrompts: Record<string, string> = {};
     if (evalHallucination.trim()) evalPrompts.hallucination = evalHallucination.trim();
     if (evalCitation.trim()) evalPrompts.citation = evalCitation.trim();
     if (evalToolCalling.trim()) evalPrompts.tool_calling = evalToolCalling.trim();
 
-    try {
-      const body: Record<string, unknown> = {
-        name: name.trim(),
-        description: description.trim(),
-        agentType,
-        endpoint: endpoint.trim(),
-        assistantId: assistantId.trim(),
-        evalPrompts,
-      };
-      if (mode === "edit" && agent?.id) body.id = agent.id;
+    const body: Record<string, unknown> = {
+      name: name.trim(),
+      description: description.trim(),
+      agentType,
+      endpoint: endpoint.trim(),
+      assistantId: assistantId.trim(),
+      evalPrompts,
+    };
+    if (mode === "edit" && agent?.id) body.id = agent.id;
 
-      const res = await apiFetch("/api/agent-templates", {
-        method: mode === "create" ? "POST" : "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        setError((await res.json()).error ?? "Failed to save.");
-        return;
-      }
-      onSaved?.();
-    } catch {
-      setError("Network error.");
-    } finally {
-      setSaving(false);
-    }
+    await submit(body);
   }
 
   const title =
