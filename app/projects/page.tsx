@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
 import { FolderOpen, Plus } from "lucide-react";
-import { JoinProjectModal } from "@/components/join-project-modal";
+import { JoinProjectModal } from "@/components/modals/join-project-modal";
 import { Nav } from "@/components/nav";
 import { useT } from "@/lib/i18n";
 
