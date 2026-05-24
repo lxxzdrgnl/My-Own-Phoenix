@@ -11,6 +11,9 @@ import { ProvidersSection } from "./providers-section";
 import { EvalTemplatesSection } from "./eval-templates-section";
 import { ChatSection } from "./chat-section";
 import { useT } from "@/lib/i18n";
+import { PageContainer } from "@/components/ui/page-container";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
 
 interface TabDef {
   id: string;
@@ -52,19 +55,27 @@ export function SettingsPage() {
         <div className="px-4 mb-5">
           <button
             onClick={() => window.history.back()}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1.5 transition-colors hover:text-foreground"
           >
-            <ArrowLeft className="h-3 w-3" />
-            {t.settings.back}
+            <Inline gap="xs" align="center">
+              <ArrowLeft className="h-3 w-3" />
+              <Text variant="caption">{t.settings.back}</Text>
+            </Inline>
           </button>
-          <h2 className="mt-3 text-sm font-semibold">{t.settings.globalSettings}</h2>
+          <Heading level="section" as="h2" className="mt-3 text-sm">
+            {t.settings.globalSettings}
+          </Heading>
         </div>
 
         {TAB_GROUPS.map((group, gi) => (
           <div key={group.label} className={cn(gi > 0 && "mt-3")}>
-            <p className="mb-1.5 px-6 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">
+            <Heading
+              level="sub"
+              as="h3"
+              className="mb-1.5 px-6 text-muted-foreground/40"
+            >
               {group.label}
-            </p>
+            </Heading>
             <div className="px-3 space-y-0.5">
               {group.tabs.map(({ id, label, icon: Icon, desc }) => {
                 const active = activeTab === id;
@@ -80,12 +91,20 @@ export function SettingsPage() {
                     )}
                   >
                     <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50" />
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-medium leading-tight">{label}</p>
-                      <p className={cn("mt-0.5 text-[10px] leading-tight", active ? "text-muted-foreground" : "text-muted-foreground/40")}>
+                    <Stack gap="xs" className="min-w-0">
+                      <Text variant="body" className="text-[13px] font-medium leading-tight">
+                        {label}
+                      </Text>
+                      <Text
+                        variant="caption"
+                        className={cn(
+                          "text-[10px] leading-tight",
+                          active ? "text-muted-foreground" : "text-muted-foreground/40",
+                        )}
+                      >
                         {desc}
-                      </p>
-                    </div>
+                      </Text>
+                    </Stack>
                   </button>
                 );
               })}
@@ -99,7 +118,9 @@ export function SettingsPage() {
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-muted-foreground/50 transition-colors hover:bg-accent/50 hover:text-foreground"
           >
             <div className="min-w-0">
-              <p className="text-[13px] font-medium leading-tight">{t.settings.docs}</p>
+              <Text variant="body" className="text-[13px] font-medium leading-tight">
+                {t.settings.docs}
+              </Text>
             </div>
           </a>
         </div>
@@ -109,10 +130,10 @@ export function SettingsPage() {
         {activeTab === "eval-templates" ? (
           <EvalTemplatesSection />
         ) : (
-          <div className="mx-auto max-w-2xl px-8 py-8">
+          <PageContainer size="narrow">
             {activeTab === "general" && <GeneralSection />}
             {activeTab === "providers" && <ProvidersSection />}
-          </div>
+          </PageContainer>
         )}
       </div>
       </div>
