@@ -3,7 +3,7 @@
 import * as React from "react";
 import { ModalForm } from "@/components/ui/modal-form";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api-client";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { useT } from "@/lib/i18n";
 
 // ─── Type ─────────────────────────────────────────────────────────────────────
@@ -40,62 +40,40 @@ export function DatasetFormModal({
   const isEdit = !!dataset;
 
   const [name, setName] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+
+  const { submit, saving, error, clearError } = useFormSubmit(
+    "/api/datasets",
+    isEdit ? "PUT" : "POST",
+    {
+      onSuccess: (result) => {
+        const saved: DatasetMeta =
+          result?.dataset ?? (isEdit && dataset ? { ...dataset, name: name.trim() } : result);
+        onSaved?.(saved);
+        onClose();
+      },
+    }
+  );
 
   // 모달이 열릴 때마다 폼 초기화
   React.useEffect(() => {
     if (open) {
       setName(dataset?.name ?? "");
-      setError(null);
+      clearError();
     }
-  }, [open, dataset]);
+  }, [open, dataset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = () => {
     setName("");
-    setError(null);
+    clearError();
     onClose();
   };
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
-      if (isEdit && dataset) {
-        // 편집: PUT /api/datasets
-        const res = await apiFetch("/api/datasets", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: dataset.id, name: name.trim() }),
-        });
-        if (!res.ok) {
-          setError("데이터셋 수정에 실패했습니다.");
-          return;
-        }
-        const data = await res.json();
-        onSaved?.(data.dataset ?? { ...dataset, name: name.trim() });
-      } else {
-        // 신규 생성: POST /api/datasets
-        const res = await apiFetch("/api/datasets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name.trim() }),
-        });
-        if (!res.ok) {
-          setError("데이터셋 생성에 실패했습니다.");
-          return;
-        }
-        const data = await res.json();
-        onSaved?.(data.dataset);
-      }
-      handleClose();
-    } catch (e) {
-      console.error(e);
-      setError(isEdit ? "데이터셋 수정에 실패했습니다." : "데이터셋 생성에 실패했습니다.");
-    } finally {
-      setSaving(false);
-    }
+    const body = isEdit && dataset
+      ? { id: dataset.id, name: name.trim() }
+      : { name: name.trim() };
+    await submit(body);
   };
 
   return (
