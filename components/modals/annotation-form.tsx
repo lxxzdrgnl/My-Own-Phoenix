@@ -2,12 +2,11 @@
 import { apiFetch } from "@/lib/api-client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
+import { ModalForm } from "@/components/ui/modal-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FormLabel, FormError } from "@/components/ui/form-field";
-import { Loader2 } from "lucide-react";
+import { FormLabel } from "@/components/ui/form-field";
 import type { Annotation } from "@/lib/phoenix";
 import { useT } from "@/lib/i18n";
 
@@ -119,104 +118,102 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
   const availableEvals = evalOptions.filter((e) => !existingNames.has(e.name));
 
   return (
-    <Modal open={open} onClose={onClose} className="w-[440px]">
-      <ModalHeader onClose={onClose}>{t.annotationForm.title}</ModalHeader>
-      <ModalBody>
-        <div className="space-y-4">
+    <ModalForm
+      open={open}
+      onClose={onClose}
+      onSubmit={handleSave}
+      title={t.annotationForm.title}
+      saving={saving}
+      error={error}
+      submitLabel={t.common.save}
+      cancelLabel={t.common.cancel}
+      submitDisabled={!evalName}
+      size="sm"
+    >
+      <div className="space-y-4">
+        <div>
+          <FormLabel>{t.annotationForm.evaluation}</FormLabel>
+          <select
+            value={selectedEval}
+            onChange={(e) => setSelectedEval(e.target.value)}
+            className="h-9 w-full rounded-md border bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">{t.annotationForm.selectEval}</option>
+            {availableEvals.map((e) => (
+              <option key={e.name} value={e.name}>
+                {e.badgeLabel ? `${e.name} (${e.badgeLabel})` : e.name}
+              </option>
+            ))}
+            <option value="__custom__">{t.annotationForm.customName}</option>
+          </select>
+          {selectedEval === "__custom__" && (
+            <Input
+              className="mt-2"
+              placeholder={t.annotationForm.enterName}
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+            />
+          )}
+        </div>
+
+        {evalName && (
           <div>
-            <FormLabel>{t.annotationForm.evaluation}</FormLabel>
-            <select
-              value={selectedEval}
-              onChange={(e) => setSelectedEval(e.target.value)}
-              className="h-9 w-full rounded-md border bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">{t.annotationForm.selectEval}</option>
-              {availableEvals.map((e) => (
-                <option key={e.name} value={e.name}>
-                  {e.badgeLabel ? `${e.name} (${e.badgeLabel})` : e.name}
-                </option>
-              ))}
-              <option value="__custom__">{t.annotationForm.customName}</option>
-            </select>
-            {selectedEval === "__custom__" && (
-              <Input
-                className="mt-2"
-                placeholder={t.annotationForm.enterName}
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-              />
+            <FormLabel>{t.annotationForm.result}</FormLabel>
+            {mode === "binary" ? (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={label === "pass" ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setLabel("pass")}
+                >
+                  {t.annotationForm.pass}
+                </Button>
+                <Button
+                  type="button"
+                  variant={label === "fail" ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setLabel("fail")}
+                >
+                  {t.annotationForm.fail}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  value={score}
+                  onChange={(e) => setScore(e.target.value)}
+                  className="w-24 text-center tabular-nums"
+                />
+                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-foreground/40 transition-all"
+                    style={{ width: `${Math.max(0, Math.min(1, Number(score))) * 100}%` }}
+                  />
+                </div>
+              </div>
             )}
           </div>
+        )}
 
-          {evalName && (
-            <div>
-              <FormLabel>{t.annotationForm.result}</FormLabel>
-              {mode === "binary" ? (
-                <div className="flex gap-2">
-                  <Button
-                    variant={label === "pass" ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setLabel("pass")}
-                  >
-                    {t.annotationForm.pass}
-                  </Button>
-                  <Button
-                    variant={label === "fail" ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setLabel("fail")}
-                  >
-                    {t.annotationForm.fail}
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    value={score}
-                    onChange={(e) => setScore(e.target.value)}
-                    className="w-24 text-center tabular-nums"
-                  />
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-foreground/40 transition-all"
-                      style={{ width: `${Math.max(0, Math.min(1, Number(score))) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {evalName && (
-            <div>
-              <FormLabel>{t.annotationForm.comment}</FormLabel>
-              <Textarea
-                rows={2}
-                placeholder={t.annotationForm.commentPlaceholder}
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-            </div>
-          )}
-
-          {error && <FormError message={error} />}
-
-          <div className="flex justify-end gap-2 border-t pt-3">
-            <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>
-              {t.common.cancel}
-            </Button>
-            <Button size="sm" onClick={handleSave} disabled={saving || !evalName}>
-              {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-              {t.common.save}
-            </Button>
+        {evalName && (
+          <div>
+            <FormLabel>{t.annotationForm.comment}</FormLabel>
+            <Textarea
+              rows={2}
+              placeholder={t.annotationForm.commentPlaceholder}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
           </div>
-        </div>
-      </ModalBody>
-    </Modal>
+        )}
+      </div>
+    </ModalForm>
   );
 }

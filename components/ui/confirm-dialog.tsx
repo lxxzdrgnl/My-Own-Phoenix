@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, createContext, useContext, type ReactNode } from "react";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
+import { ModalShell, ModalHeader, ModalBody } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
 
 // ─── Trigger-based (declarative) ────────────────────────────────────────
@@ -29,16 +29,15 @@ export function ConfirmDialog({
   return (
     <>
       <span onClick={() => setOpen(true)}>{trigger}</span>
-      <Modal open={open} onClose={() => setOpen(false)}>
-        <ModalHeader onClose={() => setOpen(false)}>{title}</ModalHeader>
+      <ModalShell open={open} onClose={() => setOpen(false)} size="sm">
+        <ModalHeader title={title} description={description} />
         <ModalBody>
-          <p className="text-sm text-muted-foreground mb-4">{description}</p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button variant={variant} onClick={handleConfirm} disabled={loading}>{confirmText}</Button>
           </div>
         </ModalBody>
-      </Modal>
+      </ModalShell>
     </>
   );
 }
@@ -76,10 +75,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       {state && (
-        <Modal open onClose={() => handleClose(false)}>
-          <ModalHeader onClose={() => handleClose(false)}>{state.title}</ModalHeader>
+        <ModalShell open onClose={() => handleClose(false)} size="sm">
+          <ModalHeader title={state.title} description={state.description} />
           <ModalBody>
-            <p className="text-sm text-muted-foreground mb-4">{state.description}</p>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
               <Button variant={state.variant ?? "default"} onClick={() => handleClose(true)}>
@@ -87,7 +85,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               </Button>
             </div>
           </ModalBody>
-        </Modal>
+        </ModalShell>
       )}
     </ConfirmContext.Provider>
   );

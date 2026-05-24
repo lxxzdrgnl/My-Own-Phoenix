@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CSVImportModal } from "@/components/modals/csv-import-modal";
 import { EvalSelectorModal, type EvalOverrides } from "@/components/modals/eval-selector-modal";
+import { DatasetFormModal } from "@/components/modals/dataset-form-modal";
 import { cn } from "@/lib/utils";
 import {
   Upload, Trash2,
@@ -63,6 +64,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   const [queryCol, setQueryCol] = useState("");
   const [contextCol, setContextCol] = useState("");
 
+  const [datasetFormOpen, setDatasetFormOpen] = useState(false);
   const [importModal, setImportModal] = useState<{ open: boolean; target: { id: string; name: string } | null }>({ open: false, target: null });
   const [dragOver, setDragOver] = useState(false);
 
@@ -187,17 +189,9 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
     } catch (e) { console.error(e); }
   }
 
-  async function handleCreate(name: string) {
-    if (!name.trim()) return;
-    try {
-      const res = await apiFetch("/api/datasets", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      const data = await res.json();
-      await loadDatasets();
-      if (data.dataset?.id) selectDataset(data.dataset.id);
-    } catch (e) { console.error(e); }
+  async function handleDatasetSaved(saved: DatasetMeta) {
+    await loadDatasets();
+    if (saved?.id) selectDataset(saved.id);
   }
 
   async function handleImport(data: {
@@ -304,7 +298,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         datasets={datasets}
         selectedId={selectedId}
         onSelect={selectDataset}
-        onCreate={handleCreate}
+        onOpenCreate={() => setDatasetFormOpen(true)}
         onDelete={handleDelete}
         loading={loading}
       />
@@ -635,6 +629,11 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         )}
       </div>
 
+      <DatasetFormModal
+        open={datasetFormOpen}
+        onClose={() => setDatasetFormOpen(false)}
+        onSaved={handleDatasetSaved}
+      />
       <CSVImportModal
         open={importModal.open}
         onClose={() => setImportModal({ open: false, target: null })}

@@ -7,3 +7,7 @@ export { CSVImportModal } from "./csv-import-modal";
 export { AddToDatasetModal } from "./add-to-dataset-modal";
 export { AuthModal } from "./auth-modal";
 export { AnnotationForm } from "./annotation-form";
+export { JoinProjectModal } from "./join-project-modal";
+export { CreateProjectModal } from "./create-project-modal";
+export { AgentEditModal } from "./agent-edit-modal";
+export { DatasetFormModal } from "./dataset-form-modal";
