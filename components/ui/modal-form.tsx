@@ -16,6 +16,7 @@ export function ModalForm({
   error,
   submitLabel = "저장",
   cancelLabel = "취소",
+  submitDisabled,
   size,
   children,
 }: {
@@ -28,6 +29,7 @@ export function ModalForm({
   error?: string | null;
   submitLabel?: string;
   cancelLabel?: string;
+  submitDisabled?: boolean;
   size?: Size;
   children: React.ReactNode;
 }) {
@@ -46,7 +48,7 @@ export function ModalForm({
           <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
             {cancelLabel}
           </Button>
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving || submitDisabled}>
             {saving ? "저장 중..." : submitLabel}
           </Button>
         </div>

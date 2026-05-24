@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Modal, ModalHeader, ModalBody } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
+import { ModalForm } from "@/components/ui/modal-form";
 import { Input } from "@/components/ui/input";
-import { Upload, RefreshCw } from "lucide-react";
+import { Upload } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 interface CSVImportModalProps {
@@ -190,113 +189,112 @@ export function CSVImportModal({ open, onClose, targetDataset, onImport }: CSVIm
     onClose();
   }
 
+  const submitLabel = targetDataset ? t.csvImport.import : t.csvImport.createAndImport;
+  const submitDisabled = importing || headers.length === 0 || (!targetDataset && !name.trim());
+  const title = targetDataset
+    ? `${t.csvImport.importToDataset} → ${targetDataset.name}`
+    : t.csvImport.newDataset;
+
   return (
-    <Modal open={open} onClose={handleClose} className="w-[700px]">
-      <ModalHeader onClose={handleClose}>
-        {targetDataset ? `${t.csvImport.importToDataset} \u2192 ${targetDataset.name}` : t.csvImport.newDataset}
-      </ModalHeader>
-      <ModalBody>
-        <div className="space-y-4">
-          {!targetDataset && (
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                {t.csvImport.datasetName}
-              </label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. jailbreak-tests"
-                className="text-sm"
-                autoFocus
-              />
+    <ModalForm
+      open={open}
+      onClose={handleClose}
+      onSubmit={handleConfirm}
+      title={title}
+      saving={importing}
+      submitLabel={submitLabel}
+      submitDisabled={submitDisabled}
+      size="lg"
+    >
+      <div className="space-y-4">
+        {!targetDataset && (
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              {t.csvImport.datasetName}
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. jailbreak-tests"
+              className="text-sm"
+              autoFocus
+            />
+          </div>
+        )}
+
+        {!file ? (
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+            onClick={() => fileRef.current?.click()}
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/20 py-10 transition-colors hover:border-muted-foreground/40"
+          >
+            <Upload className="size-6 text-muted-foreground/40" />
+            <p className="text-xs text-muted-foreground">{t.csvImport.dropFile}</p>
+            <input ref={fileRef} type="file" accept=".csv,.tsv,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <p className="text-sm font-medium">{file.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {parsing ? t.csvImport.parsing : `${rows.length.toLocaleString()} rows, ${headers.length} columns`}
+              </p>
             </div>
-          )}
 
-          {!file ? (
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-              onClick={() => fileRef.current?.click()}
-              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/20 py-10 transition-colors hover:border-muted-foreground/40"
-            >
-              <Upload className="size-6 text-muted-foreground/40" />
-              <p className="text-xs text-muted-foreground">{t.csvImport.dropFile}</p>
-              <input ref={fileRef} type="file" accept=".csv,.tsv,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <p className="text-sm font-medium">{file.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {parsing ? t.csvImport.parsing : `${rows.length.toLocaleString()} rows, ${headers.length} columns`}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {t.csvImport.queryColumn}
-                  </label>
-                  <select value={queryCol} onChange={(e) => setQueryCol(e.target.value)} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
-                    <option value="">&mdash; None &mdash;</option>
-                    {headers.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {t.csvImport.contextColumn}
-                  </label>
-                  <select value={contextCol} onChange={(e) => setContextCol(e.target.value)} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
-                    <option value="">&mdash; None &mdash;</option>
-                    {headers.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.csvImport.preview5Rows}</p>
-                <div className="overflow-hidden rounded-lg border">
-                  <div className="max-h-[200px] overflow-auto">
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-muted/30">
-                        <tr>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {t.csvImport.queryColumn}
+                </label>
+                <select value={queryCol} onChange={(e) => setQueryCol(e.target.value)} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
+                  <option value="">&mdash; None &mdash;</option>
+                  {headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {t.csvImport.contextColumn}
+                </label>
+                <select value={contextCol} onChange={(e) => setContextCol(e.target.value)} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
+                  <option value="">&mdash; None &mdash;</option>
+                  {headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.csvImport.preview5Rows}</p>
+              <div className="overflow-hidden rounded-lg border">
+                <div className="max-h-[200px] overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-muted/30">
+                      <tr>
+                        {headers.map((h) => (
+                          <th key={h} className="whitespace-nowrap px-3 py-1.5 text-left font-semibold text-muted-foreground">
+                            {h}
+                            {h === queryCol && <span className="ml-1 text-[8px] text-muted-foreground">Q</span>}
+                            {h === contextCol && <span className="ml-1 text-[8px] text-muted-foreground">C</span>}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.slice(0, 5).map((row, i) => (
+                        <tr key={i} className="border-t">
                           {headers.map((h) => (
-                            <th key={h} className="whitespace-nowrap px-3 py-1.5 text-left font-semibold text-muted-foreground">
-                              {h}
-                              {h === queryCol && <span className="ml-1 text-[8px] text-muted-foreground">Q</span>}
-                              {h === contextCol && <span className="ml-1 text-[8px] text-muted-foreground">C</span>}
-                            </th>
+                            <td key={h} className="max-w-[180px] truncate px-3 py-1.5" title={row[h]}>{row[h]}</td>
                           ))}
                         </tr>
-                      </thead>
-                      <tbody>
-                        {rows.slice(0, 5).map((row, i) => (
-                          <tr key={i} className="border-t">
-                            {headers.map((h) => (
-                              <td key={h} className="max-w-[180px] truncate px-3 py-1.5" title={row[h]}>{row[h]}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={handleClose} disabled={importing} className="text-xs">{t.common.cancel}</Button>
-            <Button onClick={handleConfirm} disabled={importing || headers.length === 0 || (!targetDataset && !name.trim())} className="text-xs gap-1.5">
-              {importing ? (
-                <><RefreshCw className="size-3 animate-spin" /> {t.csvImport.importing}</>
-              ) : (
-                targetDataset ? t.csvImport.import : t.csvImport.createAndImport
-              )}
-            </Button>
-          </div>
-        </div>
-      </ModalBody>
-    </Modal>
+            </div>
+          </>
+        )}
+      </div>
+    </ModalForm>
   );
 }
