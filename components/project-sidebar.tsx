@@ -26,6 +26,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { Heading, Text } from "@/components/ui/typography";
 
 interface ProjectSidebarProps {
   slug: string;
@@ -161,16 +162,16 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
             <PanelLeftClose className="h-3.5 w-3.5" />
           </button>
         </div>
-        <h2 className="text-sm font-semibold truncate">{projectName}</h2>
+        <Heading level="section" as="h2" className="text-sm truncate">{projectName}</Heading>
       </div>
 
       {/* Navigation */}
       <div className="flex-1 space-y-5 px-3">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
-            <p className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <Heading level="sub" as="h3" className="px-2 mb-1.5">
               {group.label}
-            </p>
+            </Heading>
             <div className="space-y-0.5">
               {group.items.map(({ href, label, icon: Icon }) => {
                 const active = currentPage === href;
@@ -234,7 +235,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
               <div className="min-w-0">
                 <p className="truncate text-xs font-medium">{user.displayName || user.email}</p>
                 {user.displayName && (
-                  <p className="truncate text-[10px] text-muted-foreground">{user.email}</p>
+                  <Text variant="caption" className="truncate text-[10px]">{user.email}</Text>
                 )}
               </div>
               <button

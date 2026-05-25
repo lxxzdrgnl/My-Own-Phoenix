@@ -9,6 +9,7 @@ import { LoadingState } from "@/components/ui/empty-state";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/modals/auth-modal";
+import { Heading } from "@/components/ui/typography";
 
 interface ProjectGuardProps {
   projectId: string;
@@ -59,7 +60,7 @@ export function ProjectGuard({ projectId, project, children }: ProjectGuardProps
         <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
         <div className="flex h-full flex-col items-center justify-center text-center">
           <ShieldAlert className="mb-4 h-10 w-10 text-muted-foreground/30" />
-          <h2 className="text-lg font-semibold">Sign in required</h2>
+          <Heading level="section">Sign in required</Heading>
           <p className="mt-1 text-sm text-muted-foreground">
             You need to sign in to access this project.
           </p>
@@ -75,7 +76,7 @@ export function ProjectGuard({ projectId, project, children }: ProjectGuardProps
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
         <ShieldAlert className="mb-4 h-10 w-10 text-muted-foreground/30" />
-        <h2 className="text-lg font-semibold">Access Denied</h2>
+        <Heading level="section">Access Denied</Heading>
         <p className="mt-1 text-sm text-muted-foreground">
           You don&apos;t have access to this project.<br />
           Ask the project owner for an invite code.

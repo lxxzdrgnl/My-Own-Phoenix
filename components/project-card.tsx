@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ArrowUpRight, FolderOpen, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
+import { Text } from "@/components/ui/typography";
 
 interface ProjectCardProps {
   name: string;
@@ -64,9 +65,9 @@ export function ProjectCard({ name, slug, role, createdAt, onRename }: ProjectCa
                   className="h-7 text-sm font-semibold"
                 />
               </form>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <Text variant="caption" className="mt-0.5 text-[11px]">
                 {new Date(createdAt).toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", { year: "numeric", month: locale === "ko" ? "long" : "short", day: "numeric" })}
-              </p>
+              </Text>
             </div>
           </div>
         </div>
