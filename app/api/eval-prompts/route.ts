@@ -14,7 +14,7 @@ export const GET = authedHandler(async (request: NextRequest) => {
       where: { projectId },
       orderBy: { name: "asc" },
     });
-    return NextResponse.json({ prompts });
+    return NextResponse.json({ items: prompts, nextCursor: null });
   }
 
   // Global mode: built-in + optionally custom templates
@@ -29,7 +29,7 @@ export const GET = authedHandler(async (request: NextRequest) => {
     where: { OR: conditions },
     orderBy: { name: "asc" },
   });
-  return NextResponse.json({ prompts });
+  return NextResponse.json({ items: prompts, nextCursor: null });
 });
 
 // POST — import global template(s) into a project

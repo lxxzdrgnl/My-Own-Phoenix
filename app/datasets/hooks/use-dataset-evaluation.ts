@@ -164,7 +164,7 @@ export function useDatasetEvaluation({
     else setRunResults([...updatedResults]);
     if (selectedId) {
       const runsData = await (await apiFetch(`/api/datasets/runs?datasetId=${selectedId}`)).json();
-      setRuns(() => runsData.runs ?? []);
+      setRuns(() => runsData.items ?? []);
     }
   }, [
     selectedId, liveRunId, selectedRunId, liveResults, runResults,

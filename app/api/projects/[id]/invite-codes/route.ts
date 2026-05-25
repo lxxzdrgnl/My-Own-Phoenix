@@ -23,7 +23,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
       where: { projectId },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json({ codes });
+    return NextResponse.json({ items: codes, nextCursor: null });
   } catch (e) {
     return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, "Internal error");
   }

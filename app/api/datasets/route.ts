@@ -19,7 +19,7 @@ export const GET = authedHandler(async (request: NextRequest) => {
       FROM "Dataset" ORDER BY "updatedAt" DESC
     `;
   }
-  return NextResponse.json({ datasets });
+  return NextResponse.json({ items: datasets, nextCursor: null });
 });
 
 export const POST = authedHandler(async (request: NextRequest, uid: string) => {

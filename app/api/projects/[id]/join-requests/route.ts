@@ -18,7 +18,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
     include: { user: { select: { id: true, email: true, name: true } } },
     orderBy: { createdAt: "desc" },
   });
-  return NextResponse.json({ requests });
+  return NextResponse.json({ items: requests, nextCursor: null });
 });
 
 // PUT — approve or reject a join request (owner only)

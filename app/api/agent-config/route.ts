@@ -10,7 +10,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string) => {
   if (!project) {
     if (uid === "internal-service") {
       const configs = await prisma.agentConfig.findMany({ include: { template: true } });
-      return NextResponse.json({ configs });
+      return NextResponse.json({ items: configs, nextCursor: null });
     }
     // Filter to projects where the user is a member
     const memberships = await prisma.projectMember.findMany({
@@ -24,7 +24,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string) => {
       where: { projectName: { in: phoenixProjects } },
       include: { template: true },
     });
-    return NextResponse.json({ configs });
+    return NextResponse.json({ items: configs, nextCursor: null });
   }
 
   const roleCheck = await requireProjectMemberByPhoenix(req, project, uid);

@@ -138,7 +138,7 @@ export function useDatasetGeneration({
     setLiveRunId(null); setLiveResults([]);
     setSelectedRunId(run.id);
     const runsData = await (await apiFetch(`/api/datasets/runs?datasetId=${selectedId}`)).json();
-    setRuns(() => runsData.runs ?? []);
+    setRuns(() => runsData.items ?? []);
   }, [selectedId, selectedAgent, agentConfigs, queryCol, selectedRowIndices, projectId, cancelRef, setLiveRunId, setSelectedRunId, setLiveResults, setActiveTab, setRuns]);
 
   return { generating, genProgress, handleGenerate };

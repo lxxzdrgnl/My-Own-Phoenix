@@ -28,7 +28,7 @@ export const GET = authedHandler(async (
     feedbackValue: m.feedback?.[0]?.value ?? null,
   }));
 
-  return NextResponse.json({ messages });
+  return NextResponse.json({ items: messages, nextCursor: null });
 });
 
 export const POST = authedHandler(async (

@@ -30,7 +30,7 @@ export const GET = authedHandler(async (req, uid) => {
     updatedAt: p.updatedAt,
   }));
 
-  return NextResponse.json({ providers: result });
+  return NextResponse.json({ items: result, nextCursor: null });
 });
 
 export const POST = authedHandler(async (req, uid) => {
