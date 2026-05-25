@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { useEffect, useState, useCallback } from "react";
 import {
   fetchPromptVersionTags,
@@ -79,7 +80,7 @@ export function PromptsModal({ open, onClose, onChanged, projectId }: PromptsMod
       }
       setPrompts(result);
     } catch (e) {
-      console.error(e);
+      logger.error("prompts-modal load prompts failed", e);
     }
     setLoading(false);
   }, [projectId]);
@@ -103,7 +104,7 @@ export function PromptsModal({ open, onClose, onChanged, projectId }: PromptsMod
       await apiFetch(
         `/api/projects/${encodeURIComponent(projectId)}/prompts?name=${encodeURIComponent(name)}`,
         { method: "DELETE" },
-      ).catch((e) => console.error("[prompts] mapping delete failed:", e));
+      ).catch((e) => logger.error("prompts-modal mapping delete failed", e));
       await load();
       onChanged?.();
     } catch (e: any) {

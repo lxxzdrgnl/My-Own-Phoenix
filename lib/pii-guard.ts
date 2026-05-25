@@ -8,6 +8,7 @@
  */
 
 import { callLlm } from "@/lib/llm-providers";
+import { logger } from "@/lib/logger";
 
 export type PIIType =
   | "rrn"
@@ -199,7 +200,7 @@ export async function runGuard(
       stage2 = await runStage2Llm(text, earlyCombined, opts);
     } catch (e) {
       // LLM failure must not break stage 1/1.5 results — log and continue.
-      console.error("[pii-guard] stage 2 failed:", e);
+      logger.error("pii-guard stage 2 failed", e);
     }
   }
 
@@ -303,7 +304,7 @@ ${text}`;
   try {
     parsed = JSON.parse(res.content);
   } catch (e) {
-    console.error("[pii-guard stage2] JSON parse failed. raw:", res.content);
+    logger.error("pii-guard stage2 JSON parse failed", undefined, { raw: res.content });
     return [];
   }
   const raw = Array.isArray(parsed.detections) ? parsed.detections : [];

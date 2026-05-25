@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 import type { Project } from "./types";
 
 export async function fetchProjects(): Promise<Project[]> {
@@ -21,7 +22,7 @@ export async function fetchProjects(): Promise<Project[]> {
           return ai - bi;
         });
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("fetchProjects localStorage parse failed", e); }
   }
   return projects;
 }

@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { createHash } from "crypto";
 import { IncomingMessage } from "http";
 import { Socket } from "net";
+import { logger } from "@/lib/logger";
 
 // In-memory connection pool: key = `${projectId}:${userId}`
 // Use globalThis so the Map is shared between custom server and Next.js API routes
@@ -34,14 +35,14 @@ export function createRelayServer() {
   const wss = new WebSocketServer({ noServer: true });
 
   wss.on("connection", async (ws: WebSocket) => {
-    console.log("[ws-relay] New connection received");
+    logger.info("ws-relay new connection received");
     let authenticated = false;
     let connectionKey = "";
 
     // Auth timeout: 30 seconds (Prisma cold start can be slow)
     const authTimeout = setTimeout(() => {
       if (!authenticated) {
-        console.log("[ws-relay] Auth timeout — closing");
+        logger.info("ws-relay auth timeout closing");
         ws.close(4001, "Auth timeout");
       }
     }, 30000);
@@ -114,7 +115,7 @@ export function createRelayServer() {
             }
 
             // Success — send auth_ok FIRST, then update DB (non-blocking)
-            console.log(`[ws-relay] Auth queries took ${Date.now() - startTime}ms, ws.readyState=${ws.readyState}`);
+            logger.info("ws-relay auth queries done", { ms: Date.now() - startTime, readyState: ws.readyState });
             authenticated = true;
             connectionKey = `${projectRecord.id}:${user.id}`;
             connections.set(connectionKey, {
@@ -125,17 +126,16 @@ export function createRelayServer() {
             });
 
             ws.send(JSON.stringify({ type: "auth_ok", project: projectRecord.name }));
-            console.log(`[ws-relay] Connector authenticated: user=${user.email} project=${projectRecord.name}`);
+            logger.info("ws-relay connector authenticated", { user: user.email, project: projectRecord.name });
 
             // Update ConnectorSession in background (don't block the connection)
             prisma.connectorSession.upsert({
               where: { userId_projectId: { userId: user.id, projectId: projectRecord.id } },
               update: { status: "online", agentType: agentType || "langgraph", assistantId: assistantId || "agent", connectedAt: new Date(), lastPingAt: new Date() },
               create: { userId: user.id, projectId: projectRecord.id, agentType: agentType || "langgraph", assistantId: assistantId || "agent", status: "online" },
-            }).catch((e: any) => console.error("[ws-relay] DB upsert error:", e?.message));
+            }).catch((e: any) => logger.error("ws-relay DB upsert error", e));
           } catch (e: any) {
-            console.error("[ws-relay] Auth error:", e?.message || e);
-            console.error("[ws-relay] Stack:", e?.stack);
+            logger.error("ws-relay auth error", e);
             try { ws.close(4002, "Server error"); } catch {}
           }
           return;
@@ -155,7 +155,7 @@ export function createRelayServer() {
           }
         }
       } catch (e) {
-        console.error("[ws-relay] Message parse error:", e);
+        logger.error("ws-relay message parse error", e);
       }
     });
 
@@ -170,9 +170,9 @@ export function createRelayServer() {
             data: { status: "offline" },
           });
         } catch (e) {
-          console.error("[ws-relay] Cleanup error:", e);
+          logger.error("ws-relay cleanup error", e);
         }
-        console.log(`[ws-relay] Connector disconnected: ${connectionKey}`);
+        logger.info("ws-relay connector disconnected", { connectionKey });
       }
     });
 

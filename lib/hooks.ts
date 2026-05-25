@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook for settings-style forms with load/save/dirty tracking.
@@ -23,7 +24,7 @@ export function useSettingsForm<T extends Record<string, string>>(defaults: T) {
         if (data[key] !== undefined) (merged as any)[key] = data[key];
       }
       setSettings(merged);
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("useSettingsForm load failed", e); }
     setLoading(false);
   }, []);
 
@@ -45,7 +46,7 @@ export function useSettingsForm<T extends Record<string, string>>(defaults: T) {
       });
       setSaved(true);
       setDirty(false);
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("useSettingsForm save failed", e); }
     setSaving(false);
   }
 

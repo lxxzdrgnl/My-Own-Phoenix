@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 import { useState, useCallback } from "react";
 import { ThumbsUp, ThumbsDown, Copy, Check } from "lucide-react";
@@ -47,7 +48,7 @@ export function MessageFeedback({ messageId, content, initialValue = null }: Mes
       await navigator.clipboard.writeText(content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("message-feedback clipboard copy failed", e); }
   }, [content]);
 
   if (!user) return null;

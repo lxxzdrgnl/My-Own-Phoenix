@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { useState, useEffect, useCallback } from "react";
 import { ModalForm } from "@/components/ui/modal-form";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
           badgeLabel: p.badgeLabel ?? "",
         })),
       );
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("annotation-form load evals failed", e); }
   }, []);
 
   useEffect(() => {
