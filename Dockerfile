@@ -33,6 +33,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/server.ts ./server.ts
 COPY --from=builder /app/lib/ws-relay.ts ./lib/ws-relay.ts
+COPY --from=builder /app/lib/logger.ts ./lib/logger.ts
 COPY --from=builder /app/lib/prisma.ts ./lib/prisma.ts
 COPY --from=builder /app/node_modules ./node_modules
 
