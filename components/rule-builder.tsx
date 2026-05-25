@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack } from "@/components/ui/stack";
 
 // ── Types ──
 
@@ -119,13 +121,13 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <Stack gap="md">
       {/* Rules */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.ruleBuilder.rules}</label>
+          <Heading level="sub" as="h3">{t.ruleBuilder.rules}</Heading>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground">{t.ruleBuilder.logic}:</span>
+            <Text variant="caption" as="span">{t.ruleBuilder.logic}:</Text>
             <select
               value={config.logic}
               onChange={(e) => onChange({ ...config, logic: e.target.value as "any" | "all" })}
@@ -213,10 +215,10 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
       {/* Results */}
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-lg border p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{t.ruleBuilder.whenMatched}</p>
+          <Heading level="sub" as="h4" className="mb-2">{t.ruleBuilder.whenMatched}</Heading>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-[10px] text-muted-foreground">{t.ruleBuilder.label}</label>
+              <Text variant="caption" as="span">{t.ruleBuilder.label}</Text>
               <Input
                 value={config.match.label}
                 onChange={(e) => onChange({ ...config, match: { ...config.match, label: e.target.value } })}
@@ -225,7 +227,7 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
               />
             </div>
             <div className="w-20">
-              <label className="text-[10px] text-muted-foreground">{t.ruleBuilder.score}</label>
+              <Text variant="caption" as="span">{t.ruleBuilder.score}</Text>
               <Input
                 type="number"
                 step="0.1"
@@ -239,10 +241,10 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
           </div>
         </div>
         <div className="rounded-lg border p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{t.ruleBuilder.whenClean}</p>
+          <Heading level="sub" as="h4" className="mb-2">{t.ruleBuilder.whenClean}</Heading>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-[10px] text-muted-foreground">{t.ruleBuilder.label}</label>
+              <Text variant="caption" as="span">{t.ruleBuilder.label}</Text>
               <Input
                 value={config.clean.label}
                 onChange={(e) => onChange({ ...config, clean: { ...config.clean, label: e.target.value } })}
@@ -251,7 +253,7 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
               />
             </div>
             <div className="w-20">
-              <label className="text-[10px] text-muted-foreground">{t.ruleBuilder.score}</label>
+              <Text variant="caption" as="span">{t.ruleBuilder.score}</Text>
               <Input
                 type="number"
                 step="0.1"
@@ -265,7 +267,7 @@ export function RuleBuilder({ config, onChange }: RuleBuilderProps) {
           </div>
         </div>
       </div>
-    </div>
+    </Stack>
   );
 }
 
