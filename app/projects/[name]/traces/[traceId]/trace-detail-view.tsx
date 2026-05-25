@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { fetchTraceTrees, type TraceTree } from "@/lib/phoenix";
-import { SpanTreeView } from "@/components/span-tree-view";
+import { SpanTreeView } from "@/components/trace-tree";
 import { LoadingState } from "@/components/ui/empty-state";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import { useProjectOptional } from "@/lib/project-context";
-import { TraceDetailTabs } from "@/components/trace-detail-tabs";
+import { TraceDetailTabs } from "@/components/trace-detail";
 import { PageContainer } from "@/components/ui/page-container";
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack, Inline } from "@/components/ui/stack";

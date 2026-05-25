@@ -12,117 +12,32 @@ import { cn } from "@/lib/utils";
 import {
   ChevronRight,
   ChevronDown,
-  Bot,
-  Link2,
-  Search,
-  MessageSquare,
-  Box,
   Clock,
   Cpu,
   Coins,
-  CheckCircle2,
-  XCircle,
   Timer,
-  Zap,
   Plus,
   Trash2,
   Shield,
-  ShieldCheck,
 } from "lucide-react";
 import { GuardrailDetail } from "@/components/span-detail/guardrail-detail";
-import { TraceDetailTabs } from "@/components/trace-detail-tabs";
+import { TraceDetailTabs } from "@/components/trace-detail";
 import { useProjectOptional } from "@/lib/project-context";
 import { useT } from "@/lib/i18n";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatSec(ms: number): string {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  const m = Math.floor(ms / 60_000);
-  const s = Math.round((ms % 60_000) / 1000);
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
-}
-
-const SPAN_STYLES: Record<string, { icon: typeof Bot; bg: string; fg: string }> = {
-  LLM:            { icon: Bot,            bg: "bg-[#e8f5e9] dark:bg-[#2d4a2e]",  fg: "text-[#2e7d32] dark:text-[#6fcf6f]" },
-  CHAIN:          { icon: Link2,          bg: "bg-[#e3eafc] dark:bg-[#2e3a5b]",  fg: "text-[#3555c4] dark:text-[#6b8cff]" },
-  RETRIEVER:      { icon: Search,         bg: "bg-[#fce4ec] dark:bg-[#4a2d3a]",  fg: "text-[#b0446e] dark:text-[#e07baf]" },
-  TOOL:           { icon: Box,            bg: "bg-[#fef3e2] dark:bg-[#4a3b2d]",  fg: "text-[#b57530] dark:text-[#e0a86b]" },
-  PROMPT:         { icon: MessageSquare,  bg: "bg-[#f3e5f5] dark:bg-[#3b2d4a]",  fg: "text-[#7b40a0] dark:text-[#b07be0]" },
-  GUARDRAIL:      { icon: Shield,         bg: "bg-red-500/15",                    fg: "text-red-600 dark:text-red-400" },
-  GUARDRAIL_PASS: { icon: ShieldCheck,    bg: "bg-muted",                         fg: "text-muted-foreground" },
-  DEFAULT:        { icon: Zap,            bg: "bg-muted",                         fg: "text-muted-foreground" },
-};
-
-/**
- * Look up the visual style for a span. Accepts either a full RawSpan
- * (preferred — lets us branch on guardrail.triggered for GUARDRAIL
- * spans) or a bare kind string (legacy callers).
- */
-function getSpanStyle(arg: RawSpan | string) {
-  if (typeof arg === "string") {
-    return SPAN_STYLES[arg.toUpperCase()] ?? SPAN_STYLES.DEFAULT;
-  }
-  const kind = (arg.spanKind ?? "").toUpperCase();
-  if (kind === "GUARDRAIL" && arg.guardrailTriggered !== true) {
-    return SPAN_STYLES.GUARDRAIL_PASS;
-  }
-  return SPAN_STYLES[kind] ?? SPAN_STYLES.DEFAULT;
-}
-
-function StatusIcon({ status }: { status: string }) {
-  const ok = status === "OK" || status === "UNSET" || !status;
-  return ok
-    ? <CheckCircle2 className="size-3.5 text-emerald-500" />
-    : <XCircle className="size-3.5 text-red-500" />;
-}
-
-function formatJson(raw: string): string {
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-}
-
-/** Extract a short user-facing input preview from raw span input */
 import { extractInputPreview } from "@/lib/span-extraction";
 import { SpanGraph } from "@/components/span-graph";
 import { RoleGate } from "@/components/ui/role-gate";
 
-// ─── Span colors for timeline bar ──
-const SPAN_BAR_COLORS: Record<string, string> = {
-  LLM: "#a5d6a7",
-  CHAIN: "#a3b8f0",
-  RETRIEVER: "#e091ab",
-  TOOL: "#e0a86b",
-  AGENT: "#b0b0b0",
-  PROMPT: "#c4a0d8",
-  GUARDRAIL: "#dc2626",       // triggered (red)
-  GUARDRAIL_PASS: "#9ca3af",  // pass (gray)
-};
+import { getSpanStyle, StatusIcon, getSpanBarColor } from "./span-style";
+import { formatSec, formatJson } from "./span-tree-helpers";
+import { SpanNode } from "./span-tree-node";
 
-/**
- * Resolve the timeline-bar color for a span. GUARDRAIL spans switch
- * red→gray based on `guardrail.triggered`.
- */
-function getSpanBarColor(span: RawSpan): string {
-  const kind = (span.spanKind ?? "").toUpperCase();
-  if (kind === "GUARDRAIL") {
-    return span.guardrailTriggered === true
-      ? SPAN_BAR_COLORS.GUARDRAIL
-      : SPAN_BAR_COLORS.GUARDRAIL_PASS;
-  }
-  return SPAN_BAR_COLORS[kind] ?? "#888";
-}
+// ─── Span Timeline bar ────────────────────────────────────────────────────────
 
-/** Timeline bar showing how each direct child span contributed to total time */
 function SpanTimeline({ rootSpan }: { rootSpan: RawSpan }) {
   const totalMs = rootSpan.latency;
   if (!totalMs || totalMs <= 0) return null;
 
-  // Collect direct children with latency
   const children = (rootSpan.children ?? []).filter((c) => c.latency > 0);
   if (children.length === 0) return null;
 
@@ -160,131 +75,16 @@ function SpanTimeline({ rootSpan }: { rootSpan: RawSpan }) {
   );
 }
 
-// ─── Span Tree Node (LangSmith style) ────────────────────────────────────────
-
-function SpanNode({
-  span,
-  depth,
-  isLast,
-  selectedId,
-  onSelect,
-}: {
-  span: RawSpan;
-  depth: number;
-  isLast: boolean;
-  selectedId: string | null;
-  onSelect: (span: RawSpan) => void;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = span.children.length > 0;
-  const isSelected = selectedId === span.spanId;
-  const style = getSpanStyle(span);
-  const Icon = style.icon;
-
-  return (
-    <div className="relative">
-      {/* Vertical connector line from parent */}
-      {depth > 0 && (
-        <div
-          className="absolute top-0 w-px bg-border"
-          style={{
-            left: `${(depth - 1) * 24 + 19}px`,
-            height: isLast ? "18px" : "100%",
-          }}
-        />
-      )}
-
-      {/* Horizontal connector line */}
-      {depth > 0 && (
-        <div
-          className="absolute top-[18px] h-px bg-border"
-          style={{
-            left: `${(depth - 1) * 24 + 19}px`,
-            width: "12px",
-          }}
-        />
-      )}
-
-      {/* Row */}
-      <div
-        onClick={() => onSelect(span)}
-        className={cn(
-          "relative flex items-center gap-1.5 py-1 pr-3 cursor-pointer rounded-md mx-1 transition-colors",
-          isSelected
-            ? "bg-accent"
-            : "hover:bg-accent/50"
-        )}
-        style={{ paddingLeft: `${depth * 24 + 8}px` }}
-      >
-        {/* Expand/collapse */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (hasChildren) setExpanded(!expanded);
-          }}
-          className="flex size-4 shrink-0 items-center justify-center"
-        >
-          {hasChildren ? (
-            expanded
-              ? <ChevronDown className="size-3 text-muted-foreground" />
-              : <ChevronRight className="size-3 text-muted-foreground" />
-          ) : (
-            <span className="size-3" />
-          )}
-        </button>
-
-        {/* Icon */}
-        <span className={cn("flex size-5 shrink-0 items-center justify-center rounded", style.bg)}>
-          <Icon className={cn("size-3", style.fg)} />
-        </span>
-
-        {/* Name */}
-        <span className="truncate text-[13px] font-medium leading-none">
-          {span.name}
-        </span>
-
-        {/* Model badge (if LLM) */}
-        {span.model && (
-          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {span.model}
-          </span>
-        )}
-
-        {/* Status */}
-        <StatusIcon status={span.status} />
-
-        {/* Latency */}
-        <span className="ml-auto shrink-0 text-[11px] tabular-nums text-muted-foreground">
-          {formatSec(span.latency)}
-        </span>
-      </div>
-
-      {/* Children */}
-      {expanded && hasChildren && (
-        <div className="relative">
-          {span.children.map((child, i) => (
-            <SpanNode
-              key={child.spanId}
-              span={child}
-              depth={depth + 1}
-              isLast={i === span.children.length - 1}
-              selectedId={selectedId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Root Span Header ────────────────────────────────────────────────────────
 
-function RootHeader({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; onDeleteAnnotation?: (spanId: string, name: string) => void; onAnnotate?: (spanId: string, annotations: Annotation[]) => void }) {
+function RootHeader({ span, onDeleteAnnotation, onAnnotate }: {
+  span: RawSpan;
+  onDeleteAnnotation?: (spanId: string, name: string) => void;
+  onAnnotate?: (spanId: string, annotations: Annotation[]) => void;
+}) {
   const style = getSpanStyle(span);
   const Icon = style.icon;
 
-  // Count total tokens and cost from tree
   function sumTree(node: RawSpan): { prompt: number; completion: number; total: number; cost: number } {
     let p = node.promptTokens, c = node.completionTokens, t = node.totalTokens, cost = node.cost;
     for (const child of node.children) {
@@ -349,13 +149,15 @@ function RootHeader({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; o
 
 // ─── Span Detail Panel ───────────────────────────────────────────────────────
 
-function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; onDeleteAnnotation?: (spanId: string, name: string) => void; onAnnotate?: (spanId: string, annotations: Annotation[]) => void }) {
+function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: {
+  span: RawSpan;
+  onDeleteAnnotation?: (spanId: string, name: string) => void;
+  onAnnotate?: (spanId: string, annotations: Annotation[]) => void;
+}) {
   const [activeTab, setActiveTab] = useState<"input" | "output">("input");
   const style = getSpanStyle(span);
   const Icon = style.icon;
 
-  // GUARDRAIL spans get a bespoke side-by-side diff renderer instead of
-  // the generic input/output tabs.
   if (span.spanKind?.toUpperCase() === "GUARDRAIL") {
     return <GuardrailDetail span={span} />;
   }
@@ -451,7 +253,7 @@ function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: { span: RawSpan; o
   );
 }
 
-// ─── Main Component ──────────────────────────────────────────────────────────
+// ─── Trace Accordion Item ─────────────────────────────────────────────────────
 
 function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotation, onDeleteTrace, onRefresh }: {
   trace: TraceTree;
@@ -661,7 +463,6 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
         onClose={() => setDatasetModalOpen(false)}
         query={extractInputPreview(trace.rootSpan.input) || trace.rootSpan.name}
         context={(() => {
-          // Extract context from TOOL/RETRIEVER child spans
           const parts: string[] = [];
           function collectContext(span: RawSpan) {
             if ((span.spanKind === "TOOL" || span.spanKind === "RETRIEVER") && span.output) {
@@ -690,6 +491,8 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
   );
 }
 
+// ─── Main Export ─────────────────────────────────────────────────────────────
+
 export function SpanTreeView({
   traces,
   projectName,
@@ -707,8 +510,9 @@ export function SpanTreeView({
     if (!projectCtx?.id) return;
     apiFetch(`/api/eval-config?projectId=${encodeURIComponent(projectCtx.id)}`)
       .then((r) => r.json())
-      .then((d: { configs?: { evalName: string; enabled: boolean }[] }) => {
-        setEnabledEvals((d.configs ?? []).filter((c) => c.enabled).map((c) => c.evalName));
+      .then((d: { configs?: { configs?: { evalName: string; enabled: boolean }[] } }) => {
+        const configs = (d as any).configs ?? [];
+        setEnabledEvals(configs.filter((c: any) => c.enabled).map((c: any) => c.evalName));
       })
       .catch(() => {});
   }, [projectCtx?.id]);
