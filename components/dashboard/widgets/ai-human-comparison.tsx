@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { type Trace, type TraceTree, type Annotation } from "@/lib/phoenix";
 import { FAIL_LABELS } from "@/lib/constants";
-import { SpanTreeView } from "@/components/span-tree-view";
+import { SpanTreeView } from "@/components/trace-tree";
 
 // ── Pure helpers (also exported for tests) ──
 
