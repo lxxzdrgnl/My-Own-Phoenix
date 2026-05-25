@@ -2,6 +2,35 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, ErrorCode } from "@/lib/api-error";
 
+const DEFAULT_PAGE_LIMIT = 50;
+const MAX_PAGE_LIMIT = 200;
+
+/** Parse standard cursor pagination params (`limit`, `cursor`) from the request URL. */
+export function parsePagination(req: NextRequest): { limit: number; cursor?: string } {
+  const sp = new URL(req.url).searchParams;
+  const raw = Number(sp.get("limit") ?? DEFAULT_PAGE_LIMIT);
+  const limit = Math.min(Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT);
+  const cursor = sp.get("cursor") ?? undefined;
+  return { limit, cursor };
+}
+
+/**
+ * Build a standard list envelope. Fetch `take + 1` rows, pass them here:
+ * the extra row signals there's a next page.
+ */
+export function paginatedResponse<T>(
+  items: T[],
+  take: number,
+  getCursor: (last: T) => string,
+): { items: T[]; nextCursor: string | null } {
+  const hasMore = items.length > take;
+  const slice = hasMore ? items.slice(0, take) : items;
+  return {
+    items: slice,
+    nextCursor: hasMore && slice.length > 0 ? getCursor(slice[slice.length - 1]) : null,
+  };
+}
+
 export async function requireProjectMember(
   req: NextRequest,
   projectId: string,
