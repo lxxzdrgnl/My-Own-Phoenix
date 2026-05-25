@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MY_PHENIX_PATHS, MY_PHENIX_INFO, SECURITY_SCHEMES, ERROR_SCHEMAS } from "@/lib/openapi-spec";
+import { MY_PHENIX_PATHS, MY_PHENIX_INFO, SECURITY_SCHEMES, ERROR_SCHEMAS } from "@/lib/openapi";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
