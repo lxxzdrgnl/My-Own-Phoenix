@@ -27,6 +27,8 @@ import { PromptFormModal, PromptFormInitial } from "@/components/modals/prompts-
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useResourceList } from "@/lib/hooks/use-resource-list";
+import { Text } from "@/components/ui/typography";
+import { Stack } from "@/components/ui/stack";
 
 interface VersionWithTags extends PromptVersion {
   tags: PromptTag[];
@@ -158,7 +160,7 @@ export function PromptsManager({ projectId }: { projectId: string }) {
             />
           )}
 
-          <div className="flex flex-col gap-3">
+          <Stack gap="sm">
             {prompts.map((p) => (
               <div key={p.info.id} className="rounded-lg border">
                 <div className="flex items-center gap-3 px-4 py-3.5">
@@ -177,9 +179,9 @@ export function PromptsManager({ projectId }: { projectId: string }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-base font-medium">{String(p.info.name)}</p>
                     {p.info.description && typeof p.info.description === "string" && (
-                      <p className="truncate text-sm text-muted-foreground">
+                      <Text variant="lead" className="truncate" as="p">
                         {p.info.description}
-                      </p>
+                      </Text>
                     )}
                   </div>
                   <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
@@ -207,9 +209,9 @@ export function PromptsManager({ projectId }: { projectId: string }) {
                     {p.versions.map((v, i) => (
                       <div key={v.id} className="border-b last:border-b-0 px-4 py-3.5">
                         <div className="mb-2.5 flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium">
+                          <Text variant="body" className="font-medium" as="span">
                             {String(v.description || v.id)}
-                          </span>
+                          </Text>
                           {i === 0 && (
                             <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs font-medium">
                               latest
@@ -269,7 +271,7 @@ export function PromptsManager({ projectId }: { projectId: string }) {
                 )}
               </div>
             ))}
-          </div>
+          </Stack>
         </div>
       </div>
 
