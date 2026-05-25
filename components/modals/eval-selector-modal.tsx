@@ -78,7 +78,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
     try {
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
-      setEvals(data.prompts ?? []);
+      setEvals(data.items ?? []);
     } catch (e) { console.error(e); }
   }, []);
 

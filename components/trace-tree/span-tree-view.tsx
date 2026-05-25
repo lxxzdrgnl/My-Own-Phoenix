@@ -510,8 +510,8 @@ export function SpanTreeView({
     if (!projectCtx?.id) return;
     apiFetch(`/api/eval-config?projectId=${encodeURIComponent(projectCtx.id)}`)
       .then((r) => r.json())
-      .then((d: { configs?: { configs?: { evalName: string; enabled: boolean }[] } }) => {
-        const configs = (d as any).configs ?? [];
+      .then((d: { items?: { evalName: string; enabled: boolean }[] }) => {
+        const configs = (d as any).items ?? [];
         setEnabledEvals(configs.filter((c: any) => c.enabled).map((c: any) => c.evalName));
       })
       .catch(() => {});
