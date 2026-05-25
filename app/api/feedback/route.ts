@@ -79,7 +79,7 @@ async function uploadToPhoenix(spanId: string, label: string, score: number) {
   } catch (e) { console.error(e); }
 }
 
-export const GET = authedHandler(async (request: NextRequest) => {
+export const GET = authedHandler(async (request: NextRequest, uid: string) => {
   const messageId = request.nextUrl.searchParams.get("messageId");
   const userId = request.nextUrl.searchParams.get("userId");
 
@@ -89,6 +89,11 @@ export const GET = authedHandler(async (request: NextRequest) => {
   ]);
   if (err) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
 
+  // Only allow access to own feedback
+  if (userId !== uid) {
+    return apiError(request, ErrorCode.FORBIDDEN, "Cannot access other users' feedback");
+  }
+
   const feedback = await prisma.messageFeedback.findUnique({
     where: { messageId_userId: { messageId: messageId!, userId: userId! } },
   });
@@ -96,7 +101,7 @@ export const GET = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ feedback });
 });
 
-export const POST = authedHandler(async (request: NextRequest) => {
+export const POST = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { messageId, userId, value } = body as {
     messageId: string;
@@ -110,6 +115,11 @@ export const POST = authedHandler(async (request: NextRequest) => {
     { field: "value", value: value, required: true },
   ]);
   if (err) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
+
+  // Only allow writing feedback as yourself
+  if (userId !== uid) {
+    return apiError(request, ErrorCode.FORBIDDEN, "Cannot submit feedback as another user");
+  }
 
   // Upsert feedback in Prisma
   const feedback = await prisma.messageFeedback.upsert({
@@ -140,7 +150,7 @@ export const POST = authedHandler(async (request: NextRequest) => {
   return NextResponse.json({ feedback });
 });
 
-export const DELETE = authedHandler(async (request: NextRequest) => {
+export const DELETE = authedHandler(async (request: NextRequest, uid: string) => {
   const body = await request.json();
   const { messageId, userId } = body as { messageId: string; userId: string };
 
@@ -149,6 +159,11 @@ export const DELETE = authedHandler(async (request: NextRequest) => {
     { field: "userId", value: userId, required: true },
   ]);
   if (err) return apiError(request, ErrorCode.VALIDATION_FAILED, "Validation failed", err);
+
+  // Only allow deleting own feedback
+  if (userId !== uid) {
+    return apiError(request, ErrorCode.FORBIDDEN, "Cannot delete another user's feedback");
+  }
 
   // Get message info before deleting feedback
   const message = await prisma.message.findUnique({
