@@ -35,6 +35,7 @@ import { FilterDropdown } from "./filter-dropdown";
 import { TraceList } from "./trace-list";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n";
+import { Heading, Label } from "@/components/ui/typography";
 
 function filterKey(pid: string) {
   return `pg_filter_${pid}`;
@@ -357,9 +358,9 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                     response={selected.response}
                   />
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <Heading level="sub" as="h3">
                       {t.playground.original}
-                    </span>
+                    </Heading>
                     <div className="flex items-center gap-2">
                       <RoleGate>
                         <button
@@ -377,9 +378,9 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
 
                   {/* Query (read-only) */}
                   <div className="mt-0">
-                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <Label className="mb-1 uppercase tracking-widest">
                       {t.playground.query}
-                    </label>
+                    </Label>
                     <textarea
                       value={selected.query}
                       readOnly
@@ -415,9 +416,9 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                   {selected.response ? (
                     <div className="h-full px-3 py-3">
                       <div className="mb-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <Heading level="sub" as="h3">
                           {t.playground.result}
-                        </span>
+                        </Heading>
                       </div>
                       <p className="whitespace-pre-wrap text-sm leading-relaxed">
                         {selected.response}
