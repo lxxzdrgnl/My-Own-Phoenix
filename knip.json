@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "server.ts",
+    "app/**/{page,layout,route,loading,error,not-found}.{tsx,ts}",
+    "app/**/route.ts",
+    "next.config.ts",
+    "prisma/seed.ts",
+    "scripts/**/*.ts",
+    "prisma.config.ts"
+  ],
+  "project": ["**/*.{ts,tsx}", "!connector/**", "!eval-worker/**"],
+  "ignore": [
+    "**/__tests__/**",
+    ".claude/**",
+    "eval-worker/**",
+    "connector/**",
+    ".next/**",
+    "postgres_data/**"
+  ],
+  "ignoreDependencies": [
+    "eslint",
+    "eslint-config-next",
+    "@types/node",
+    "@types/react",
+    "@types/react-dom",
+    "@types/pg",
+    "@types/ws",
+    "@types/react-grid-layout",
+    "typescript",
+    "tailwindcss",
+    "@tailwindcss/postcss",
+    "prettier",
+    "prettier-plugin-tailwindcss"
+  ],
+  "ignoreExportsUsedInFile": true
+}
