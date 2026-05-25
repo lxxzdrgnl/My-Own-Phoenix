@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
 import { ProjectSelector } from "@/components/project-selector";
 import { Sidebar, SidebarItemDiv } from "@/components/ui/sidebar";
+import { logger } from "@/lib/logger";
 
 
 // Wraps useLocalRuntime so we can reset the runtime by changing the key on
@@ -96,7 +97,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         const data = await res.json();
         setThreads(data.items ?? []);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("assistant refresh threads failed", e); }
   }, [user, project]);
 
   useEffect(() => {
@@ -124,7 +125,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, content }),
       });
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("assistant save message failed", e); }
   }, []);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,7 +172,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
             setActiveThreadDbId(data.thread.id);
             setThreads((prev) => [data.thread, ...prev]);
           }
-        } catch (e) { console.error(e); }
+        } catch (e) { logger.error("assistant create thread failed", e); }
       }
 
       // Save user message
@@ -304,7 +305,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
           setActiveThreadDbId(null);
           setHistory([]);
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { logger.error("assistant delete thread failed", e); }
     },
     [activeThreadDbId],
   );
@@ -330,7 +331,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title }),
       });
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("assistant rename thread failed", e); }
   }, [editingThreadId, editingTitle]);
 
   return (

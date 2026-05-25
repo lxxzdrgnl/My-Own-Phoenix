@@ -21,6 +21,7 @@ import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { InlineError } from "@/components/ui/inline-error";
+import { logger } from "@/lib/logger";
 
 export function GeneralSection() {
   const { user } = useAuth();
@@ -89,7 +90,7 @@ export function GeneralSection() {
         setSavedTemplate(t);
       }
     } catch (e) {
-      console.error(e);
+      logger.error("settings load status failed", e);
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export function GeneralSection() {
         setHasKey(true);
       }
     } catch (e) {
-      console.error(e);
+      logger.error("settings generate key failed", e);
     } finally {
       setGenerating(false);
     }

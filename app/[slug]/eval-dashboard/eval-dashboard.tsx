@@ -6,6 +6,7 @@ import { PiiGuardDashboard } from "../pii-guard/pii-guard-dashboard";
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
+import { logger } from "@/lib/logger";
 
 // ─── Types ───
 
@@ -69,7 +70,7 @@ export function EvalDashboard() {
     fetch("/datasets/hallucination-eval-results.json")
       .then((r) => r.json())
       .then((data) => setRows(data))
-      .catch((e) => console.error(e))
+      .catch((e) => logger.error("eval dashboard load failed", e))
       .finally(() => setLoading(false));
   }, []);
 

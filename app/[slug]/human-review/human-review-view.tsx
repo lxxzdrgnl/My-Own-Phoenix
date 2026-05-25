@@ -15,6 +15,7 @@ import { LoadingState } from "@/components/ui/empty-state";
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
+import { logger } from "@/lib/logger";
 
 const SAMPLE_TRACES: Trace[] = [
   {
@@ -81,7 +82,7 @@ export function HumanReviewView({ phoenixProject, projectId, slug }: Props) {
       setTraces(ts);
       setTraceTrees(trees);
     } catch (e) {
-      console.error(e);
+      logger.error("human review load failed", e);
     }
     setLoading(false);
   }, [phoenixProject]);

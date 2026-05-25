@@ -27,6 +27,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
 import { NEW_EVAL_TEMPLATE } from "./eval-constants";
+import { logger } from "@/lib/logger";
 import { EvalTestPanel } from "./eval-test-panel";
 import { EvalBackfillPanel } from "./eval-backfill-panel";
 import type { EvalPrompt, ProjectEvalConfig } from "./eval-list";
@@ -168,7 +169,7 @@ export function EvalEditor({
       try {
         await apiFetch(`/api/eval-prompts?name=${encodeURIComponent(selectedEval)}&reset=true`, { method: "DELETE" });
         onDeleted(); // reload list
-      } catch (e) { console.error(e); }
+      } catch (e) { logger.error("eval reset default failed", e); }
       return;
     }
     const globalCustom = globalPrompts.find((p) => p.name === selectedEval);
@@ -204,11 +205,11 @@ export function EvalEditor({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ name: selectedEval }),
             });
-          } catch (e) { console.error(e); }
+          } catch (e) { logger.error("eval delete annotations failed", e); }
         }
       }
       onDeleted();
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("eval delete failed", e); }
   }
 
   async function handleCreate() {
@@ -241,7 +242,7 @@ export function EvalEditor({
       setNewType("llm_prompt");
       setNewEvalModel(defaultEvalModel);
       onCreated(name, newType, createdTemplate, createdRuleConfig, newEvalModel);
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("eval create failed", e); }
   }
 
   // ── Load global templates when switching to template mode ──
@@ -257,7 +258,7 @@ export function EvalEditor({
             )
           );
         })
-        .catch(console.error)
+        .catch((e) => logger.error("eval load templates failed", e))
         .finally(() => setLoadingTemplates(false));
     }
   }, [createMode, creating, templates.length, globalPrompts]);
@@ -273,7 +274,7 @@ export function EvalEditor({
       const data = await res.json();
       const createdName = data.names?.[0] || templateName;
       onCreated(createdName, "llm_prompt", "", DEFAULT_RULE_CONFIG, defaultEvalModel);
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("eval import template failed", e); }
   }
 
   // ── Render: Create form ──
