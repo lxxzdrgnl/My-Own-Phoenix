@@ -3,6 +3,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { LoadingState } from "@/components/ui/empty-state";
 import { PiiGuardDashboard } from "../pii-guard/pii-guard-dashboard";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
 
 // ─── Types ───
 
@@ -74,12 +77,10 @@ export function EvalDashboard() {
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
         {/* Title */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Evaluation Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Phoenix traces and JSONL-based aggregated view
-          </p>
-        </div>
+        <Stack gap="xs">
+          <Heading level="page">Evaluation Dashboard</Heading>
+          <Text variant="caption">Phoenix traces and JSONL-based aggregated view</Text>
+        </Stack>
 
         {/* Tab switcher */}
         <div className="flex gap-1 rounded-lg border bg-muted/50 p-1 w-fit">
@@ -144,12 +145,12 @@ function HallucinationDashboard({ rows }: { rows: HallucinationRow[] }) {
   return (
     <>
       {/* Sub-header */}
-      <div>
-        <h2 className="text-xl font-bold">Hallucination Eval</h2>
-        <p className="text-sm text-muted-foreground">
+      <Stack gap="xs">
+        <Heading level="section">Hallucination Eval</Heading>
+        <Text variant="caption">
           {rows.length} rows · variants: {source} · source: hallucination-eval-results.jsonl
-        </p>
-      </div>
+        </Text>
+      </Stack>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
@@ -164,8 +165,7 @@ function HallucinationDashboard({ rows }: { rows: HallucinationRow[] }) {
       </div>
 
       {/* Charts */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Charts</h2>
+      <SectionCard title="Charts">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {/* Evaluator Means bar chart */}
           <ChartCard title="Evaluator Means" subtitle="5-evaluator mean scores">
@@ -211,13 +211,13 @@ function HallucinationDashboard({ rows }: { rows: HallucinationRow[] }) {
             />
           </ChartCard>
         </div>
-      </div>
+      </SectionCard>
 
       {/* Detail Table */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Detail</h2>
-          <div className="flex items-center gap-3">
+      <SectionCard
+        title="Detail"
+        actions={
+          <Inline gap="sm" className="flex-wrap">
             <select
               value={levelFilter}
               onChange={(e) => setLevelFilter(e.target.value)}
@@ -238,9 +238,10 @@ function HallucinationDashboard({ rows }: { rows: HallucinationRow[] }) {
               <input type="checkbox" checked={failOnly} onChange={(e) => setFailOnly(e.target.checked)} className="rounded" />
               Failures only (any &lt; 1.0)
             </label>
-            <span className="text-sm text-muted-foreground">{filtered.length} / {rows.length}</span>
-          </div>
-        </div>
+            <Text variant="caption" as="span">{filtered.length} / {rows.length}</Text>
+          </Inline>
+        }
+      >
 
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
@@ -275,7 +276,11 @@ function HallucinationDashboard({ rows }: { rows: HallucinationRow[] }) {
                     if (!ev) return <td key={name} className="px-3 py-2.5 text-right text-sm text-muted-foreground">—</td>;
                     const isLow = ev.score < 1.0;
                     return (
-                      <td key={name} className={`px-3 py-2.5 text-right text-sm tabular-nums ${isLow ? "text-red-600 font-medium" : ""}`}>
+                      <td
+                        key={name}
+                        className={`px-3 py-2.5 text-right text-sm tabular-nums${isLow ? " font-medium" : ""}`}
+                        style={isLow ? { color: "#ef4444" } : undefined}
+                      >
                         {ev.score.toFixed(2)}
                       </td>
                     );
@@ -288,7 +293,7 @@ function HallucinationDashboard({ rows }: { rows: HallucinationRow[] }) {
             </tbody>
           </table>
         </div>
-      </div>
+      </SectionCard>
     </>
   );
 }
@@ -344,7 +349,7 @@ function computeTrapStats(rows: HallucinationRow[]) {
 function KpiCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="rounded-lg border bg-card p-3">
-      <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
+      <Heading level="sub">{label}</Heading>
       <div className="mt-1 text-2xl font-bold" style={color ? { color } : undefined}>{value}</div>
     </div>
   );
