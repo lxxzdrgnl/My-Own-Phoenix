@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runGuard } from "@/lib/pii-guard";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,13 +43,13 @@ export async function POST(request: NextRequest) {
         });
       } catch (e) {
         // Swallow persistence errors — live runner result is still useful even if save fails.
-        console.error("[pii-guard] persist failed:", e);
+        logger.error("pii-guard persist failed", e, { route: "POST /api/pii-guard" });
       }
     }
 
     return NextResponse.json(result);
   } catch (e) {
-    console.error("[pii-guard]", e);
+    logger.error("pii-guard processing failed", e, { route: "POST /api/pii-guard" });
     return NextResponse.json(
       { error: "PII guard processing failed" },
       { status: 500 },

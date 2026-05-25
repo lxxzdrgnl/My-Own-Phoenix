@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError, ErrorCode, authedHandler } from "@/lib/api-error";
 import { encrypt, decrypt } from "@/lib/crypto";
+import { logger } from "@/lib/logger";
 
 // GET — list project's API keys (no decryption)
 export const GET = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
@@ -23,7 +24,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
       select: { id: true, provider: true, isActive: true, apiKey: decryptParam === "true" },
     });
   } catch (e) {
-    console.error("[providers GET] findMany failed:", e);
+    logger.error("providers GET findMany failed", e, { route: "GET /api/projects/[id]/providers" });
     return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, `DB query failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 
@@ -58,7 +59,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string, { params
   try {
     encrypted = encrypt(apiKey);
   } catch (e) {
-    console.error("[providers] encrypt failed:", e);
+    logger.error("providers encrypt failed", e, { route: "POST /api/projects/[id]/providers" });
     return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, `Encryption failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 
@@ -68,7 +69,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string, { params
       where: { projectId: projectId, provider: provider },
     });
   } catch (e) {
-    console.error("[providers] findFirst failed:", e);
+    logger.error("providers findFirst failed", e, { route: "POST /api/projects/[id]/providers" });
     return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, `DB query failed: ${e instanceof Error ? e.message : String(e)}`);
   }
   if (existing) {

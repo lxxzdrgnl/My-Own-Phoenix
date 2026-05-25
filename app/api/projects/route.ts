@@ -5,6 +5,7 @@ import { ensureBuiltInEvals, seedProjectEvals } from "@/lib/eval-seed";
 import { encrypt } from "@/lib/crypto";
 import { randomBytes, createHash } from "crypto";
 import { ensureDefaultPromptForProject } from "@/lib/project-prompt-seed";
+import { logger } from "@/lib/logger";
 
 function generateSlug(): string {
   return randomBytes(8).toString("base64url").toLowerCase().slice(0, 12);
@@ -102,7 +103,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
   try {
     await ensureDefaultPromptForProject(project.id);
   } catch (err) {
-    console.error("[projects] starter prompt seeding failed:", err);
+    logger.error("starter prompt seeding failed", err, { route: "POST /api/projects" });
   }
 
   return NextResponse.json({
