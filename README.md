@@ -72,25 +72,46 @@ npm run dev             # Dashboard on http://localhost:3000
 ```
 app/
   [slug]/          # Project pages (chat, playground, evaluations, etc.)
-  api/             # API routes
+  api/             # 50 API routes (authedHandler + apiError; lists use { items, nextCursor })
   docs/            # Documentation page
   projects/        # Project listing
   settings/        # Global settings
 components/
-  ui/              # Base primitives (Button, Input, Modal, Sidebar, etc.)
-  modals/          # Modal dialogs
+  ui/              # Design system: typography (Heading/Text/Label), layout
+                   #   (PageContainer/PageHeader/Stack/Inline), modal (ModalShell/ModalForm),
+                   #   SectionCard, LoadingButton, InlineError, base primitives
+  modals/          # Modal dialogs (built on ModalShell/ModalForm)
+  trace-tree/      # Span tree view (split: view/node/style/helpers)
+  trace-detail/    # Trace detail tabs (split: container + tabs/)
+  prompt-builder/  # Prompt builder (split into step sub-components)
   dashboard/       # Dashboard widgets
 lib/
-  hooks/           # Custom React hooks
-  api-client.ts    # Client-side fetch with auth
-  api-error.ts     # Error handling + authedHandler wrapper
-  api-helpers.ts   # Shared API middleware (project membership, etc.)
+  phoenix/         # Phoenix client, modularized (types/traces/prompts/llm/projects/...) — import via barrel
+  openapi/         # OpenAPI spec, split by domain — import via barrel
+  config/          # Named constants (timeouts, rate-limits) — no magic numbers
+  hooks/           # Custom React hooks (useFormSubmit, useResourceList, ...)
+  logger.ts        # Structured logging (JSON-lines / redaction / level)
+  api-error.ts     # apiError + authedHandler wrapper
+  api-helpers.ts   # requireProjectMember, parsePagination, paginatedResponse, ...
   prisma.ts        # Prisma client
   llm-providers.ts # Multi-provider LLM routing
   crypto.ts        # AES-256-GCM encryption
+server.ts          # Custom Next.js server (WebSocket relay via lib/ws-relay.ts)
 eval-worker/       # Python evaluation worker
 prisma/            # Schema + migrations
 ```
+
+> **Note:** `server.ts` runs under tsx (not webpack). lib files it depends on must use
+> relative imports and be listed in the Dockerfile's standalone `COPY` lines.
+
+## Conventions
+
+Coding conventions are defined in `CLAUDE.md` and enforced by the `.claude/hooks/` harness
+(SessionStart context + PreToolUse hard blocks). Key rules: **NEVER INVENT** (grep for an
+existing file before creating one), `ModalShell`/`ModalForm` for modals, `useFormSubmit`/
+`useResourceList` for forms/lists, `<Heading>`/`<Text>` for typography (no raw
+`text-lg`+`font-semibold`), `authedHandler` + `apiError`, monotone palette (`#10b981`/`#ef4444`
+only), barrel-only imports for `@/lib/phoenix` and `@/lib/openapi`.
 
 ## API Documentation
 
