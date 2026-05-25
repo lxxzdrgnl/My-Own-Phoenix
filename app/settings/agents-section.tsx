@@ -27,7 +27,6 @@ export function AgentsSection() {
   const t = useT();
   const { items: agents, loading, reload } = useResourceList<AgentEntry>(
     "/api/agent-templates",
-    { dataKey: "templates" },
   );
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);

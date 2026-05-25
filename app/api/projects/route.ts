@@ -22,12 +22,13 @@ function hashKey(key: string): string {
 export const GET = authedHandler(async (req: NextRequest, uid: string) => {
   if (uid === "internal-service") {
     const projects = await prisma.project.findMany({ orderBy: { createdAt: "desc" } });
-    return NextResponse.json(
-      projects.map((p) => ({
+    return NextResponse.json({
+      items: projects.map((p) => ({
         id: p.id, name: p.name, slug: p.slug,
         phoenixProject: p.phoenixProject, role: "owner", createdAt: p.createdAt,
       })),
-    );
+      nextCursor: null,
+    });
   }
 
   const memberships = await prisma.projectMember.findMany({
@@ -36,8 +37,8 @@ export const GET = authedHandler(async (req: NextRequest, uid: string) => {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(
-    memberships.map((m) => ({
+  return NextResponse.json({
+    items: memberships.map((m) => ({
       id: m.project.id,
       name: m.project.name,
       slug: m.project.slug,
@@ -45,7 +46,8 @@ export const GET = authedHandler(async (req: NextRequest, uid: string) => {
       role: m.role,
       createdAt: m.project.createdAt,
     })),
-  );
+    nextCursor: null,
+  });
 });
 
 // POST /api/projects — create a project

@@ -9,7 +9,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string) => {
     where: { userId: uid, projectName: project },
     orderBy: { updatedAt: "desc" },
   });
-  return NextResponse.json({ threads });
+  return NextResponse.json({ items: threads, nextCursor: null });
 });
 
 export const POST = authedHandler(async (req: NextRequest, uid: string) => {

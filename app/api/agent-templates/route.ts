@@ -7,7 +7,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string) => {
     where: { userId: uid },
     orderBy: { name: "asc" },
   });
-  return NextResponse.json({ templates });
+  return NextResponse.json({ items: templates, nextCursor: null });
 });
 
 export const POST = authedHandler(async (req: NextRequest, uid: string) => {

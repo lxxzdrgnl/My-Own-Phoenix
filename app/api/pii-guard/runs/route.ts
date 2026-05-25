@@ -32,7 +32,7 @@ export const GET = authedHandler(async (request: NextRequest, uid: string) => {
     ...(r.outputGuard ? { output_guard: safeJson(r.outputGuard, null) } : {}),
   }));
 
-  return NextResponse.json({ runs });
+  return NextResponse.json({ items: runs, nextCursor: null });
 });
 
 function safeJson<T>(s: string, fallback: T): T {
