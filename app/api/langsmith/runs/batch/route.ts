@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 const PHOENIX_URL = process.env.PHOENIX_URL ?? process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006";
 
@@ -171,10 +172,10 @@ async function sendToPhoenix(runs: LangSmithRun[]) {
       });
       if (!res.ok) {
         const text = await res.text();
-        console.error(`[langsmith-proxy] Phoenix ${res.status}: ${text}`);
+        logger.error("langsmith-proxy Phoenix error response", undefined, { route: "POST /api/langsmith/runs/batch", status: res.status, body: text });
       }
     } catch (e) {
-      console.error(`[langsmith-proxy] Failed to send to Phoenix:`, e);
+      logger.error("langsmith-proxy failed to send to Phoenix", e, { route: "POST /api/langsmith/runs/batch" });
     }
   }
 }
@@ -190,13 +191,13 @@ export async function POST(req: NextRequest) {
     if (allRuns.length > 0) {
       // Fire and forget
       sendToPhoenix(allRuns).catch((e) =>
-        console.error("[langsmith-proxy] Error:", e),
+        logger.error("langsmith-proxy sendToPhoenix error", e, { route: "POST /api/langsmith/runs/batch" }),
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error("[langsmith-proxy] Parse error:", e);
+    logger.error("langsmith-proxy parse error", e, { route: "POST /api/langsmith/runs/batch" });
     return NextResponse.json({ success: true }); // Don't fail the SDK
   }
 }

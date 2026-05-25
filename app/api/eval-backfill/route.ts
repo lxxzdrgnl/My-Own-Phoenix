@@ -4,6 +4,7 @@ import { callLlm } from "@/lib/llm-providers";
 import { PASS_LABELS } from "@/lib/constants";
 import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
 import { requireProjectMember } from "@/lib/api-helpers";
+import { logger } from "@/lib/logger";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -345,7 +346,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
         }
       }
     } catch (e) {
-      console.error(`Backfill eval "${evalName}" failed for span ${spanId}:`, e);
+      logger.error("backfill eval failed for span", e, { route: "POST /api/eval-backfill", evalName, spanId });
       skipped++;
     }
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 function getCorsHeaders() {
   return {
@@ -31,7 +32,7 @@ async function handleRequest(req: NextRequest, method: string) {
       options.body = await req.text();
     }
 
-    console.log({ url, path, queryString, options });
+    logger.debug("proxy request", { url: url.toString(), path, queryString });
 
     const res = await fetch(
       `${process.env["LANGGRAPH_API_URL"]}/${path}${queryString}`,
@@ -47,7 +48,7 @@ async function handleRequest(req: NextRequest, method: string) {
       },
     });
   } catch (e) {
-    console.error("[proxy]", e);
+    logger.error("proxy request failed", e, { route: "* /api/[..._path]" });
     return NextResponse.json({ error: "Proxy request failed" }, { status: 500 });
   }
 }

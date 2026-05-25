@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { MY_PHENIX_PATHS, MY_PHENIX_INFO, SECURITY_SCHEMES, ERROR_SCHEMAS } from "@/lib/openapi";
+import { logger } from "@/lib/logger";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -55,7 +56,7 @@ export async function GET() {
       }
       phoenixSchemas = phoenixSpec.components?.schemas ?? {};
     }
-  } catch (e) { console.error(e); }
+  } catch (e) { logger.error("failed to fetch Phoenix openapi spec", e, { route: "GET /api/openapi.json" }); }
 
   const combined = {
     openapi: "3.1.0",
