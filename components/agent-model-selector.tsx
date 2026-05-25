@@ -2,6 +2,7 @@
 import { apiFetch } from "@/lib/api-client";
 
 import { useState, useRef, useEffect } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { ChevronDown, ChevronRight, Search, Bot } from "lucide-react";
 import { ProviderIcon } from "@/components/provider-icon";
 import { LLM_PROVIDERS } from "@/lib/model-registry";
@@ -23,7 +24,7 @@ export function AgentModelSelector({
   onChange: (id: string) => void;
   projectId?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const dropdown = useDisclosure();
   const [search, setSearch] = useState("");
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
@@ -69,13 +70,13 @@ export function AgentModelSelector({
   const isAgent = value.startsWith("relay:");
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    if (dropdown.isOpen) inputRef.current?.focus();
+  }, [dropdown.isOpen]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+        dropdown.close();
         setSearch("");
       }
     }
@@ -91,7 +92,7 @@ export function AgentModelSelector({
       {/* Trigger */}
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={dropdown.toggle}
         className="flex h-9 w-full items-center gap-2 rounded-md border bg-background px-2.5 text-sm outline-none transition focus:ring-1 focus:ring-ring"
       >
         {isAgent ? (
@@ -101,7 +102,7 @@ export function AgentModelSelector({
         )}
         <span className="flex-1 truncate text-left font-mono text-sm">{displayLabel}</span>
         <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${dropdown.isOpen ? "rotate-180" : ""}`}
         />
       </button>
 

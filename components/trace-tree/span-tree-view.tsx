@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api-client";
 import { logger } from "@/lib/logger";
 
 import { useState, useEffect } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { type RawSpan, type TraceTree, type Annotation } from "@/lib/phoenix";
 import { AnnotationBadges } from "@/components/annotation-badge";
@@ -268,7 +269,7 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
   const [selectedSpan, setSelectedSpan] = useState<RawSpan | null>(null);
   const [annotateSpanId, setAnnotateSpanId] = useState<string | null>(null);
   const [annotateAnnotations, setAnnotateAnnotations] = useState<Annotation[]>([]);
-  const [datasetModalOpen, setDatasetModalOpen] = useState(false);
+  const datasetModal = useDisclosure();
   const projectCtx = useProjectOptional();
 
   function handleAnnotate(spanId: string, annotations: Annotation[]) {
@@ -371,7 +372,7 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
           </span>
           <RoleGate>
             <button
-              onClick={(e) => { e.stopPropagation(); setDatasetModalOpen(true); }}
+              onClick={(e) => { e.stopPropagation(); datasetModal.open(); }}
               className="flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title="Add to dataset"
             >
@@ -460,8 +461,8 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
         }}
       />
       <AddToDatasetModal
-        open={datasetModalOpen}
-        onClose={() => setDatasetModalOpen(false)}
+        open={datasetModal.isOpen}
+        onClose={datasetModal.close}
         query={extractInputPreview(trace.rootSpan.input) || trace.rootSpan.name}
         context={(() => {
           const parts: string[] = [];

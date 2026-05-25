@@ -25,6 +25,7 @@ import { parseQuery, serializeQuery, applyFilters } from "@/lib/query";
 import type { QueryAST } from "@/lib/query";
 import { useProjectSse } from "@/lib/hooks/use-project-sse";
 import { useProjectOptional } from "@/lib/project-context";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 
 
 function formatMs(ms: number): string {
@@ -108,7 +109,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [tracesLoading, setTracesLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"traces" | "measure">(defaultTab);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const filterDropdown = useDisclosure();
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(7));
 
   // ── Query AST (single source of truth for filters) ──
@@ -425,9 +426,9 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => setFilterOpen(!filterOpen)}
+                    onClick={filterDropdown.toggle}
                     className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
-                      filterOpen || hasActiveFilters ? "border-primary bg-accent" : "hover:bg-muted"
+                      filterDropdown.isOpen || hasActiveFilters ? "border-primary bg-accent" : "hover:bg-muted"
                     }`}
                   >
                     <Filter className="h-3 w-3" />
@@ -461,7 +462,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
               </div>
 
               {/* Chip row — same AST, click-to-toggle */}
-              {filterOpen && (
+              {filterDropdown.isOpen && (
                 <ChipRow
                   ast={queryAST}
                   knownAnnotations={knownAnnotations}

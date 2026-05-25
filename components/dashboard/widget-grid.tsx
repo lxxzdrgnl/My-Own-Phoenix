@@ -12,6 +12,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { GripVertical, X, Settings2 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import React from "react";
 import { getColorSlots, getViewModes } from "./widgets/registry";
 import { useT } from "@/lib/i18n";
@@ -109,7 +110,7 @@ function WidgetCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
-  const [optionsOpen, setOptionsOpen] = useState(false);
+  const widgetOptions = useDisclosure();
   const [localColors, setLocalColors] = useState<WidgetColors>(colors);
   const [chartColors, setChartColors] = useState<WidgetColors>(colors);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,15 +124,15 @@ function WidgetCard({
   }
 
   useEffect(() => {
-    if (!optionsOpen) return;
+    if (!widgetOptions.isOpen) return;
     const handler = (e: MouseEvent) => {
       if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-        setOptionsOpen(false);
+        widgetOptions.close();
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [optionsOpen]);
+  }, [widgetOptions.isOpen, widgetOptions.close]);
 
   useEffect(() => {
     const el = cardRef.current;
@@ -188,19 +189,19 @@ function WidgetCard({
           {!readOnly && (
           <div className="relative" ref={optionsRef}>
             <button
-              onClick={() => setOptionsOpen(!optionsOpen)}
+              onClick={widgetOptions.toggle}
               className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
             >
               <Settings2 className="h-3.5 w-3.5" />
             </button>
-            {optionsOpen && (
+            {widgetOptions.isOpen && (
               <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl border bg-popover p-1 shadow-xl">
                 {!isSingleView && (
                   <>
                     {VIEW_MODE_ORDER.map((vm) => (
                       <button
                         key={vm}
-                        onClick={() => { onSetMode(vm); setOptionsOpen(false); }}
+                        onClick={() => { onSetMode(vm); widgetOptions.close(); }}
                         className={`flex w-full items-center rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
                           viewMode === vm ? "bg-accent text-accent-foreground" : "hover:bg-accent"
                         }`}
@@ -265,7 +266,7 @@ function WidgetCard({
                 </div>
                 <div className="my-1 border-t border-border/40" />
                 <button
-                  onClick={() => { onRemove(); setOptionsOpen(false); }}
+                  onClick={() => { onRemove(); widgetOptions.close(); }}
                   className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10"
                 >
                   {t.dashboard.removeWidget}

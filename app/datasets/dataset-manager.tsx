@@ -13,6 +13,7 @@ import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useResourceList } from "@/lib/hooks/use-resource-list";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 
 import { useDatasetGeneration } from "./hooks/use-dataset-generation";
 import { useDatasetEvaluation } from "./hooks/use-dataset-evaluation";
@@ -69,7 +70,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   const [queryCol, setQueryCol] = useState("");
   const [contextCol, setContextCol] = useState("");
 
-  const [datasetFormOpen, setDatasetFormOpen] = useState(false);
+  const datasetFormModal = useDisclosure();
   const [importModal, setImportModal] = useState<{ open: boolean; target: { id: string; name: string } | null }>({ open: false, target: null });
   const [dragOver, setDragOver] = useState(false);
 
@@ -87,12 +88,12 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
 
   const [liveResults, setLiveResults] = useState<RowResult[]>([]);
   const [liveRunId, setLiveRunId] = useState<string | null>(null);
-  const [evalModalOpen, setEvalModalOpen] = useState(false);
+  const evalModal = useDisclosure();
 
   const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
   const [editRowData, setEditRowData] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<"prompts" | "results">("prompts");
-  const [configOpen, setConfigOpen] = useState(true);
+  const configPanel = useDisclosure(true);
 
   const [page, setPage] = useState(0);
   const [pageSize] = useState(50);
@@ -305,7 +306,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         datasets={datasets}
         selectedId={selectedId}
         onSelect={selectDataset}
-        onOpenCreate={() => setDatasetFormOpen(true)}
+        onOpenCreate={datasetFormModal.open}
         onDelete={handleDelete}
         loading={loading}
       />
@@ -339,14 +340,14 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
               totalRows={totalRows}
               headerCount={headers.length}
               currentRunId={currentRunId}
-              configOpen={configOpen}
-              onToggleConfig={() => setConfigOpen(!configOpen)}
+              configOpen={configPanel.isOpen}
+              onToggleConfig={configPanel.toggle}
               onImport={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })}
               onExport={() => currentRunId && window.open(`/api/datasets/runs/${currentRunId}/export`, "_blank")}
             />
 
             {/* ── Config panel ── */}
-            {configOpen && (
+            {configPanel.isOpen && (
               <DatasetConfigPanel
                 selectedAgent={selectedAgent}
                 onAgentChange={setSelectedAgent}
@@ -362,7 +363,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                 evalProgress={evalProgress}
                 displayResultsLength={displayResults.length}
                 onEvaluate={handleEvaluate}
-                onOpenEvalModal={() => setEvalModalOpen(true)}
+                onOpenEvalModal={evalModal.open}
               />
             )}
 
@@ -445,8 +446,8 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
       </div>
 
       <DatasetFormModal
-        open={datasetFormOpen}
-        onClose={() => setDatasetFormOpen(false)}
+        open={datasetFormModal.isOpen}
+        onClose={datasetFormModal.close}
         onSaved={handleDatasetSaved}
       />
       <CSVImportModal
@@ -456,8 +457,8 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         onImport={handleImport}
       />
       <EvalSelectorModal
-        open={evalModalOpen}
-        onClose={() => setEvalModalOpen(false)}
+        open={evalModal.isOpen}
+        onClose={evalModal.close}
         datasetName={selected?.name ?? ""}
         checkedEvals={checkedEvals}
         evalOverrides={evalOverrides}
