@@ -85,7 +85,7 @@ export function PiiGuardPastRuns() {
     apiFetch(`/api/pii-guard/runs?projectId=${encodeURIComponent(projectId)}`)
       .then((r) => r.json())
       .then((data) => {
-        const runs: PiiEvalRow[] = data.runs ?? [];
+        const runs: PiiEvalRow[] = data.items ?? [];
         setRows(runs);
         if (runs.length > 0) setSelectedId(runs[0].id);
       })

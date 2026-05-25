@@ -36,5 +36,5 @@ export const GET = authedHandler(async (req: NextRequest, uid: string) => {
     lastPingAt: s.lastPingAt,
   }));
 
-  return NextResponse.json({ connectors });
+  return NextResponse.json({ items: connectors, nextCursor: null });
 });

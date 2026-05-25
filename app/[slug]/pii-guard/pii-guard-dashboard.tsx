@@ -52,7 +52,7 @@ export function PiiGuardDashboard() {
     }
     apiFetch(`/api/pii-guard/runs?projectId=${encodeURIComponent(projectId)}`)
       .then((r) => r.json())
-      .then((data) => setRows(data.runs ?? []))
+      .then((data) => setRows(data.items ?? []))
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));
   }, [projectId]);

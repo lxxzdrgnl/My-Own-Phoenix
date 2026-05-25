@@ -12,7 +12,7 @@ export const GET = authedHandler(async (request: NextRequest) => {
     FROM "DatasetRun" WHERE "datasetId" = ${datasetId}
     ORDER BY "createdAt" DESC
   `;
-  return NextResponse.json({ runs });
+  return NextResponse.json({ items: runs, nextCursor: null });
 });
 
 export const POST = authedHandler(async (request: NextRequest, uid: string) => {

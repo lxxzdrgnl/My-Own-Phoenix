@@ -38,7 +38,7 @@ export function AgentModelSelector({
       .then((r) => r.json())
       .then((data) => {
         const active = new Set<string>();
-        for (const p of data.providers ?? []) {
+        for (const p of data.items ?? []) {
           if (p.isActive) active.add(p.provider);
         }
         setActiveProviders(active);
@@ -49,7 +49,7 @@ export function AgentModelSelector({
     if (projectId) {
       apiFetch(`/api/connectors?projectId=${projectId}`)
         .then((r) => r.json())
-        .then((data) => setConnectedAgents((data.connectors || []).filter((c: any) => c.status === "online")))
+        .then((data) => setConnectedAgents((data.items || []).filter((c: any) => c.status === "online")))
         .catch(() => {});
     }
   }, []);

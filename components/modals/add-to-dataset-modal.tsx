@@ -42,7 +42,7 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "", res
     setEditContext(context);
     setEditResponse(response);
     apiFetch("/api/datasets").then((r) => r.json()).then((data) => {
-      const ds = data.datasets ?? [];
+      const ds = data.items ?? [];
       setDatasets(ds);
       if (ds.length > 0 && !selectedId) setSelectedId(ds[0].id);
     }).catch(() => {});

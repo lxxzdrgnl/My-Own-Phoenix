@@ -57,9 +57,9 @@ export function MembersTab() {
   const membersEndpoint = `/api/projects/${projectId}/members`;
 
   const membersTransform = useCallback(
-    (raw: { members?: Member[]; currentRole?: string }) => {
+    (raw: { items?: Member[]; currentRole?: string }) => {
       setCurrentRole(raw.currentRole ?? "");
-      return raw.members ?? [];
+      return raw.items ?? [];
     },
     [],
   );
@@ -75,11 +75,11 @@ export function MembersTab() {
 
   const loadOwnerData = useCallback(async () => {
     const [requestsRes, codesRes] = await Promise.all([
-      apiFetch(`/api/projects/${projectId}/join-requests`).then(r => r.json()).catch(() => ({ requests: [] })),
-      apiFetch(`/api/projects/${projectId}/invite-codes`).then(r => r.json()).catch(() => ({ codes: [] })),
+      apiFetch(`/api/projects/${projectId}/join-requests`).then(r => r.json()).catch(() => ({ items: [] })),
+      apiFetch(`/api/projects/${projectId}/invite-codes`).then(r => r.json()).catch(() => ({ items: [] })),
     ]);
-    setRequests(requestsRes.requests || []);
-    setCodes(codesRes.codes || []);
+    setRequests(requestsRes.items || []);
+    setCodes(codesRes.items || []);
   }, [projectId]);
 
   useEffect(() => {

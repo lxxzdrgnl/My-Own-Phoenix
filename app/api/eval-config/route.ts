@@ -13,7 +13,7 @@ export const GET = authedHandler(async (request: NextRequest) => {
     where: { projectId },
   });
 
-  return NextResponse.json({ configs });
+  return NextResponse.json({ items: configs, nextCursor: null });
 });
 
 export const PUT = authedHandler(async (request: NextRequest, uid: string) => {

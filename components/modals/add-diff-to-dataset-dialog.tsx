@@ -62,7 +62,7 @@ export function AddDiffToDatasetDialog({
     apiFetch(url)
       .then((r) => r.json())
       .then((d) => {
-        const list = (d.datasets ?? []) as DatasetOpt[];
+        const list = (d.items ?? []) as DatasetOpt[];
         setDatasets(list);
         if (list.length > 0) setSelectedId(list[0].id);
       })

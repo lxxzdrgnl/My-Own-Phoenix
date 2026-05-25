@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { requireProjectMember } from "@/lib/api-helpers";
 
 export const GET = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ runId: string }> }) => {
   const { runId } = await params;
@@ -10,6 +11,18 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
   `;
   if (!runRows.length) return apiError(req, ErrorCode.RESOURCE_NOT_FOUND, "Run not found");
   const run = runRows[0];
+
+  // Check project membership (mirrors PUT/DELETE pattern in sibling route.ts)
+  if (uid !== "internal-service") {
+    const runMeta = await prisma.datasetRun.findUnique({
+      where: { id: runId },
+      select: { dataset: { select: { projectId: true } } },
+    });
+    if (runMeta?.dataset?.projectId) {
+      const roleCheck = await requireProjectMember(req, runMeta.dataset.projectId, uid);
+      if (roleCheck instanceof NextResponse) return roleCheck;
+    }
+  }
 
   const dsRows = await prisma.$queryRaw<Array<Record<string, unknown>>>`
     SELECT id, name, headers FROM "Dataset" WHERE id = ${run.datasetId}

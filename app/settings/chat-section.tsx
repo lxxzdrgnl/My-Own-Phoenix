@@ -27,8 +27,8 @@ export function ChatSection() {
         apiFetch("/api/agent-config").then((r) => r.json()),
         apiFetch("/api/agent-templates").then((r) => r.json()),
       ]);
-      setConfigs(configRes.configs ?? []);
-      setTemplates(templateRes.templates ?? []);
+      setConfigs(configRes.items ?? []);
+      setTemplates(templateRes.items ?? []);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, []);

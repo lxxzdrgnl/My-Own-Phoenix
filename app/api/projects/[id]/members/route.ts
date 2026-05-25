@@ -18,7 +18,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
     include: { user: { select: { id: true, email: true, name: true } } },
     orderBy: { createdAt: "asc" },
   });
-  return NextResponse.json({ members, currentRole: member.role });
+  return NextResponse.json({ items: members, currentRole: member.role, nextCursor: null });
 });
 
 // PUT — update member role (owner only)

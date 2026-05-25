@@ -61,7 +61,6 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
     reload: reloadDatasets,
   } = useResourceList<DatasetMeta>(
     datasetsEndpoint ?? "/api/datasets",
-    { dataKey: "datasets" },
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -123,14 +122,14 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
   });
 
   useEffect(() => {
-    apiFetch("/api/agent-config").then(r => r.json()).then(d => setAgentConfigs(d.configs ?? [])).catch(() => {});
+    apiFetch("/api/agent-config").then(r => r.json()).then(d => setAgentConfigs(d.items ?? [])).catch(() => {});
   }, []);
 
   const loadEvals = useCallback(async () => {
     try {
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
-      setEvalOptions(data.prompts ?? []);
+      setEvalOptions(data.items ?? []);
     } catch { /* silent */ }
   }, []);
   useEffect(() => { loadEvals(); }, [loadEvals]);
@@ -162,7 +161,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         apiFetch(`/api/datasets/runs?datasetId=${id}`),
       ]);
       const runsData = await runsRes.json();
-      setRuns(runsData.runs ?? []);
+      setRuns(runsData.items ?? []);
     } catch { /* silent */ }
   }
 

@@ -94,7 +94,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
       const res = await apiFetch(`/api/user-threads?project=${encodeURIComponent(project)}`);
       if (res.ok) {
         const data = await res.json();
-        setThreads(data.threads ?? []);
+        setThreads(data.items ?? []);
       }
     } catch (e) { console.error(e); }
   }, [user, project]);
@@ -259,15 +259,15 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
 
     // fade-out 애니메이션과 메시지 로딩을 병렬 처리
     const messagesPromise = apiFetch(`/api/user-threads/${thread.id}/messages`)
-      .then((res) => (res.ok ? res.json() : { messages: [] }))
-      .catch(() => ({ messages: [] }));
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .catch(() => ({ items: [] }));
 
     const [data] = await Promise.all([
       messagesPromise,
       new Promise((resolve) => setTimeout(resolve, 150)),
     ]);
 
-    const loadedMessages = (data.messages ?? []).map((m: any) => ({
+    const loadedMessages = (data.items ?? []).map((m: any) => ({
       id: m.id,
       role: m.role as "user" | "assistant",
       content: m.content,
