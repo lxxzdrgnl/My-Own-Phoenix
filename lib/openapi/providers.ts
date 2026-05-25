@@ -15,7 +15,20 @@ export const PROVIDERS_PATHS: OpenAPIV3_1.PathsObject = {
         },
       ],
       responses: {
-        "200": { description: "Provider list with masked API keys" },
+        "200": {
+          description: "Provider list with masked API keys",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  items: { type: "array", items: { type: "object" } },
+                  nextCursor: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        },
         "401": STANDARD_ERROR_RESPONSES["401"],
         "500": STANDARD_ERROR_RESPONSES["500"],
       },

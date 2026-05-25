@@ -7,7 +7,20 @@ export const DATASETS_PATHS: OpenAPIV3_1.PathsObject = {
       tags: ["Datasets"],
       summary: "List datasets",
       responses: {
-        "200": { description: "Dataset list" },
+        "200": {
+          description: "Dataset list",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  items: { type: "array", items: { type: "object" } },
+                  nextCursor: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        },
         "401": STANDARD_ERROR_RESPONSES["401"],
         "500": STANDARD_ERROR_RESPONSES["500"],
       },
@@ -93,7 +106,20 @@ export const DATASETS_PATHS: OpenAPIV3_1.PathsObject = {
       tags: ["Datasets"],
       summary: "List dataset runs",
       responses: {
-        "200": { description: "Run list" },
+        "200": {
+          description: "Run list",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  items: { type: "array", items: { type: "object" } },
+                  nextCursor: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        },
         "401": STANDARD_ERROR_RESPONSES["401"],
         "500": STANDARD_ERROR_RESPONSES["500"],
       },

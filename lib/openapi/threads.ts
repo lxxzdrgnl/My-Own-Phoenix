@@ -11,7 +11,20 @@ export const THREADS_PATHS: OpenAPIV3_1.PathsObject = {
         { name: "project", in: "query", schema: { type: "string" } },
       ],
       responses: {
-        "200": { description: "Thread list" },
+        "200": {
+          description: "Thread list",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  items: { type: "array", items: { type: "object" } },
+                  nextCursor: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        },
         "401": STANDARD_ERROR_RESPONSES["401"],
         "500": STANDARD_ERROR_RESPONSES["500"],
       },
@@ -64,7 +77,20 @@ export const THREADS_PATHS: OpenAPIV3_1.PathsObject = {
       summary: "List messages in thread",
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
       responses: {
-        "200": { description: "Message list" },
+        "200": {
+          description: "Message list",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  items: { type: "array", items: { type: "object" } },
+                  nextCursor: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        },
         "401": STANDARD_ERROR_RESPONSES["401"],
         "404": STANDARD_ERROR_RESPONSES["404"],
         "500": STANDARD_ERROR_RESPONSES["500"],
