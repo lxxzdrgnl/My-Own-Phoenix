@@ -9,6 +9,7 @@ import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Quote } from "lucide-react";
 import { Nav } from "@/components/nav";
+import { logger } from "@/lib/logger";
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
@@ -26,7 +27,7 @@ export default function LoginPage() {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
       if (err?.code !== "auth/cancelled-popup-request") {
-        console.error("Login failed:", err);
+        logger.error("login failed", err);
       }
     }
   };

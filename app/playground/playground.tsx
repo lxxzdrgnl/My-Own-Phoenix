@@ -36,6 +36,7 @@ import { TraceList } from "./trace-list";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n";
 import { Heading, Label } from "@/components/ui/typography";
+import { logger } from "@/lib/logger";
 
 function filterKey(pid: string) {
   return `pg_filter_${pid}`;
@@ -106,7 +107,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
         setContentFilter(content ?? "ALL");
         return;
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("playground load filters failed", e); }
     setSpanKinds(new Set([]));
     setContentFilter("ALL");
   }
@@ -156,7 +157,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
       try {
         await deleteTrace(traceId);
       } catch (e) {
-        console.error(`Failed to delete ${traceId}`, e);
+        logger.error("trace delete failed", e, { traceId });
       }
     }
     if (selected && deleteSelection.has(selected.traceId)) {
@@ -188,7 +189,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
       }
       }
     } catch (e) {
-      console.error(e);
+      logger.error("playground load projects failed", e);
     }
   }, [projectId]);
 
@@ -200,7 +201,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
     try {
       setTraces(await fetchTraces(projectId, kindsStr, contentFilter));
     } catch (e) {
-      console.error(e);
+      logger.error("playground load traces failed", e);
     }
     setLoading(false);
   }, [projectId, spanKinds, contentFilter]);
@@ -222,7 +223,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
           });
       setVersionOptions(opts);
     } catch (e) {
-      console.error(e);
+      logger.error("playground load prompts failed", e);
     }
   }, [dbProjectId]);
 

@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 import { useEffect, useState, useCallback } from "react";
 import type { Project } from "@/lib/phoenix";
@@ -42,7 +43,7 @@ export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fi
         setSelectedProject(fixedProject);
       }
     } catch (e) {
-      console.error(e);
+      logger.error("evaluations load all failed", e);
     }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,7 +65,7 @@ export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fi
         setProjectConfigs(configRes.items ?? []);
         setGlobalPrompts(promptsRes.items ?? []);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("evaluations load project config failed", e); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -99,7 +100,7 @@ export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, evalName, enabled: newEnabled }),
       });
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("eval toggle failed", e); }
     loadProjectConfig(selectedProject);
   }
 

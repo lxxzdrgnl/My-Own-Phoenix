@@ -9,6 +9,7 @@ import { useProject } from "@/lib/project-context";
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
+import { logger } from "@/lib/logger";
 
 interface Detection {
   type: string;
@@ -89,7 +90,7 @@ export function PiiGuardPastRuns() {
         setRows(runs);
         if (runs.length > 0) setSelectedId(runs[0].id);
       })
-      .catch((e) => console.error(e))
+      .catch((e) => logger.error("pii-guard past runs load failed", e))
       .finally(() => setLoading(false));
   }, [projectId]);
 

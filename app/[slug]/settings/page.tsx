@@ -20,6 +20,7 @@ import { Text, Label } from "@/components/ui/typography";
 import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { logger } from "@/lib/logger";
 
 function useTabs() {
   const t = useT();
@@ -71,7 +72,7 @@ function ApiKeysTab() {
         const membersData = await membersRes.json();
         if (membersRes.ok) setIsOwner(membersData.currentRole === "owner");
       })
-      .catch(console.error);
+      .catch((e) => logger.error("api-keys tab init failed", e));
   }, [projectId]);
 
   // add provider key
@@ -287,7 +288,7 @@ function DangerTab() {
         setMembers(data.items || []);
         setCurrentRole(data.currentRole || "");
       })
-      .catch(console.error)
+      .catch((e) => logger.error("settings load members failed", e))
       .finally(() => setLoading(false));
   }, [projectId]);
 
@@ -437,14 +438,14 @@ function AgentTab() {
     apiFetch(`/api/connectors?projectId=${projectId}`)
       .then((r) => r.json())
       .then((data) => setConnectors(data.items || []))
-      .catch(console.error)
+      .catch((e) => logger.error("agent tab load connectors failed", e))
       .finally(() => setLoading(false));
 
     const interval = setInterval(() => {
       apiFetch(`/api/connectors?projectId=${projectId}`)
         .then((r) => r.json())
         .then((data) => setConnectors(data.items || []))
-        .catch(console.error);
+        .catch((e) => logger.error("agent tab poll connectors failed", e));
     }, 10000);
     return () => clearInterval(interval);
   }, [projectId]);

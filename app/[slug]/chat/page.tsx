@@ -5,6 +5,7 @@ import { useProject } from "@/lib/project-context";
 import { Assistant } from "@/app/assistant";
 import { AgentModelSelector } from "@/components/agent-model-selector";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 export default function ChatPage() {
   const { id: projectId, phoenixProject } = useProject();
@@ -22,7 +23,7 @@ export default function ChatPage() {
           setRelayUserId(online[0].userId);
         }
       })
-      .catch(console.error);
+      .catch((e) => logger.error("chat load connectors failed", e));
   }, [projectId, selectedValue]);
 
   const handleChange = (val: string) => {

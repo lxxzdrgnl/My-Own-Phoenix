@@ -29,6 +29,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useResourceList } from "@/lib/hooks/use-resource-list";
 import { Text } from "@/components/ui/typography";
 import { Stack } from "@/components/ui/stack";
+import { logger } from "@/lib/logger";
 
 interface VersionWithTags extends PromptVersion {
   tags: PromptTag[];
@@ -114,7 +115,7 @@ export function PromptsManager({ projectId }: { projectId: string }) {
       await apiFetch(
         `/api/projects/${encodeURIComponent(projectId)}/prompts?name=${encodeURIComponent(name)}`,
         { method: "DELETE" },
-      ).catch((e) => console.error("[prompts] mapping delete failed:", e));
+      ).catch((e) => logger.error("prompts mapping delete failed", e));
       await load();
     } catch (e: any) {
       alert(`Delete failed: ${e.message}`);
