@@ -54,15 +54,15 @@ export function EvaluationsManager({ fixedProject, projectId, globalMode }: { fi
         // Global mode: load all global evals (built-in + custom templates)
         const promptsRes = await apiFetch("/api/eval-prompts?includeGlobalTemplates=true").then((r) => r.json());
         setProjectConfigs([]);
-        setGlobalPrompts(promptsRes.prompts ?? []);
+        setGlobalPrompts(promptsRes.items ?? []);
       } else if (projectId) {
         // Both eval-config and eval-prompts are keyed by DB project id (cuid).
         const [configRes, promptsRes] = await Promise.all([
           apiFetch(`/api/eval-config?projectId=${encodeURIComponent(projectId)}`).then((r) => r.json()),
           apiFetch(`/api/eval-prompts?projectId=${encodeURIComponent(projectId)}`).then((r) => r.json()),
         ]);
-        setProjectConfigs(configRes.configs ?? []);
-        setGlobalPrompts(promptsRes.prompts ?? []);
+        setProjectConfigs(configRes.items ?? []);
+        setGlobalPrompts(promptsRes.items ?? []);
       }
     } catch (e) { console.error(e); }
     // eslint-disable-next-line react-hooks/exhaustive-deps

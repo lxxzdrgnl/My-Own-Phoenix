@@ -127,9 +127,9 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
   useEffect(() => {
     apiFetch("/api/eval-prompts")
       .then((r) => r.json())
-      .then((d: { prompts?: Array<{ name: string; outputMode?: string }> }) => {
+      .then((d: { items?: Array<{ name: string; outputMode?: string }> }) => {
         const m = new Map<string, EvalMeta>();
-        for (const p of d.prompts ?? []) {
+        for (const p of d.items ?? []) {
           m.set(p.name, { name: p.name, outputMode: p.outputMode === "score" ? "score" : "binary" });
         }
         setEvalMeta(m);
@@ -177,8 +177,8 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
     if (!projectId) return;
     apiFetch(`/api/eval-config?projectId=${encodeURIComponent(projectId)}`)
       .then((r) => r.json())
-      .then((d: { configs?: { evalName: string; enabled: boolean }[] }) => {
-        const list = (d.configs ?? []).filter((c) => c.enabled).map((c) => c.evalName);
+      .then((d: { items?: { evalName: string; enabled: boolean }[] }) => {
+        const list = (d.items ?? []).filter((c) => c.enabled).map((c) => c.evalName);
         setEnabledEvals(list);
       })
       .catch(() => {});

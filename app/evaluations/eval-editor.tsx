@@ -252,7 +252,7 @@ export function EvalEditor({
         .then((r) => r.json())
         .then((data) => {
           setTemplates(
-            (data.prompts || []).filter(
+            (data.items || []).filter(
               (p: EvalPrompt) => p.isCustom && !(p as any).projectId
             )
           );

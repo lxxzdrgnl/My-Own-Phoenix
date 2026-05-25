@@ -46,7 +46,7 @@ export function AnnotationForm({ open, onClose, spanId, existingAnnotations = []
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
       setEvalOptions(
-        (data.prompts ?? []).map((p: any) => ({
+        (data.items ?? []).map((p: any) => ({
           name: p.name,
           outputMode: p.outputMode ?? "binary",
           badgeLabel: p.badgeLabel ?? "",

@@ -33,7 +33,7 @@ export function refreshBadgeLabels() {
     .then((r) => r.json())
     .then((data) => {
       const labels: Record<string, string> = {};
-      for (const p of data.prompts ?? []) {
+      for (const p of data.items ?? []) {
         if (p.badgeLabel) labels[p.name] = p.badgeLabel;
       }
       _badgeLabels = labels;
