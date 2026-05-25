@@ -18,6 +18,7 @@ import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui
 import { type AnnotationData, type SpanData } from "@/lib/dashboard-utils";
 import { getWidget } from "@/components/dashboard/widgets/registry";
 import { LastUpdatedBadge } from "@/components/dashboard/last-updated-badge";
+import { Heading } from "@/components/ui/typography";
 
 // ─── Title sync & layout helpers ───
 
@@ -310,7 +311,7 @@ export default function DashboardPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b border-border/60 px-5 py-3">
-        <h1 className="text-xl font-semibold tracking-tight">{t.dashboard.title}</h1>
+        <Heading level="page">{t.dashboard.title}</Heading>
         <div className="h-4 w-px bg-border/60" />
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <RoleGate>
