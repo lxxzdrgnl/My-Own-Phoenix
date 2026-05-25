@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runGuard } from "@/lib/pii-guard";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { apiError, ErrorCode } from "@/lib/api-error";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     };
 
     if (typeof text !== "string" || !text.trim()) {
-      return NextResponse.json({ error: "text is required" }, { status: 400 });
+      return apiError(request, ErrorCode.BAD_REQUEST, "text is required");
     }
 
     const result = await runGuard(text, stage2 ?? "auto", { projectId });
@@ -50,9 +51,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (e) {
     logger.error("pii-guard processing failed", e, { route: "POST /api/pii-guard" });
-    return NextResponse.json(
-      { error: "PII guard processing failed" },
-      { status: 500 },
-    );
+    return apiError(request, ErrorCode.INTERNAL_SERVER_ERROR, "PII guard processing failed");
   }
 }
