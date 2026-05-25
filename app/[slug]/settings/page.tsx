@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
 import { useRouter } from "next/navigation";
 import { useProject } from "@/lib/project-context";
 import { MembersTab } from "./members-tab";
@@ -21,7 +22,6 @@ import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { logger } from "@/lib/logger";
-import { UI_FEEDBACK_RESET_MS } from "@/lib/config/timeouts";
 
 function useTabs() {
   const t = useT();
@@ -48,7 +48,7 @@ function ApiKeysTab() {
   const [newKey, setNewKey] = useState("");
   const [traceKey, setTraceKey] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   // providers list
   const {
@@ -126,9 +126,7 @@ function ApiKeysTab() {
 
   const handleCopyKey = () => {
     if (traceKey) {
-      navigator.clipboard.writeText(traceKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), UI_FEEDBACK_RESET_MS);
+      void copy(traceKey);
     }
   };
 

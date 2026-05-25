@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { batchInsertRows } from "@/lib/dataset-utils";
 import { requireProjectMember } from "@/lib/api-helpers";
+import { generateId } from "@/lib/utils";
 
 export const GET = authedHandler(async (request: NextRequest) => {
   const projectId = request.nextUrl.searchParams.get("projectId");
@@ -35,7 +36,7 @@ export const POST = authedHandler(async (request: NextRequest, uid: string) => {
     if (roleCheck instanceof NextResponse) return roleCheck;
   }
 
-  const id = `ds_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = generateId("ds", "_");
   const rowsArr: Record<string, string>[] = rows ?? [];
 
   await prisma.$executeRaw`

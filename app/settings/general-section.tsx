@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,7 +31,7 @@ export function GeneralSection() {
   const [hasKey, setHasKey] = useState(false);
   const [loading, setLoading] = useState(true);
   const [newKey, setNewKey] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
   const [generating, setGenerating] = useState(false);
 
   // Profile nickname state
@@ -132,9 +133,7 @@ export function GeneralSection() {
 
   const handleCopy = () => {
     if (newKey) {
-      navigator.clipboard.writeText(newKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), UI_FEEDBACK_RESET_MS);
+      void copy(newKey);
     }
   };
 

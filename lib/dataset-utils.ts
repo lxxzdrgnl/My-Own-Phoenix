@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { generateId } from "@/lib/utils";
 
 /**
  * Batch-insert rows into DatasetRow table using parameterized queries.
@@ -14,7 +15,7 @@ export async function batchInsertRows(
   for (let i = 0; i < rows.length; i += batchSize) {
     const chunk = rows.slice(i, i + batchSize);
     for (let j = 0; j < chunk.length; j++) {
-      const rowId = `dr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${startIndex + i + j}`;
+      const rowId = `${generateId("dr", "_")}_${startIndex + i + j}`;
       const data = JSON.stringify(chunk[j]);
       await prisma.$executeRaw`
         INSERT INTO "DatasetRow" (id, "datasetId", "rowIndex", data)
@@ -32,7 +33,7 @@ export async function batchInsertRunResults(
   results: Array<{ rowIdx: number; response: string; query?: string; evals: Record<string, unknown>; capture?: Record<string, unknown> }>,
 ): Promise<void> {
   for (const r of results) {
-    const id = `rr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${r.rowIdx}`;
+    const id = `${generateId("rr", "_")}_${r.rowIdx}`;
     const response = r.response ?? "";
     const query = r.query ?? "";
     const evals = JSON.stringify(r.evals ?? {});

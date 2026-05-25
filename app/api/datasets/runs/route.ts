@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { requireProjectMember } from "@/lib/api-helpers";
+import { generateId } from "@/lib/utils";
 
 export const GET = authedHandler(async (request: NextRequest) => {
   const datasetId = request.nextUrl.searchParams.get("datasetId");
@@ -31,7 +32,7 @@ export const POST = authedHandler(async (request: NextRequest, uid: string) => {
     }
   }
 
-  const id = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = generateId("run", "_");
   const evalNamesJson = JSON.stringify(evalNames ?? []);
   await prisma.$executeRaw`
     INSERT INTO "DatasetRun" (id, "datasetId", "agentSource", "evalNames", status, "createdAt")

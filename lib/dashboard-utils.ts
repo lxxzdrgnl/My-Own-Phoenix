@@ -25,12 +25,17 @@ export const avg = (nums: number[]) => (nums.length > 0 ? sum(nums) / nums.lengt
 export const pct = (n: number, d: number) => (d > 0 ? +((n / d) * 100).toFixed(1) : 0);
 export const round = (n: number, decimals = 0) => +n.toFixed(decimals);
 
+// ─── Date bucketing ───
+
+export function bucketByDay(d: Date | string): string { return new Date(d).toISOString().slice(0, 10); }
+export function bucketByHour(d: Date | string): string { return new Date(d).toISOString().slice(0, 13); }
+
 // ─── Date grouping ───
 
 export function groupByDate<T extends { time: string }>(items: T[]) {
   const map: Record<string, T[]> = {};
   for (const item of items) {
-    const d = new Date(item.time).toISOString().slice(0, 10);
+    const d = bucketByDay(item.time);
     (map[d] ??= []).push(item);
   }
   return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
@@ -76,7 +81,7 @@ export function modelCounts(spans: SpanData[]) {
 export function hourlyBuckets(spans: SpanData[]) {
   const byHour: Record<string, number> = {};
   for (const s of spans) {
-    const h = new Date(s.time).toISOString().slice(0, 13);
+    const h = bucketByHour(s.time);
     byHour[h] = (byHour[h] ?? 0) + 1;
   }
   return Object.entries(byHour).sort(([a], [b]) => a.localeCompare(b));

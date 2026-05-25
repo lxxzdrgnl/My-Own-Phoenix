@@ -11,6 +11,7 @@ import {
   chartOpts,
   isAnnotationPass,
   ANNOTATION_ORDER,
+  bucketByDay,
 } from "@/lib/dashboard-utils";
 import type { WidgetViewMode, WidgetColors } from "../widget-grid";
 
@@ -136,7 +137,7 @@ export function score_comparison({ annotations, viewMode, colors }: RenderProps)
   }
 
   if (viewMode === "trend") {
-    const allDates = [...new Set(annotations.filter((a) => names.includes(a.name)).map((a) => new Date(a.time).toISOString().slice(0, 10)))].sort();
+    const allDates = [...new Set(annotations.filter((a) => names.includes(a.name)).map((a) => bucketByDay(a.time)))].sort();
     return ch({
       xAxis: { categories: allDates.map((d) => d.slice(5)) },
       yAxis: PCT_AXIS,
@@ -144,7 +145,7 @@ export function score_comparison({ annotations, viewMode, colors }: RenderProps)
       series: names.map((name, idx) => ({
         type: "line" as const, name: labels[idx],
         data: allDates.map((d) => {
-          const scores = annotations.filter((a) => a.name === name && new Date(a.time).toISOString().slice(0, 10) === d).map((a) => a.score);
+          const scores = annotations.filter((a) => a.name === name && bucketByDay(a.time) === d).map((a) => a.score);
           return scores.length > 0 ? round(avg(scores) * 100, 1) : 0;
         }),
       })),

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Copy, Check } from "lucide-react";
-import { UI_FEEDBACK_RESET_MS } from "@/lib/config/timeouts";
+import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
 
 /* ── syntax colors (Material Theme – matches home page code snippet) ── */
 const C = {
@@ -103,11 +103,9 @@ function highlight(code: string, filename?: string): ReactNode {
 /* ── components ── */
 
 export function CodeBlock({ code, filename }: { code: string; filename?: string }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
   const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), UI_FEEDBACK_RESET_MS);
+    void copy(code);
   };
 
   return (
