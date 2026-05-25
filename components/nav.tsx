@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { LogOut, Globe, ChevronDown } from "lucide-react";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -12,28 +13,28 @@ import { AuthModal } from "@/components/modals/auth-modal";
 export function Nav({ fullWidth }: { fullWidth?: boolean } = {}) {
   const { user } = useAuth();
   const { locale, setLocale, t } = useI18n();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [langOpen, setLangOpen] = useState(false);
+  const authModal = useDisclosure();
+  const langDropdown = useDisclosure();
   const langRef = useRef<HTMLDivElement>(null);
   const dismissedRef = useRef(false);
 
   useEffect(() => {
-    if (!langOpen) return;
+    if (!langDropdown.isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
+      if (langRef.current && !langRef.current.contains(e.target as Node)) langDropdown.close();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [langOpen]);
+  }, [langDropdown.isOpen, langDropdown.close]);
 
   const handleModalClose = useCallback(() => {
-    setShowAuthModal(false);
+    authModal.close();
     dismissedRef.current = true;
-  }, []);
+  }, [authModal.close]);
 
   return (
     <>
-      <AuthModal open={showAuthModal} onClose={handleModalClose} />
+      <AuthModal open={authModal.isOpen} onClose={handleModalClose} />
       <nav className="border-b bg-background/80 backdrop-blur-sm">
         <div className={`flex items-center justify-between px-6 py-3.5 ${fullWidth ? "" : "mx-auto max-w-6xl"}`}>
           <Link href="/" className="text-sm font-bold tracking-tight hover:opacity-80 transition-opacity">
@@ -43,19 +44,19 @@ export function Nav({ fullWidth }: { fullWidth?: boolean } = {}) {
             {/* Language selector (custom dropdown) */}
             <div className="relative" ref={langRef}>
               <button
-                onClick={() => setLangOpen(!langOpen)}
+                onClick={langDropdown.toggle}
                 className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <Globe className="h-3.5 w-3.5" />
                 {locale === "ko" ? "한국어" : "English"}
-                <ChevronDown className={`h-3 w-3 transition-transform ${langOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className={`h-3 w-3 transition-transform ${langDropdown.isOpen ? "rotate-180" : ""}`} />
               </button>
-              {langOpen && (
+              {langDropdown.isOpen && (
                 <div className="absolute right-0 top-full z-50 mt-1 w-32 rounded-lg border bg-popover p-1 shadow-lg">
                   {([["ko", "한국어"], ["en", "English"]] as const).map(([code, label]) => (
                     <button
                       key={code}
-                      onClick={() => { setLocale(code); setLangOpen(false); }}
+                      onClick={() => { setLocale(code); langDropdown.close(); }}
                       className={`flex w-full items-center rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
                         locale === code ? "bg-accent text-accent-foreground" : "hover:bg-accent"
                       }`}
@@ -82,7 +83,7 @@ export function Nav({ fullWidth }: { fullWidth?: boolean } = {}) {
               </button>
             ) : (
               <button
-                onClick={() => setShowAuthModal(true)}
+                onClick={authModal.open}
                 className="rounded-lg bg-foreground px-4 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80"
               >
                 {t.nav.signIn}

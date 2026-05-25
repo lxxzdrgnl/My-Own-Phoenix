@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
+import { generateId } from "@/lib/utils";
 
 import {
   AssistantRuntimeProvider,
@@ -158,7 +159,7 @@ export function Assistant({ project = "default", projects = [], onProjectChange,
 
       // Create thread on first message — title = 첫 질문 (최대 30자)
       if (!threadIdRef.current) {
-        threadIdRef.current = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        threadIdRef.current = generateId("thread");
         const title = (userText || t.chat.newChat || "New Chat").slice(0, 30);
         try {
           const res = await apiFetch("/api/user-threads", {

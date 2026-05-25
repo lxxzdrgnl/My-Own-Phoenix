@@ -66,6 +66,15 @@
 - `lib/logger.ts` 의 `logger.info/warn/error` 사용
 - 금지: raw `console.log/.error/.warn` 직접 사용
 
+## 반복 유틸 / 훅 (함수화)
+
+반복 패턴은 추출된 유틸/훅을 사용 (raw 패턴 지양). PostToolUse hook이 raw 패턴 발견 시 경고:
+- ID 생성: `generateId(prefix, sep?)` (`@/lib/utils`) — raw `Date.now()`+`Math.random()` 금지
+- 날짜 버킷: `bucketByDay` / `bucketByHour` (`@/lib/dashboard-utils`) — raw `toISOString().slice(0,10|13)` 지양
+- 클립보드 복사: `useCopyToClipboard` (`@/lib/hooks/use-copy-to-clipboard`)
+- 모달/드롭다운 open/close: `useDisclosure` (`@/lib/hooks/use-disclosure`) — open 용 raw `useState(false)` 지양
+- 폼 제출: `useFormSubmit` (`@/lib/hooks/use-form-submit`) / 리스트: `useResourceList` (`@/lib/hooks/use-resource-list`)
+
 ## 하네스 토글
 
 작업 중 hook이 너무 짜증나면:

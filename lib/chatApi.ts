@@ -3,6 +3,7 @@ import {
   LangChainMessage,
   LangGraphCommand,
 } from "@assistant-ui/react-langgraph";
+import { generateId } from "@/lib/utils";
 
 // ── LangGraph adapter ────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ export const sendMessage = async (params: {
 
 export const createThreadRest = async () => {
   // REST agents don't have server-side threads — generate a local ID
-  return { thread_id: `rest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
+  return { thread_id: generateId("rest") };
 };
 
 /**

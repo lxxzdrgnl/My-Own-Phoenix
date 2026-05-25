@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, createContext, useContext, type ReactNode } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { ModalShell, ModalHeader, ModalBody } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
 
@@ -18,22 +19,22 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title, description, confirmText = "Confirm", variant = "destructive", onConfirm, trigger,
 }: ConfirmDialogProps) {
-  const [open, setOpen] = useState(false);
+  const dialog = useDisclosure();
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
     setLoading(true);
-    try { await onConfirm(); setOpen(false); } finally { setLoading(false); }
+    try { await onConfirm(); dialog.close(); } finally { setLoading(false); }
   };
 
   return (
     <>
-      <span onClick={() => setOpen(true)}>{trigger}</span>
-      <ModalShell open={open} onClose={() => setOpen(false)} size="sm">
+      <span onClick={dialog.open}>{trigger}</span>
+      <ModalShell open={dialog.isOpen} onClose={dialog.close} size="sm">
         <ModalHeader title={title} description={description} />
         <ModalBody>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={dialog.close}>Cancel</Button>
             <Button variant={variant} onClick={handleConfirm} disabled={loading}>{confirmText}</Button>
           </div>
         </ModalBody>

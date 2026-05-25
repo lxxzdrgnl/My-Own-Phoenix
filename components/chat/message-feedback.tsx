@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api-client";
 import { logger } from "@/lib/logger";
 
 import { useState, useCallback } from "react";
+import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard";
 import { ThumbsUp, ThumbsDown, Copy, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,7 @@ interface MessageFeedbackProps {
 export function MessageFeedback({ messageId, content, initialValue = null }: MessageFeedbackProps) {
   const { user } = useAuth();
   const [value, setValue] = useState<"up" | "down" | null>(initialValue);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const handleFeedback = useCallback(
     async (clicked: "up" | "down") => {
@@ -44,12 +45,9 @@ export function MessageFeedback({ messageId, content, initialValue = null }: Mes
   );
 
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (e) { logger.error("message-feedback clipboard copy failed", e); }
-  }, [content]);
+    const ok = await copy(content);
+    if (!ok) logger.error("message-feedback clipboard copy failed");
+  }, [content, copy]);
 
   if (!user) return null;
 

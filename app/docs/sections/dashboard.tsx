@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import {
   GridLayout,
   type LayoutItem,
@@ -85,7 +86,7 @@ function WidgetCard({ widget, onRemove }: { widget: WidgetDef; onRemove: () => v
   const [sizeClass, setSizeClass] = useState<"tiny" | "small" | "normal" | "large">("normal");
   const [narrow, setNarrow] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("summary");
-  const [optionsOpen, setOptionsOpen] = useState(false);
+  const widgetOptions = useDisclosure();
   const [colors, setColors] = useState<[string, string]>([...PAIR_PRESETS[0].colors]);
 
   const cycleMode = () => {
@@ -110,15 +111,15 @@ function WidgetCard({ widget, onRemove }: { widget: WidgetDef; onRemove: () => v
   }, []);
 
   useEffect(() => {
-    if (!optionsOpen) return;
+    if (!widgetOptions.isOpen) return;
     const handler = (e: MouseEvent) => {
       if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-        setOptionsOpen(false);
+        widgetOptions.close();
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [optionsOpen]);
+  }, [widgetOptions.isOpen, widgetOptions.close]);
 
   const styles = {
     tiny: { value: "text-lg", label: "text-[9px]", gap: "gap-0.5" },
@@ -150,18 +151,18 @@ function WidgetCard({ widget, onRemove }: { widget: WidgetDef; onRemove: () => v
           {/* Settings dropdown — matches real widget-grid.tsx */}
           <div className="relative" ref={optionsRef}>
             <button
-              onClick={() => setOptionsOpen(!optionsOpen)}
+              onClick={widgetOptions.toggle}
               className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
             >
               <Settings2 className="h-3.5 w-3.5" />
             </button>
-            {optionsOpen && (
+            {widgetOptions.isOpen && (
               <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl border bg-popover p-1 shadow-xl">
                 {/* View mode selector */}
                 {VIEW_ORDER.map((vm) => (
                   <button
                     key={vm}
-                    onClick={() => { setViewMode(vm); setOptionsOpen(false); }}
+                    onClick={() => { setViewMode(vm); widgetOptions.close(); }}
                     className={`flex w-full items-center rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
                       viewMode === vm ? "bg-accent text-accent-foreground" : "hover:bg-accent"
                     }`}
@@ -219,7 +220,7 @@ function WidgetCard({ widget, onRemove }: { widget: WidgetDef; onRemove: () => v
 
                 <div className="my-1 border-t border-border/40" />
                 <button
-                  onClick={() => { onRemove(); setOptionsOpen(false); }}
+                  onClick={() => { onRemove(); widgetOptions.close(); }}
                   className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10"
                 >
                   Remove Widget
@@ -300,7 +301,7 @@ function WidgetCard({ widget, onRemove }: { widget: WidgetDef; onRemove: () => v
 function DashboardPreview() {
   const [widgets, setWidgets] = useState<WidgetDef[]>(INITIAL_WIDGETS);
   const [layout, setLayout] = useState<LayoutItem[]>(INITIAL_LAYOUT);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const addWidgetMenu = useDisclosure();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -327,7 +328,7 @@ function DashboardPreview() {
     setWidgets((prev) => [...prev, ew]);
     const maxY = layout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
     setLayout((prev) => [...prev, { i: ew.id, x: 0, y: maxY, w: 1, h: 1, minW: 1, minH: 1 }]);
-    setMenuOpen(false);
+    addWidgetMenu.close();
   }, [layout]);
 
   return (
@@ -349,13 +350,13 @@ function DashboardPreview() {
         ))}
         <div className="relative ml-2">
           <button
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={addWidgetMenu.toggle}
             className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
           >
             <Plus className="h-3 w-3" />
             Add Widget
           </button>
-          {menuOpen && (
+          {addWidgetMenu.isOpen && (
             <div className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-xl border bg-popover p-1.5 shadow-xl">
               {available.length === 0 ? (
                 <div className="px-2.5 py-2 text-xs text-muted-foreground">

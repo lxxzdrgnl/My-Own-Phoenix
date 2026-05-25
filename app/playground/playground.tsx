@@ -37,6 +37,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n";
 import { Heading, Label } from "@/components/ui/typography";
 import { logger } from "@/lib/logger";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 
 function filterKey(pid: string) {
   return `pg_filter_${pid}`;
@@ -61,16 +62,16 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
   } | null>(null);
   const [spanKinds, setSpanKinds] = useState<Set<string>>(new Set());
   const [contentFilter, setContentFilter] = useState("ALL");
-  const [filterOpen, setFilterOpen] = useState(false);
+  const filterDropdown = useDisclosure();
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteModeVisible, setDeleteModeVisible] = useState(false);
   const [deleteSelection, setDeleteSelection] = useState<Set<string>>(
     new Set(),
   );
   const [deleting, setDeleting] = useState(false);
-  const [originalContextOpen, setOriginalContextOpen] = useState(false);
-  const [datasetModalOpen, setDatasetModalOpen] = useState(false);
-  const [promptsModalOpen, setPromptsModalOpen] = useState(false);
+  const originalContext = useDisclosure();
+  const datasetModal = useDisclosure();
+  const promptsModal = useDisclosure();
   const [annotateSpanId, setAnnotateSpanId] = useState<string | null>(null);
 
   const {
@@ -288,8 +289,8 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
             <div className="mt-2 flex items-center gap-1.5">
               <button
                 id="filter-btn"
-                onClick={() => setFilterOpen(!filterOpen)}
-                className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-colors hover:bg-accent ${filterOpen ? "border-primary bg-accent" : "bg-background"}`}
+                onClick={filterDropdown.toggle}
+                className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-colors hover:bg-accent ${filterDropdown.isOpen ? "border-primary bg-accent" : "bg-background"}`}
               >
                 <Filter className="h-3 w-3" />
                 {t.common.filter}
@@ -352,8 +353,8 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
               <div className="flex flex-col border-r" style={{ flex: "1 0 280px" }}>
                 <div className="shrink-0 border-b bg-muted/10 px-3 pt-3 pb-2">
                   <AddToDatasetModal
-                    open={datasetModalOpen}
-                    onClose={() => setDatasetModalOpen(false)}
+                    open={datasetModal.isOpen}
+                    onClose={datasetModal.close}
                     query={selected.query}
                     context={selected.context}
                     response={selected.response}
@@ -365,7 +366,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                     <div className="flex items-center gap-2">
                       <RoleGate>
                         <button
-                          onClick={() => setDatasetModalOpen(true)}
+                          onClick={datasetModal.open}
                           className="flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                           title="Add to dataset"
                         >
@@ -393,15 +394,15 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
                   {/* Context collapsible (read-only) */}
                   <div className="mt-1">
                     <button
-                      onClick={() => setOriginalContextOpen((v) => !v)}
+                      onClick={originalContext.toggle}
                       className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
                     >
                       <ChevronDown
-                        className={`h-3 w-3 transition-transform ${originalContextOpen ? "rotate-180" : ""}`}
+                        className={`h-3 w-3 transition-transform ${originalContext.isOpen ? "rotate-180" : ""}`}
                       />
                       {t.playground.context} ({selected.context.length.toLocaleString()} chars)
                     </button>
-                    {originalContextOpen && (
+                    {originalContext.isOpen && (
                       <textarea
                         value={selected.context}
                         readOnly
@@ -473,7 +474,7 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
               <Play className="h-4 w-4 fill-current" />
             </button>
             <button
-              onClick={() => setPromptsModalOpen(true)}
+              onClick={promptsModal.open}
               className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background text-muted-foreground transition hover:bg-accent hover:text-foreground"
               title={t.playground.managePrompts}
             >
@@ -485,9 +486,9 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
 
       {dbProjectId && (
         <PromptsModal
-          open={promptsModalOpen}
+          open={promptsModal.isOpen}
           projectId={dbProjectId}
-          onClose={() => setPromptsModalOpen(false)}
+          onClose={promptsModal.close}
           onChanged={loadPrompts}
         />
       )}
@@ -515,12 +516,12 @@ export function Playground({ fixedProject, dbProjectId }: { fixedProject?: strin
       />
 
       {/* Filter dropdown */}
-      {filterOpen && (
+      {filterDropdown.isOpen && (
         <FilterDropdown
           spanKinds={spanKinds}
           contentFilter={contentFilter}
           projectId={projectId}
-          onClose={() => setFilterOpen(false)}
+          onClose={filterDropdown.close}
           onSpanKindChange={setSpanKinds}
           onContentFilterChange={setContentFilter}
           onClearSelected={() => setSelected(null)}

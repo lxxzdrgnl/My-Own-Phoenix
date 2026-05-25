@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api-client";
 import { logger } from "@/lib/logger";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,7 +93,7 @@ interface CustomEval {
 
 export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
   const t = useT();
-  const [open, setOpen] = useState(false);
+  const menu = useDisclosure();
   const [customEvals, setCustomEvals] = useState<CustomEval[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -105,16 +106,16 @@ export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!menu.isOpen) return;
     loadCustomEvals();
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        menu.close();
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open, loadCustomEvals]);
+  }, [menu.isOpen, menu.close, loadCustomEvals]);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -122,12 +123,12 @@ export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
         variant="outline"
         size="sm"
         className="gap-1.5 text-sm"
-        onClick={() => setOpen(!open)}
+        onClick={menu.toggle}
       >
         <PlusIcon className="size-3.5" />
         {t.dashboard.addWidget}
       </Button>
-      {open && (
+      {menu.isOpen && (
         <div className="absolute left-0 top-full z-50 mt-1.5 max-h-80 w-64 overflow-y-auto rounded-xl border bg-popover p-1.5 shadow-xl">
           {WIDGET_GROUPS.map((group) => (
             <div key={group.label}>
@@ -142,7 +143,7 @@ export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
                     className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-base transition-colors hover:bg-accent"
                     onClick={() => {
                       onAdd(w.type, w.title);
-                      setOpen(false);
+                      menu.close();
                     }}
                   >
                     <Icon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -163,7 +164,7 @@ export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
                   className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-base transition-colors hover:bg-accent"
                   onClick={() => {
                     onAdd(`eval_${e.name}`, e.name);
-                    setOpen(false);
+                    menu.close();
                   }}
                 >
                   <FlaskConical className="h-3.5 w-3.5 text-muted-foreground" />

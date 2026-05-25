@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { RefreshCw, Filter, Play, Pencil, Inbox, ChevronDown, X, Plus, Trash2 } from "lucide-react";
 import { Callout } from "../code-block";
 import { useT } from "@/lib/i18n";
@@ -169,7 +170,7 @@ const PROMPT_OPTIONS = [
 function PlaygroundPreview() {
   const [selectedId, setSelectedId] = useState("t1");
   const selected = MOCK_TRACES.find((t) => t.id === selectedId)!;
-  const [contextOpen, setContextOpen] = useState(false);
+  const originalContext = useDisclosure();
   const [nextId, setNextId] = useState(3);
   const [columns, setColumns] = useState<ColumnState[]>([
     { id: 1, label: "Prompt 1", promptLabel: PROMPT_OPTIONS[0], running: false, result: null, contextOpen: false },
@@ -310,10 +311,10 @@ function PlaygroundPreview() {
             />
             <div className="mt-1">
               <button
-                onClick={() => setContextOpen(!contextOpen)}
+                onClick={originalContext.toggle}
                 className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
               >
-                <ChevronDown className={`h-3 w-3 transition-transform ${contextOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className={`h-3 w-3 transition-transform ${originalContext.isOpen ? "rotate-180" : ""}`} />
                 Context (4,003 chars)
               </button>
             </div>

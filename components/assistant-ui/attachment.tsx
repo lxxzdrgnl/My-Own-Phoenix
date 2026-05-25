@@ -1,6 +1,7 @@
 "use client";
 
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { XIcon, PlusIcon, FileText } from "lucide-react";
 import {
   AttachmentPrimitive,
@@ -78,7 +79,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
 
 const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
   const src = useAttachmentSrc();
-  const [open, setOpen] = useState(false);
+  const previewModal = useDisclosure();
 
   if (!src) return children;
 
@@ -86,16 +87,16 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
     <>
       <div
         className="aui-attachment-preview-trigger cursor-pointer transition-colors hover:bg-accent/50"
-        onClick={() => setOpen(true)}
+        onClick={previewModal.open}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === "Enter" && setOpen(true)}
+        onKeyDown={(e) => e.key === "Enter" && previewModal.open()}
       >
         {children}
       </div>
       <ModalShell
-        open={open}
-        onClose={() => setOpen(false)}
+        open={previewModal.isOpen}
+        onClose={previewModal.close}
         size="lg"
         className="aui-attachment-preview-dialog-content p-2 [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0! [&_svg]:text-background [&>button]:hover:[&_svg]:text-destructive"
       >
