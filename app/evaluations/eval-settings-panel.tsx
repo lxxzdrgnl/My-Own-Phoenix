@@ -6,6 +6,8 @@ import { apiFetch } from "@/lib/api-client";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { Zap, MessageSquare, CircleOff, Check, ArrowRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack } from "@/components/ui/stack";
 
 const CONTEXT_SOURCES = [
   {
@@ -94,23 +96,17 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl p-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-xl font-semibold tracking-tight">{t.evaluations.evalSettings}</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {t.evaluations.configureDesc}
-          </p>
-        </div>
+        <Stack gap="xs" className="mb-8">
+          <Heading level="page" as="h1">{t.evaluations.evalSettings}</Heading>
+          <Text variant="caption" className="mt-1.5">{t.evaluations.configureDesc}</Text>
+        </Stack>
 
         {/* Context Source */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                {t.evaluations.contextSource}
-              </h3>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {t.evaluations.contextSourceDesc}
-              </p>
+              <Heading level="sub">{t.evaluations.contextSource}</Heading>
+              <Text variant="caption" className="mt-1">{t.evaluations.contextSourceDesc}</Text>
             </div>
             {saved && (
               <span className="flex items-center gap-1 text-xs text-foreground font-medium animate-in fade-in">
@@ -194,16 +190,14 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
                     );
                   })()}
                   <div>
-                    <h4 className="text-sm font-semibold tracking-tight">{displaySource.label}</h4>
-                    <p className="text-[11px] text-muted-foreground">{displaySource.desc}</p>
+                    <Heading level="section" as="h4" className="text-sm">{displaySource.label}</Heading>
+                    <Text variant="caption">{displaySource.desc}</Text>
                   </div>
                 </div>
 
                 {/* How it works */}
                 <div className="mb-4">
-                  <h5 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2.5">
-                    {t.evaluations.howItWorks}
-                  </h5>
+                  <Heading level="sub" as="h5" className="mb-2.5 text-muted-foreground/50">{t.evaluations.howItWorks}</Heading>
                   <div className="space-y-2">
                     {displaySource.details.map((d, i) => (
                       <div key={i} className="flex gap-2.5">
@@ -221,19 +215,13 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
 
                 {/* When to use */}
                 <div className="mb-4">
-                  <h5 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2">
-                    {t.evaluations.whenToUse}
-                  </h5>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    {displaySource.useCase}
-                  </p>
+                  <Heading level="sub" as="h5" className="mb-2 text-muted-foreground/50">{t.evaluations.whenToUse}</Heading>
+                  <Text variant="caption" className="leading-relaxed">{displaySource.useCase}</Text>
                 </div>
 
                 {/* Suitable agents */}
                 <div>
-                  <h5 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2">
-                    {t.evaluations.suitableFor}
-                  </h5>
+                  <Heading level="sub" as="h5" className="mb-2 text-muted-foreground/50">{t.evaluations.suitableFor}</Heading>
                   <div className="flex flex-wrap gap-1">
                     {displaySource.agents.map((a) => (
                       <span key={a} className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
