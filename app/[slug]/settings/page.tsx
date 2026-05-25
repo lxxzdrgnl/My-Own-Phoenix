@@ -284,7 +284,7 @@ function DangerTab() {
     apiFetch(`/api/projects/${projectId}/members`)
       .then((r) => r.json())
       .then((data) => {
-        setMembers(data.members || []);
+        setMembers(data.items || []);
         setCurrentRole(data.currentRole || "");
       })
       .catch(console.error)
@@ -436,14 +436,14 @@ function AgentTab() {
   useEffect(() => {
     apiFetch(`/api/connectors?projectId=${projectId}`)
       .then((r) => r.json())
-      .then((data) => setConnectors(data.connectors || []))
+      .then((data) => setConnectors(data.items || []))
       .catch(console.error)
       .finally(() => setLoading(false));
 
     const interval = setInterval(() => {
       apiFetch(`/api/connectors?projectId=${projectId}`)
         .then((r) => r.json())
-        .then((data) => setConnectors(data.connectors || []))
+        .then((data) => setConnectors(data.items || []))
         .catch(console.error);
     }, 10000);
     return () => clearInterval(interval);

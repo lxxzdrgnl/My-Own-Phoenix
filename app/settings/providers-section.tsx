@@ -36,7 +36,7 @@ export function ProvidersSection() {
     try {
       const res = await apiFetch("/api/providers");
       const data = await res.json();
-      setProviders(data.providers ?? []);
+      setProviders(data.items ?? []);
     } catch { console.error("Failed to load providers"); }
     setLoading(false);
   }, []);

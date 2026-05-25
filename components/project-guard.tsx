@@ -34,8 +34,8 @@ export function ProjectGuard({ projectId, project, children }: ProjectGuardProps
 
     apiFetch(`/api/projects`)
       .then((res) => res.json())
-      .then((projects: { id: string; role: string }[]) => {
-        const membership = projects.find((p) => p.id === projectId);
+      .then((data: { items: { id: string; role: string }[] }) => {
+        const membership = (data.items ?? []).find((p) => p.id === projectId);
         if (membership) {
           setRole(membership.role as "owner" | "editor" | "viewer");
           setStatus("ok");
