@@ -3,14 +3,32 @@ import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { requireProjectMemberByPhoenix } from "@/lib/api-helpers";
 
-export const GET = authedHandler(async (req: NextRequest) => {
+export const GET = authedHandler(async (req: NextRequest, uid: string) => {
   const project = req.nextUrl.searchParams.get("project");
 
-  // If no project specified, return all configs (for alias lookup)
+  // If no project specified, return only configs the user is a member of
   if (!project) {
-    const configs = await prisma.agentConfig.findMany({ include: { template: true } });
+    if (uid === "internal-service") {
+      const configs = await prisma.agentConfig.findMany({ include: { template: true } });
+      return NextResponse.json({ configs });
+    }
+    // Filter to projects where the user is a member
+    const memberships = await prisma.projectMember.findMany({
+      where: { userId: uid },
+      select: { project: { select: { phoenixProject: true } } },
+    });
+    const phoenixProjects = memberships
+      .map((m) => m.project?.phoenixProject)
+      .filter((p): p is string => !!p);
+    const configs = await prisma.agentConfig.findMany({
+      where: { projectName: { in: phoenixProjects } },
+      include: { template: true },
+    });
     return NextResponse.json({ configs });
   }
+
+  const roleCheck = await requireProjectMemberByPhoenix(req, project, uid);
+  if (roleCheck instanceof NextResponse) return roleCheck;
 
   const config = await prisma.agentConfig.findUnique({ where: { projectName: project }, include: { template: true } });
   return NextResponse.json({ config: config ?? null });
