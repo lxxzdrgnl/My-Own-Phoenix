@@ -81,22 +81,22 @@ export function ProjectSelector({ project, projects, onChange, onAdd, size = "md
     <div className="relative" ref={ref}>
       {/* Trigger */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={dropdown.toggle}
         className={`flex w-full items-center gap-2 rounded-lg border border-border/60 bg-muted/20 text-left transition-colors hover:bg-muted/40 ${isSm ? "px-2.5 py-2" : "px-3 py-1.5"}`}
       >
         <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
         <span className={`flex-1 truncate font-semibold ${isSm ? "text-xs" : "text-sm"}`}>{project}</span>
-        <ChevronDown className={`h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform ${dropdown.isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {/* Dropdown */}
-      {open && (
+      {dropdown.isOpen && (
         <div className={`absolute ${isSm ? "left-0 right-0" : "left-0 min-w-[180px]"} top-full z-50 mt-1 overflow-hidden rounded-xl border bg-popover shadow-lg`}>
           <div className="max-h-48 overflow-y-auto py-1">
             {projects.map((p) => (
               <button
                 key={p.id}
-                onClick={() => { onChange(p.name); setOpen(false); }}
+                onClick={() => { onChange(p.name); dropdown.close(); }}
                 className={`flex w-full items-center gap-2 px-3 py-1.5 ${isSm ? "text-xs" : "text-sm"} font-medium transition-colors ${
                   project === p.name ? "bg-accent text-accent-foreground" : "text-foreground/80 hover:bg-muted"
                 }`}
@@ -111,7 +111,7 @@ export function ProjectSelector({ project, projects, onChange, onAdd, size = "md
             <>
               <div className="border-t border-border/40" />
               <button
-                onClick={() => { setOpen(false); setAdding(true); setTimeout(() => inputRef.current?.focus(), 0); }}
+                onClick={() => { dropdown.close(); setAdding(true); setTimeout(() => inputRef.current?.focus(), 0); }}
                 className={`flex w-full items-center gap-2 px-3 py-2 ${isSm ? "text-xs" : "text-sm"} font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground`}
               >
                 <Plus className="h-3 w-3" />
