@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Upload, Download, Settings2 } from "lucide-react";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { Heading, Text } from "@/components/ui/typography";
 
 interface DatasetToolbarProps {
   datasetName: string;
@@ -31,10 +32,10 @@ export function DatasetToolbar({
   return (
     <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">{datasetName}</h1>
-        <p className="text-[10px] text-muted-foreground">
+        <Heading level="page" className="text-xl">{datasetName}</Heading>
+        <Text variant="caption" className="text-[10px]">
           {totalRows.toLocaleString()} {t.datasets.prompts.toLowerCase()} · {headerCount} {t.datasets.columns}
-        </p>
+        </Text>
       </div>
       <div className="flex items-center gap-1.5">
         {currentRunId && (
