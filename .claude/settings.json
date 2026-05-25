@@ -28,6 +28,6 @@
   },
   "env": {
     "PHOENIX_HARNESS": "soft",
-    "PHOENIX_HARNESS_STAGE": "2"
+    "PHOENIX_HARNESS_STAGE": "3"
   }
 }
