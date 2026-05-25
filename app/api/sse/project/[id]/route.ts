@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { addWriter } from "@/lib/sse-broadcast";
 import { verifyAuth } from "@/lib/auth-server";
 import { prisma } from "@/lib/prisma";
+import { SSE_PING_INTERVAL_MS } from "@/lib/config/timeouts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,7 +54,7 @@ export async function GET(
         send(`event: ${msg.type}\ndata: ${JSON.stringify(msg)}\n\n`);
       });
 
-      const ping = setInterval(() => send(`: ping ${Date.now()}\n\n`), 30000);
+      const ping = setInterval(() => send(`: ping ${Date.now()}\n\n`), SSE_PING_INTERVAL_MS);
 
       const abort = () => {
         if (closed) return;

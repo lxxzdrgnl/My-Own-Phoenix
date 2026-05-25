@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createHash } from "crypto";
 import { rateLimit } from "@/lib/rate-limit";
+import { RATE_LIMIT_COLLECT } from "@/lib/config/rate-limits";
 import {
   decodeOtlpProtobufTraces,
   encodeOtlpTraceResponse,
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Rate limit
-  const { allowed } = rateLimit(`collect:${project.id}`, 1000, 60_000);
+  const { allowed } = rateLimit(`collect:${project.id}`, RATE_LIMIT_COLLECT.max, RATE_LIMIT_COLLECT.windowMs);
   if (!allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }

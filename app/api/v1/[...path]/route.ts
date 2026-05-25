@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth-server";
+import { PHOENIX_FETCH_TIMEOUT_MS } from "@/lib/config/timeouts";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -9,7 +10,7 @@ async function proxyToPhoenix(req: NextRequest, method: string) {
   const url = `${PHOENIX}${segments}${search}`;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const options: RequestInit = { method, headers, signal: AbortSignal.timeout(15000) };
+  const options: RequestInit = { method, headers, signal: AbortSignal.timeout(PHOENIX_FETCH_TIMEOUT_MS) };
 
   if (method !== "GET" && method !== "HEAD") {
     options.body = await req.text();

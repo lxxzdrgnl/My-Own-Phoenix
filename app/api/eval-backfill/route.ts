@@ -5,6 +5,7 @@ import { PASS_LABELS } from "@/lib/constants";
 import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
 import { requireProjectMember } from "@/lib/api-helpers";
 import { logger } from "@/lib/logger";
+import { PHOENIX_FETCH_TIMEOUT_MS, DEFAULT_API_TIMEOUT_MS } from "@/lib/config/timeouts";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -12,7 +13,7 @@ const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
 async function phoenixGetSpans(project: string, startTime: string, endTime: string) {
   const params = new URLSearchParams({ limit: "200", start_time: startTime, end_time: endTime });
-  const res = await fetch(`${PHOENIX}/v1/projects/${project}/spans?${params}`, { signal: AbortSignal.timeout(15000) });
+  const res = await fetch(`${PHOENIX}/v1/projects/${project}/spans?${params}`, { signal: AbortSignal.timeout(PHOENIX_FETCH_TIMEOUT_MS) });
   const data = await res.json();
   return (data.data ?? []) as Record<string, unknown>[];
 }
@@ -22,7 +23,7 @@ async function phoenixGetAnnotations(project: string, spanIds: string[]): Promis
   const params = new URLSearchParams();
   spanIds.slice(0, 100).forEach((id) => params.append("span_ids", id));
   params.set("limit", "1000");
-  const res = await fetch(`${PHOENIX}/v1/projects/${project}/span_annotations?${params}`, { signal: AbortSignal.timeout(10000) });
+  const res = await fetch(`${PHOENIX}/v1/projects/${project}/span_annotations?${params}`, { signal: AbortSignal.timeout(DEFAULT_API_TIMEOUT_MS) });
   const data = await res.json();
   const result: Record<string, Set<string>> = {};
   for (const a of data.data ?? []) {
@@ -39,7 +40,7 @@ async function phoenixUploadAnnotation(spanId: string, name: string, kind: strin
     body: JSON.stringify({
       data: [{ span_id: spanId, name, annotator_kind: kind, result: { label, score, explanation } }],
     }),
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(DEFAULT_API_TIMEOUT_MS),
   });
 }
 

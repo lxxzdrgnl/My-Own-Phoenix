@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { MY_PHENIX_PATHS, MY_PHENIX_INFO, SECURITY_SCHEMES, ERROR_SCHEMAS } from "@/lib/openapi";
 import { logger } from "@/lib/logger";
+import { SHORT_API_TIMEOUT_MS } from "@/lib/config/timeouts";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -43,7 +44,7 @@ export async function GET() {
   let phoenixSchemas: Record<string, unknown> = {};
 
   try {
-    const res = await fetch(`${PHOENIX}/openapi.json`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${PHOENIX}/openapi.json`, { signal: AbortSignal.timeout(SHORT_API_TIMEOUT_MS) });
     if (res.ok) {
       const phoenixSpec = await res.json();
       for (const [path, methods] of Object.entries(phoenixSpec.paths ?? {})) {

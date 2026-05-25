@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
 import { requireProjectMember } from "@/lib/api-helpers";
 import { deleteSpanAnnotation } from "@/lib/phoenix-db";
+import { DEFAULT_API_TIMEOUT_MS } from "@/lib/config/timeouts";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -49,7 +50,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
         result: { label: label ?? "", score: score ?? 0, explanation: explanation ?? "" },
       }],
     }),
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(DEFAULT_API_TIMEOUT_MS),
   });
 
   if (!res.ok) {
