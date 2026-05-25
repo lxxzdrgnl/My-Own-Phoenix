@@ -4,6 +4,9 @@ import { useMemo, useState, useEffect } from "react";
 import { LoadingState } from "@/components/ui/empty-state";
 import { apiFetch } from "@/lib/api-client";
 import { useProject } from "@/lib/project-context";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
 
 // ─── Types (matches JSONL from dexter eval results) ───
 
@@ -103,7 +106,7 @@ export function PiiGuardDashboard() {
   if (loading) return <LoadingState />;
 
   return (
-    <div className="space-y-6">
+    <Stack gap="lg">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
         <KpiCard label="PRECISION" value={metrics.precision.toFixed(3)} goal="≥0.90" />
@@ -121,7 +124,7 @@ export function PiiGuardDashboard() {
 
       {/* Charts */}
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Charts</h2>
+        <Heading level="section" className="mb-3">Charts</Heading>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {/* Outcome Distribution */}
           <ChartCard title="Outcome Distribution">
@@ -184,7 +187,7 @@ export function PiiGuardDashboard() {
                   </div>
                 ))}
               {Object.keys(piiTypeBreakdown).length === 0 && (
-                <p className="text-xs text-muted-foreground">No PII detected</p>
+                <Text variant="caption">No PII detected</Text>
               )}
             </div>
           </ChartCard>
@@ -198,7 +201,7 @@ export function PiiGuardDashboard() {
           <ChartCard title="Output Guard Block Rate">
             <div className="flex flex-col items-center gap-2">
               <div className="text-3xl font-bold">{outputGuardStats.blocked}/{outputGuardStats.total}</div>
-              <div className="text-xs text-muted-foreground">Cross-session attempts blocked</div>
+              <Text variant="caption">Cross-session attempts blocked</Text>
               <div className="flex h-4 w-full overflow-hidden rounded-full bg-muted">
                 {outputGuardStats.total > 0 && (
                   <>
@@ -220,7 +223,7 @@ export function PiiGuardDashboard() {
 
       {/* Detail Table */}
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Detail</h2>
+        <Heading level="section" className="mb-3">Detail</Heading>
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <thead>
@@ -261,7 +264,7 @@ export function PiiGuardDashboard() {
           </table>
         </div>
       </div>
-    </div>
+    </Stack>
   );
 }
 
@@ -280,10 +283,9 @@ function KpiCard({ label, value, goal, sub }: { label: string; value: string; go
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
-      <h3 className="text-sm font-semibold">{title}</h3>
+    <SectionCard title={title} variant="bordered">
       {children}
-    </div>
+    </SectionCard>
   );
 }
 

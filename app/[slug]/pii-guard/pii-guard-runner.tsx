@@ -10,6 +10,10 @@ import type { PIIDetection, PiiGuardResult } from "@/lib/pii-guard";
 import { useProject } from "@/lib/project-context";
 import { PiiGuardPastRuns } from "./pii-guard-past-runs";
 import { EvalDashboard } from "../eval-dashboard/eval-dashboard";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
+import { LoadingButton } from "@/components/ui/loading-button";
 
 const DEFAULT_INPUT =
   "안녕하세요. 김민수입니다. 주민등록번호는 901225-1234567이고 연락처는 010-1234-5678 입니다. 신한은행 110-123-456789로 입금 부탁드려요.";

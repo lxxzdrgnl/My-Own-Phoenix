@@ -6,6 +6,9 @@ import { Clock, ChevronRight, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api-client";
 import { useProject } from "@/lib/project-context";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
 
 interface Detection {
   type: string;
@@ -198,13 +201,13 @@ export function PiiGuardPastRuns() {
       </div>
 
       {/* Right: detail */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+      <Stack gap="md" className="flex-1 overflow-y-auto p-5">
         {selected ? (
           <RowDetail row={selected} />
         ) : (
-          <p className="text-sm text-muted-foreground">Select a row to view details</p>
+          <Text variant="caption">Select a row to view details</Text>
         )}
-      </div>
+      </Stack>
     </div>
   );
 }
@@ -218,7 +221,7 @@ function RowDetail({ row }: { row: PiiEvalRow }) {
     <>
       {/* Header */}
       <div className="flex items-center gap-3">
-        <h2 className="text-lg font-semibold">{row.id}</h2>
+        <Heading level="section">{row.id}</Heading>
         <span className={`rounded px-2 py-0.5 text-xs font-medium ${CATEGORY_BADGE[row.category] ?? "bg-muted"}`}>
           {row.category}
         </span>
@@ -229,29 +232,23 @@ function RowDetail({ row }: { row: PiiEvalRow }) {
       </div>
 
       {/* Input */}
-      <div className="rounded-lg border bg-card p-4 space-y-1.5">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Input</h3>
+      <SectionCard title="Input" variant="bordered">
         <p className="text-sm leading-relaxed">{row.input}</p>
-      </div>
+      </SectionCard>
 
       {/* Expected vs Actual */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border bg-card p-4 space-y-1.5">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Expected Masked</h3>
+        <SectionCard title="Expected Masked" variant="bordered">
           <p className="text-sm font-mono leading-relaxed whitespace-pre-wrap">{row.expected_masked}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-4 space-y-1.5">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Actual Masked</h3>
+        </SectionCard>
+        <SectionCard title="Actual Masked" variant="bordered">
           <p className="text-sm font-mono leading-relaxed whitespace-pre-wrap">{row.actual_masked}</p>
-        </div>
+        </SectionCard>
       </div>
 
       {/* Detections */}
       {combined.length > 0 && (
-        <div className="rounded-lg border bg-card p-4 space-y-2">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Detections ({combined.length})
-          </h3>
+        <SectionCard title={`Detections (${combined.length})`} variant="bordered">
           <div className="space-y-1.5">
             {combined.map((d, i) => (
               <div key={i} className="flex items-center gap-2.5">
@@ -263,22 +260,20 @@ function RowDetail({ row }: { row: PiiEvalRow }) {
               </div>
             ))}
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {/* Stage breakdown */}
-      <div className="rounded-lg border bg-card p-4 space-y-3">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Stage Breakdown</h3>
+      <SectionCard title="Stage Breakdown" variant="bordered">
         <div className="grid grid-cols-2 gap-3">
           <StageInfo label="Stage 1 (Regex)" count={stage1.length} detections={stage1} />
           <StageInfo label="Stage 2 (LLM)" count={stage2.length} detections={stage2} />
         </div>
-      </div>
+      </SectionCard>
 
       {/* Output Guard */}
       {row.output_guard && (
-        <div className="rounded-lg border bg-card p-4 space-y-2">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Output Guard</h3>
+        <SectionCard title="Output Guard" variant="bordered">
           <div className="flex items-center gap-3 text-sm">
             <span>Blocked: <strong>{row.output_guard.blocked ? "Yes" : "No"}</strong></span>
             <span>Expected: <strong>{row.output_guard.expected_blocked ? "Yes" : "No"}</strong></span>
@@ -287,11 +282,11 @@ function RowDetail({ row }: { row: PiiEvalRow }) {
             </span>
           </div>
           {row.output_guard.leaked_tokens.length > 0 && (
-            <div className="text-xs text-muted-foreground">
+            <Text variant="caption">
               Leaked tokens: {row.output_guard.leaked_tokens.join(", ")}
-            </div>
+            </Text>
           )}
-        </div>
+        </SectionCard>
       )}
     </>
   );
@@ -305,7 +300,7 @@ function StageInfo({ label, count, detections }: { label: string; count: number;
         <span className="text-xs text-muted-foreground">{count} hits</span>
       </div>
       {detections.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No detections</p>
+        <Text variant="caption">No detections</Text>
       ) : (
         detections.map((d, i) => (
           <div key={i} className="flex items-center gap-1.5 text-xs">
