@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Copy, Check } from "lucide-react";
+import { UI_FEEDBACK_RESET_MS } from "@/lib/config/timeouts";
 
 /* ── syntax colors (Material Theme – matches home page code snippet) ── */
 const C = {
@@ -106,7 +107,7 @@ export function CodeBlock({ code, filename }: { code: string; filename?: string 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), UI_FEEDBACK_RESET_MS);
   };
 
   return (

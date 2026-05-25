@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
+import { LLM_TIMEOUT_MS } from "@/lib/config/timeouts";
 
 export interface LlmRequest {
   model: string;
@@ -65,7 +66,7 @@ async function callOpenAICompatible(
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
 
   const data = await res.json();
@@ -103,7 +104,7 @@ async function callAnthropic(apiKey: string, req: LlmRequest): Promise<LlmRespon
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
 
   const data = await res.json();
@@ -145,7 +146,7 @@ async function callGoogle(apiKey: string, req: LlmRequest): Promise<LlmResponse>
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
 
   const data = await res.json();

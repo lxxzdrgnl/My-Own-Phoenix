@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
+import { DEFAULT_API_TIMEOUT_MS } from "@/lib/config/timeouts";
 
 const TEST_ENDPOINTS: Record<string, { url: string; buildRequest: (key: string) => { headers: Record<string, string>; body: string } }> = {
   openai: {
@@ -60,7 +61,7 @@ export const POST = authedHandler(async (req: NextRequest) => {
       method,
       headers,
       ...(body ? { body } : {}),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(DEFAULT_API_TIMEOUT_MS),
     });
 
     if (res.ok || res.status === 200 || res.status === 201) {

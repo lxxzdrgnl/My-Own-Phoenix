@@ -22,6 +22,7 @@ import { SectionCard } from "@/components/ui/section-card";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { InlineError } from "@/components/ui/inline-error";
 import { logger } from "@/lib/logger";
+import { UI_FEEDBACK_RESET_MS } from "@/lib/config/timeouts";
 
 export function GeneralSection() {
   const { user } = useAuth();
@@ -50,7 +51,7 @@ export function GeneralSection() {
         setSavedNickname(nickname.trim());
         setNickname(nickname.trim());
         setProfileSaved(true);
-        setTimeout(() => setProfileSaved(false), 2000);
+        setTimeout(() => setProfileSaved(false), UI_FEEDBACK_RESET_MS);
       },
     }
   );
@@ -62,7 +63,7 @@ export function GeneralSection() {
       onSuccess: (_data) => {
         setSavedTemplate(template);
         setTemplateSaved(true);
-        setTimeout(() => setTemplateSaved(false), 2000);
+        setTimeout(() => setTemplateSaved(false), UI_FEEDBACK_RESET_MS);
       },
     }
   );
@@ -133,7 +134,7 @@ export function GeneralSection() {
     if (newKey) {
       navigator.clipboard.writeText(newKey);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), UI_FEEDBACK_RESET_MS);
     }
   };
 

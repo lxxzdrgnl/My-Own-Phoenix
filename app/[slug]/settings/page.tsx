@@ -21,6 +21,7 @@ import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { logger } from "@/lib/logger";
+import { UI_FEEDBACK_RESET_MS } from "@/lib/config/timeouts";
 
 function useTabs() {
   const t = useT();
@@ -127,7 +128,7 @@ function ApiKeysTab() {
     if (traceKey) {
       navigator.clipboard.writeText(traceKey);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), UI_FEEDBACK_RESET_MS);
     }
   };
 

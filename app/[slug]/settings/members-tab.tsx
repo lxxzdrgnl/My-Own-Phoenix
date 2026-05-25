@@ -16,6 +16,7 @@ import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
 import { Text, Label } from "@/components/ui/typography";
 import { logger } from "@/lib/logger";
+import { UI_FEEDBACK_RESET_MS } from "@/lib/config/timeouts";
 
 interface Member {
   id: string;
@@ -96,7 +97,7 @@ export function MembersTab() {
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopied(code);
-    setTimeout(() => setCopied(null), 2000);
+    setTimeout(() => setCopied(null), UI_FEEDBACK_RESET_MS);
   };
 
   const handleRoleChange = async (userId: string, role: string) => {

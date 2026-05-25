@@ -8,6 +8,7 @@ import { Zap, MessageSquare, CircleOff, Check, ArrowRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack } from "@/components/ui/stack";
+import { UI_FEEDBACK_RESET_MS } from "@/lib/config/timeouts";
 
 const CONTEXT_SOURCES = [
   {
@@ -68,7 +69,7 @@ export function EvalSettingsPanel({ projectId }: EvalSettingsPanelProps) {
   const { submit, saving } = useFormSubmit("/api/settings", "PUT", {
     onSuccess: () => {
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      setTimeout(() => setSaved(false), UI_FEEDBACK_RESET_MS);
     },
   });
 
