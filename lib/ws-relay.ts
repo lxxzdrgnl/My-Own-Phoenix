@@ -2,7 +2,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { createHash } from "crypto";
 import { IncomingMessage } from "http";
 import { Socket } from "net";
-import { logger } from "@/lib/logger";
+import { logger } from "./logger";
 
 // In-memory connection pool: key = `${projectId}:${userId}`
 // Use globalThis so the Map is shared between custom server and Next.js API routes
