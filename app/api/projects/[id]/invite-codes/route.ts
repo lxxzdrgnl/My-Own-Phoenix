@@ -25,8 +25,7 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
     });
     return NextResponse.json({ codes });
   } catch (e) {
-    console.error("[invite-codes]", e);
-    return NextResponse.json({ message: "Internal error" }, { status: 500 });
+    return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, "Internal error");
   }
 });
 
@@ -58,8 +57,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string, { params
 
     return NextResponse.json({ code }, { status: 201 });
   } catch (e) {
-    console.error("[invite-codes]", e);
-    return NextResponse.json({ message: "Internal error" }, { status: 500 });
+    return apiError(req, ErrorCode.INTERNAL_SERVER_ERROR, "Internal error");
   }
 });
 
