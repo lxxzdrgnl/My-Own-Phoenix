@@ -1,297 +1,21 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
-import { useT } from "@/lib/i18n";
-import { type TraceTree, type Annotation } from "@/lib/phoenix";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { type Annotation } from "@/lib/phoenix";
 import { AnnotationBadge } from "@/components/annotation-badge";
-import { apiFetch } from "@/lib/api-client";
-import { useFormSubmit } from "@/lib/hooks/use-form-submit";
-import { Bot, User, FileJson, ChevronDown, RefreshCw, Play } from "lucide-react";
+import { Bot, User, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type Tab = "io" | "evals";
-
-interface Props {
-  trace: TraceTree;
-  projectId?: string;
-  /** Phoenix project name (slug) — used for Phoenix DELETE call which is project-scoped. */
-  projectName?: string;
-  onRefresh?: () => void;
-}
-
-function partitionAnnotations(arr: Annotation[]): { llm: Annotation[]; human: Annotation[] } {
-  const llm: Annotation[] = [];
-  const human: Annotation[] = [];
-  for (const a of arr) {
-    if (a.annotatorKind === "HUMAN") human.push(a);
-    else llm.push(a);
-  }
-  return { llm, human };
-}
 
 type EvalMeta = { name: string; outputMode: "binary" | "score" };
 
-export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Props) {
-  const t = useT();
-  const [tab, setTab] = useState<Tab>("io");
-  const [enabledEvals, setEnabledEvals] = useState<string[]>([]);
-  const [evalMeta, setEvalMeta] = useState<Map<string, EvalMeta>>(new Map());
-  const [showRaw, setShowRaw] = useState(false);
-  const [savingName, setSavingName] = useState<string | null>(null);
-  const [runningEval, setRunningEval] = useState<string | null>(null);
+// ─── Pending cell ─────────────────────────────────────────────────────────────
 
-  const { submit: submitAnnotation } = useFormSubmit<{
-    spanId: string;
-    name: string;
-    label: string;
-    score: number;
-    explanation?: string;
-  }>("/api/annotations", "POST", { onSuccess: () => onRefresh?.() });
-
-  async function runSingleEval(name: string) {
-    if (!projectName) return;
-    setRunningEval(name);
-    try {
-      const res = await apiFetch("/api/eval-run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project: projectName,
-          traceId: trace.traceId,
-          evalNames: [name],
-        }),
-      });
-      if (!res.ok) throw new Error(`run ${res.status}`);
-      onRefresh?.();
-    } catch (e) {
-      console.error("[trace-detail-tabs] run eval failed", e);
-    } finally {
-      setRunningEval(null);
-    }
-  }
-
-  async function runAllEvals() {
-    if (!projectName) return;
-    setRunningEval("__all__");
-    try {
-      const res = await apiFetch("/api/eval-run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project: projectName,
-          traceId: trace.traceId,
-          evalNames: [],
-        }),
-      });
-      if (!res.ok) throw new Error(`run all ${res.status}`);
-      onRefresh?.();
-    } catch (e) {
-      console.error("[trace-detail-tabs] run all evals failed", e);
-    } finally {
-      setRunningEval(null);
-    }
-  }
-
-  useEffect(() => {
-    apiFetch("/api/eval-prompts")
-      .then((r) => r.json())
-      .then((d: { prompts?: Array<{ name: string; outputMode?: string }> }) => {
-        const m = new Map<string, EvalMeta>();
-        for (const p of d.prompts ?? []) {
-          m.set(p.name, { name: p.name, outputMode: p.outputMode === "score" ? "score" : "binary" });
-        }
-        setEvalMeta(m);
-      })
-      .catch(() => {});
-  }, []);
-
-  async function saveHumanAnnotation(
-    name: string,
-    label: string,
-    score: number,
-    explanation: string,
-  ) {
-    setSavingName(name);
-    await submitAnnotation({
-      spanId: trace.rootSpan.spanId,
-      name,
-      label,
-      score,
-      explanation: explanation || undefined,
-    });
-    setSavingName(null);
-  }
-
-  async function deleteHumanAnnotation(name: string) {
-    setSavingName(name);
-    try {
-      const res = await apiFetch(
-        `/api/annotations?spanId=${encodeURIComponent(trace.rootSpan.spanId)}&name=${encodeURIComponent(name)}&kind=HUMAN`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`delete ${res.status}: ${txt}`);
-      }
-      onRefresh?.();
-    } catch (e) {
-      console.error("[trace-detail-tabs] delete annotation failed", e);
-    } finally {
-      setSavingName(null);
-    }
-  }
-
-  useEffect(() => {
-    if (!projectId) return;
-    apiFetch(`/api/eval-config?projectId=${encodeURIComponent(projectId)}`)
-      .then((r) => r.json())
-      .then((d: { configs?: { evalName: string; enabled: boolean }[] }) => {
-        const list = (d.configs ?? []).filter((c) => c.enabled).map((c) => c.evalName);
-        setEnabledEvals(list);
-      })
-      .catch(() => {});
-  }, [projectId]);
-
-  const root = trace.rootSpan;
-  const { llm, human } = partitionAnnotations(root.annotations);
-  // Count unique eval names (deduped between AI + Human), not sum of rows.
-  const uniqueEvalCount = useMemo(() => {
-    const s = new Set<string>();
-    llm.forEach((a) => s.add(a.name));
-    human.forEach((a) => s.add(a.name));
-    return s.size;
-  }, [llm, human]);
-
-  return (
-    <div className="bg-card">
-      <div className="flex items-center border-b">
-        <TabBtn active={tab === "io"} onClick={() => setTab("io")}>
-          <FileJson className="size-3" /> {t.traceTabs.inputOutput}
-        </TabBtn>
-        <TabBtn active={tab === "evals"} onClick={() => setTab("evals")}>
-          {t.traceTabs.evals}
-          <CountBadge n={uniqueEvalCount} />
-        </TabBtn>
-        {tab === "evals" && (
-          <button
-            type="button"
-            onClick={runAllEvals}
-            disabled={runningEval !== null}
-            title="전체 평가 다시 실행"
-            className="ml-2 inline-flex items-center gap-1 rounded border border-foreground/15 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-foreground hover:text-background disabled:opacity-40"
-          >
-            <Play className={cn("size-2.5", runningEval === "__all__" && "animate-pulse")} />
-            전체 실행
-          </button>
-        )}
-        <button
-          onClick={() => setShowRaw(!showRaw)}
-          className="ml-auto inline-flex items-center gap-1 px-4 py-2 text-xs text-muted-foreground hover:text-foreground"
-        >
-          {t.traceTabs.raw}
-          <ChevronDown className={cn("size-3 transition-transform", showRaw && "rotate-180")} />
-        </button>
-      </div>
-
-      <div className="p-4">
-        {tab === "io" && <IoPanel input={root.input} output={root.output} t={t} />}
-        {tab === "evals" && (
-          <EvalsPanel
-            llm={llm}
-            human={human}
-            enabledEvals={enabledEvals}
-            evalMeta={evalMeta}
-            savingName={savingName}
-            onRate={saveHumanAnnotation}
-            onDelete={deleteHumanAnnotation}
-            onRunSingle={runSingleEval}
-            runningEval={runningEval}
-            empty={t.traceTabs.noEvals}
-            aiLabel={t.traceTabs.aiColumn}
-            humanLabel={t.traceTabs.humanColumn}
-            pendingLabel={t.traceTabs.pendingShort}
-            pendingTitle="클릭하여 이 평가 즉시 실행"
-          />
-        )}
-      </div>
-
-      {showRaw && (
-        <div className="border-t p-4">
-          <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-            {t.traceTabs.rawDescription}
-          </p>
-          <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words font-mono text-[10px] text-foreground/70">
-            {JSON.stringify(root, null, 2)}
-          </pre>
-        </div>
-      )}
-
-    </div>
-  );
-}
-
-function TabBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+function PendingCell({ onClick, title, label, running }: {
+  onClick?: () => void;
+  title: string;
+  label: string;
+  running?: boolean;
 }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 transition-colors",
-        active
-          ? "border-foreground text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function CountBadge({ n }: { n: number }) {
-  return (
-    <span className="rounded bg-muted px-1.5 text-[10px] tabular-nums">{n}</span>
-  );
-}
-
-function IoPanel({
-  input,
-  output,
-  t,
-}: {
-  input: string;
-  output: string;
-  t: ReturnType<typeof useT>;
-}) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <div>
-        <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-          {t.traceTabs.input}
-        </p>
-        <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded bg-muted/30 p-2 font-mono text-xs">
-          {input || "—"}
-        </pre>
-      </div>
-      <div>
-        <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-          {t.traceTabs.output}
-        </p>
-        <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded bg-muted/30 p-2 font-mono text-xs">
-          {output || "—"}
-        </pre>
-      </div>
-    </div>
-  );
-}
-
-function PendingCell({ onClick, title, label, running }: { onClick?: () => void; title: string; label: string; running?: boolean }) {
   if (running) {
     return (
       <span className="inline-flex items-center rounded border border-foreground/15 px-2 py-1 font-mono text-[9px] leading-none text-muted-foreground">
@@ -321,9 +45,9 @@ function PendingCell({ onClick, title, label, running }: { onClick?: () => void;
   );
 }
 
-// Compact rating control: shows Pass/Fail buttons (binary) or % input (score).
-// Always inline, no popup. Saves immediately on click/blur.
-function RatePart({
+// ─── Rate Part (Pass/Fail or score input) ─────────────────────────────────────
+
+export function RatePart({
   mode,
   existing,
   disabled,
@@ -336,13 +60,12 @@ function RatePart({
   onSave: (label: "pass" | "fail", score: number) => void;
   onDelete: () => void;
 }) {
-  // "Rated" requires an actual label — empty label means HUMAN row exists only
-  // to hold a description and hasn't been graded yet.
   const isRated = !!(existing && existing.label);
   const [scoreText, setScoreText] = useState(
     isRated && mode === "score" ? String(Math.round(existing!.score * 100)) : "",
   );
   const lastSavedScore = useRef(scoreText);
+
   useEffect(() => {
     const next = isRated && mode === "score" ? String(Math.round(existing!.score * 100)) : "";
     setScoreText(next);
@@ -377,8 +100,7 @@ function RatePart({
     );
   }
 
-  // Score mode: inline % input. Input is 0–100 (whole percent); we normalize
-  // to Phoenix's 0–1 score by dividing by 100. So "1" = 1% (not 100%).
+  // Score mode: inline % input
   const commit = () => {
     if (scoreText === "" || scoreText === lastSavedScore.current) return;
     const n = Number(scoreText);
@@ -415,8 +137,8 @@ function RatePart({
   );
 }
 
-// Always-editable description cell, like an Excel cell with no border.
-// Saves on blur, but only if the value changed.
+// ─── Description Cell ─────────────────────────────────────────────────────────
+
 function DescriptionCell({
   initial,
   disabled,
@@ -459,7 +181,9 @@ function DescriptionCell({
   );
 }
 
-function EvalsPanel({
+// ─── Evals Panel ──────────────────────────────────────────────────────────────
+
+export function EvalsPanel({
   llm,
   human,
   enabledEvals,
@@ -490,7 +214,6 @@ function EvalsPanel({
   pendingLabel: string;
   pendingTitle: string;
 }) {
-  // Collect all eval names from: enabled list, AI annotations, human annotations
   const rows = useMemo(() => {
     const names = new Set<string>();
     enabledEvals.forEach((n) => names.add(n));
@@ -511,7 +234,6 @@ function EvalsPanel({
     return <p className="py-4 text-sm text-muted-foreground">{empty}</p>;
   }
 
-  // 5-col grid: name | AI badge | AI description | Human rate | Human description
   const cols = "grid-cols-[8rem_7rem_minmax(8rem,1fr)_7rem_minmax(8rem,1fr)]";
 
   return (

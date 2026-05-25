@@ -7,7 +7,7 @@ import { Heading, Text } from "@/components/ui/typography";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { FAIL_LABELS } from "@/lib/constants";
 import { fetchTraces, fetchTraceTrees, type Trace, type TraceTree } from "@/lib/phoenix";
-import { SpanTreeView } from "@/components/span-tree-view";
+import { SpanTreeView } from "@/components/trace-tree";
 import { StatCard } from "@/components/dashboard/widgets/stat-card";
 import { HighchartWidget } from "@/components/dashboard/widgets/highchart-widget";
 import { MeasureGrid } from "@/components/dashboard/widgets/measure-grid";

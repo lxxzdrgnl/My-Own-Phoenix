@@ -3,22 +3,15 @@ import { apiFetch } from "@/lib/api-client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Text } from "@/components/ui/typography";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { CSVImportModal } from "@/components/modals/csv-import-modal";
 import { EvalSelectorModal, type EvalOverrides } from "@/components/modals/eval-selector-modal";
 import { DatasetFormModal } from "@/components/modals/dataset-form-modal";
 import { cn } from "@/lib/utils";
-import {
-  Upload, Trash2,
-  Database, Pencil, Check, X,
-  List, FlaskConical,
-} from "lucide-react";
+import { Upload, Database } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useResourceList } from "@/lib/hooks/use-resource-list";
 
 import { useDatasetGeneration } from "./hooks/use-dataset-generation";
@@ -27,6 +20,8 @@ import { DatasetConfigPanel } from "./dataset-config-panel";
 import { DatasetResults } from "./dataset-results";
 import { DatasetSidebar } from "./dataset-sidebar";
 import { DatasetToolbar } from "./dataset-toolbar";
+import { DatasetPromptsTab } from "./dataset-prompts-tab";
+import { DatasetTabNav } from "./dataset-tab-nav";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,7 +57,6 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
     : null;
   const {
     items: datasets,
-    setItems: setDatasets,
     loading,
     reload: reloadDatasets,
   } = useResourceList<DatasetMeta>(
@@ -137,11 +131,11 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
       setEvalOptions(data.prompts ?? []);
-    } catch (e) { console.error(e); }
+    } catch { /* silent */ }
   }, []);
   useEffect(() => { loadEvals(); }, [loadEvals]);
 
-  // ── Load a page of rows ──
+  // ── Data loading ──
   async function loadPage(id: string, p: number) {
     try {
       const res = await apiFetch(`/api/datasets/rows?id=${id}&page=${p}&pageSize=${pageSize}`);
@@ -154,10 +148,9 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
       setCheckedEvals(new Set(data.evalNames ?? []));
       setEvalOverrides(data.evalOverrides ?? {});
       setPage(p);
-    } catch (e) { console.error(e); }
+    } catch { /* silent */ }
   }
 
-  // ── Select dataset ──
   async function selectDataset(id: string) {
     setSelectedId(id);
     setLiveResults([]); setLiveRunId(null);
@@ -170,7 +163,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
       ]);
       const runsData = await runsRes.json();
       setRuns(runsData.runs ?? []);
-    } catch (e) { console.error(e); }
+    } catch { /* silent */ }
   }
 
   async function loadRun(runId: string) {
@@ -182,9 +175,10 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
       setRunResults(data.rowResults ?? []);
       setRunEvalNames(data.evalNames ?? []);
       setActiveTab("results");
-    } catch (e) { console.error(e); }
+    } catch { /* silent */ }
   }
 
+  // ── Handlers ──
   async function handleDatasetSaved(saved: DatasetMeta) {
     await reloadDatasets();
     if (saved?.id) selectDataset(saved.id);
@@ -207,7 +201,7 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
         body: JSON.stringify({ name: data.name, fileName: data.fileName, headers: data.headers, rows: data.rows, queryCol: data.queryCol, contextCol: data.contextCol }),
       });
       let result: any = {};
-      try { result = await res.json(); } catch (e) { console.error(e); }
+      try { result = await res.json(); } catch { /* silent */ }
       await reloadDatasets();
       if (result.dataset?.id) selectDataset(result.dataset.id);
     }
@@ -275,6 +269,24 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
       setTotalRows(prev => prev - 1);
       reloadDatasets();
       loadPage(selectedId, page);
+    }
+  }
+
+  async function handleBulkDelete() {
+    const ok = await confirm({
+      title: "Delete selected prompts",
+      description: `${selectedRowIndices.size} selected prompt(s) will be permanently deleted.`,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
+    if (selectedId) {
+      await apiFetch("/api/datasets/rows", {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedId, rowIndices: [...selectedRowIndices] }),
+      });
+      setSelectedRowIndices(new Set());
+      reloadDatasets();
+      loadPage(selectedId, 0);
     }
   }
 
@@ -355,34 +367,17 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
               />
             )}
 
-            {/* ── Tabs ── */}
-            <div className="flex shrink-0 items-center gap-0 border-b px-5">
-              {(["prompts", "results"] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => {
-                    if (tab === "results" && runs.length > 0 && !selectedRunId && !liveRunId) {
-                      loadRun(runs[0].id);
-                    } else {
-                      setActiveTab(tab);
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 border-b-2 px-1 py-2.5 mr-4 text-xs font-medium transition-colors",
-                    activeTab === tab
-                      ? "border-foreground text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
-                    tab === "results" && !hasResults && runs.length === 0 && "cursor-not-allowed opacity-40"
-                  )}
-                  disabled={tab === "results" && !hasResults && runs.length === 0}
-                >
-                  {tab === "prompts" ? <List className="size-3" /> : <FlaskConical className="size-3" />}
-                  {tab === "prompts" ? t.datasets.prompts : t.datasets.results}
-                  {tab === "prompts" && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">{totalRows}</span>}
-                  {tab === "results" && runs.length > 0 && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">{runs.length}</span>}
-                </button>
-              ))}
-            </div>
+            {/* ── Tabs nav ── */}
+            <DatasetTabNav
+              activeTab={activeTab}
+              runs={runs}
+              totalRows={totalRows}
+              hasResults={hasResults}
+              liveRunId={liveRunId}
+              selectedRunId={selectedRunId}
+              onTabChange={setActiveTab}
+              onLoadFirstRun={loadRun}
+            />
 
             {/* ── Tab content ── */}
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -390,217 +385,42 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
               {/* Prompts tab */}
               {activeTab === "prompts" && (
                 <div className="px-5 py-4">
-                  {rows.length === 0 ? (
-                    <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <EmptyState icon={Database} title={t.datasets.noPrompts} description={t.datasets.noPromptsDesc} className="h-auto" />
-                      <RoleGate>
-                        <Button variant="outline" size="sm" onClick={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })} className="mt-1 gap-1.5 text-xs">
-                          <Upload className="size-3" /> {t.common.import}
-                        </Button>
-                      </RoleGate>
-                    </div>
-                  ) : (
-                    <>
-                    {/* Selection bar */}
-                    <div className="mb-2 flex items-center gap-3">
-                      <button
-                        onClick={() => {
-                          if (selectedRowIndices.size === rows.length) {
-                            setSelectedRowIndices(new Set());
-                          } else {
-                            setSelectedRowIndices(new Set(rows.map(r => (r as any)._rowIndex)));
-                          }
-                        }}
-                        className={cn(
-                          "flex size-4 items-center justify-center rounded border transition-colors",
-                          selectedRowIndices.size > 0 ? "border-foreground bg-foreground" : "border-muted-foreground/30"
-                        )}
-                      >
-                        {selectedRowIndices.size > 0 && <Check className="size-2.5 text-background" />}
-                      </button>
-                      {selectedRowIndices.size > 0 ? (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{selectedRowIndices.size.toLocaleString()} selected</span>
-                          <RoleGate>
-                            <button
-                              onClick={async () => {
-                                const ok = await confirm({
-                                  title: "Delete selected prompts",
-                                  description: `${selectedRowIndices.size} selected prompt(s) will be permanently deleted.`,
-                                  confirmText: "Delete",
-                                });
-                                if (!ok) return;
-                                if (selectedId) {
-                                  await apiFetch("/api/datasets/rows", {
-                                    method: "DELETE", headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ id: selectedId, rowIndices: [...selectedRowIndices] }),
-                                  });
-                                  setSelectedRowIndices(new Set());
-                                  reloadDatasets();
-                                  loadPage(selectedId, 0);
-                                }
-                              }}
-                              className="flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] hover:bg-muted hover:text-destructive transition-colors"
-                            >
-                              <Trash2 className="size-2.5" /> Delete
-                            </button>
-                          </RoleGate>
-                          <button onClick={() => setSelectedRowIndices(new Set())} className="text-muted-foreground/60 hover:text-foreground">Clear</button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/50">{t.datasets.selectRows}</span>
-                      )}
-                    </div>
-
-                    <div className="overflow-hidden rounded-lg border">
-                      {rows.map((row, i) => {
-                        const query = queryCol ? row[queryCol] ?? "" : "";
-                        const context = contextCol ? row[contextCol] ?? "" : "";
-                        const isEditing = editingRowIndex === i;
-
-                        return (
-                          <div key={i} className={cn("border-b last:border-b-0", isEditing && "bg-muted/20")}>
-                            {isEditing ? (
-                              <div className="p-4 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-muted-foreground">Editing #{i + 1}</span>
-                                  <div className="flex gap-1.5">
-                                    <button
-                                      onClick={() => handleSaveRow(i)}
-                                      className="flex items-center gap-1 rounded bg-foreground px-2.5 py-1 text-[11px] font-medium text-background hover:bg-foreground/80"
-                                    >
-                                      <Check className="size-3" /> Save
-                                    </button>
-                                    <button
-                                      onClick={() => setEditingRowIndex(null)}
-                                      className="flex items-center gap-1 rounded border px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-muted"
-                                    >
-                                      <X className="size-3" /> Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                                {headers.map(h => (
-                                  <div key={h}>
-                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                      {h}
-                                      {h === queryCol && <span className="ml-1.5 text-muted-foreground normal-case">· query</span>}
-                                      {h === contextCol && <span className="ml-1.5 text-muted-foreground normal-case">· context</span>}
-                                    </label>
-                                    <Textarea
-                                      value={editRowData[h] ?? ""}
-                                      onChange={e => setEditRowData(prev => ({ ...prev, [h]: e.target.value }))}
-                                      rows={h === contextCol ? 5 : 2}
-                                      className="text-xs"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className={cn("flex items-start gap-0 hover:bg-muted/20 transition-colors", selectedRowIndices.has((row as any)._rowIndex) && "bg-accent/40")}>
-                                {/* Checkbox + Row number */}
-                                <div className="flex w-12 shrink-0 flex-col items-center gap-1 pt-3.5 pb-3">
-                                  <button
-                                    onClick={() => {
-                                      const idx = (row as any)._rowIndex;
-                                      setSelectedRowIndices(prev => {
-                                        const next = new Set(prev);
-                                        if (next.has(idx)) next.delete(idx); else next.add(idx);
-                                        return next;
-                                      });
-                                    }}
-                                    className={cn(
-                                      "flex size-4 items-center justify-center rounded border transition-colors",
-                                      selectedRowIndices.has((row as any)._rowIndex)
-                                        ? "border-foreground bg-foreground"
-                                        : "border-muted-foreground/30 hover:border-muted-foreground"
-                                    )}
-                                  >
-                                    {selectedRowIndices.has((row as any)._rowIndex) && <Check className="size-2.5 text-background" />}
-                                  </button>
-                                  <span className="text-[9px] tabular-nums text-muted-foreground/30">{(row as any)._rowIndex != null ? (row as any)._rowIndex + 1 : page * pageSize + i + 1}</span>
-                                </div>
-                                {/* Content */}
-                                <div className="flex-1 min-w-0 py-3 pr-2">
-                                  {query && (
-                                    <p className="text-sm text-foreground line-clamp-2 leading-relaxed">{query}</p>
-                                  )}
-                                  {context && (
-                                    <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{context}</p>
-                                  )}
-                                  {!query && !context && (
-                                    <p className="text-xs text-muted-foreground/40 italic">No query or context</p>
-                                  )}
-                                </div>
-                                {/* Actions */}
-                                <div className="flex shrink-0 items-center gap-1 px-3 py-3">
-                                  <RoleGate>
-                                    <button
-                                      onClick={() => startEditRow(i)}
-                                      className="rounded p-1.5 text-muted-foreground/40 hover:bg-muted hover:text-foreground transition-colors"
-                                      title="Edit"
-                                    >
-                                      <Pencil className="size-3.5" />
-                                    </button>
-                                  </RoleGate>
-                                  <RoleGate>
-                                    <button
-                                      onClick={() => handleDeleteRow(i)}
-                                      className="rounded p-1.5 text-muted-foreground/40 hover:bg-muted hover:text-destructive transition-colors"
-                                      title="Delete"
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                    </button>
-                                  </RoleGate>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Pagination */}
-                    {totalRows > pageSize && (
-                      <div className="flex items-center justify-between rounded-lg border px-4 py-2.5 mt-4">
-                        <Text variant="caption">
-                          {(page * pageSize + 1).toLocaleString()}–{Math.min((page + 1) * pageSize, totalRows).toLocaleString()} of {totalRows.toLocaleString()}
-                        </Text>
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="outline" size="sm"
-                            disabled={page === 0}
-                            onClick={() => selectedId && loadPage(selectedId, page - 1)}
-                            className="h-7 px-2.5 text-xs"
-                          >
-                            Previous
-                          </Button>
-                          <div className="flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
-                            <Input
-                              type="number"
-                              min={1}
-                              max={Math.ceil(totalRows / pageSize)}
-                              value={page + 1}
-                              onChange={e => {
-                                const p = Math.max(0, Math.min(Math.ceil(totalRows / pageSize) - 1, parseInt(e.target.value || "1") - 1));
-                                if (selectedId) loadPage(selectedId, p);
-                              }}
-                              className="h-7 w-14 text-center text-xs tabular-nums px-1"
-                            />
-                            <span>/ {Math.ceil(totalRows / pageSize)}</span>
-                          </div>
-                          <Button
-                            variant="outline" size="sm"
-                            disabled={(page + 1) * pageSize >= totalRows}
-                            onClick={() => selectedId && loadPage(selectedId, page + 1)}
-                            className="h-7 px-2.5 text-xs"
-                          >
-                            Next
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    </>
-                  )}
+                  <DatasetPromptsTab
+                    rows={rows}
+                    headers={headers}
+                    queryCol={queryCol}
+                    contextCol={contextCol}
+                    page={page}
+                    pageSize={pageSize}
+                    totalRows={totalRows}
+                    selectedId={selectedId}
+                    selectedRowIndices={selectedRowIndices}
+                    editingRowIndex={editingRowIndex}
+                    editRowData={editRowData}
+                    onSelectRow={rowIndex => {
+                      setSelectedRowIndices(prev => {
+                        const next = new Set(prev);
+                        if (next.has(rowIndex)) next.delete(rowIndex); else next.add(rowIndex);
+                        return next;
+                      });
+                    }}
+                    onSelectAll={() => {
+                      if (selectedRowIndices.size === rows.length) {
+                        setSelectedRowIndices(new Set());
+                      } else {
+                        setSelectedRowIndices(new Set(rows.map(r => (r as any)._rowIndex)));
+                      }
+                    }}
+                    onStartEdit={startEditRow}
+                    onEditRowDataChange={setEditRowData}
+                    onSaveRow={handleSaveRow}
+                    onCancelEdit={() => setEditingRowIndex(null)}
+                    onDeleteRow={handleDeleteRow}
+                    onLoadPage={loadPage}
+                    onOpenImport={() => setImportModal({ open: true, target: selected ? { id: selected.id, name: selected.name } : null })}
+                    onBulkDelete={handleBulkDelete}
+                    onClearSelection={() => setSelectedRowIndices(new Set())}
+                  />
                 </div>
               )}
 
