@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { ShieldCheck, Play, Clock, BarChart3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingState } from "@/components/ui/empty-state";
 import { apiFetch } from "@/lib/api-client";
@@ -118,78 +117,85 @@ export function PiiGuardRunner() {
       ) : tab === "dashboard" ? (
         <EvalDashboard />
       ) : (
-        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+        <Stack gap="lg" className="flex-1 overflow-y-auto px-8 py-6">
           {/* Header */}
           <div>
-            <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
+            <Heading level="page" className="flex items-center gap-2.5">
               <ShieldCheck className="h-6 w-6 text-primary" />
               PII 3-Stage Guard
-            </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
+            </Heading>
+            <Text variant="caption" className="mt-1.5">
               Stage 1 (regex + Luhn) → Stage 1.5 (한국어 숫자/역순/인구통계 정규화) → Stage 2 (LLM 컨텍스트 판정). Dexter 백엔드의 가드를 실시간으로 호출합니다.
-            </p>
+            </Text>
           </div>
 
           {/* Input section */}
-          <div className="rounded-xl border bg-card p-5 space-y-4">
-            <h3 className="text-base font-semibold">입력</h3>
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              rows={4}
-              placeholder="PII를 포함한 텍스트를 입력하세요..."
-              className="text-sm resize-y"
-            />
-
-            {/* Controls row */}
-            <div className="flex flex-wrap items-center gap-4">
-              <ControlSelect
-                label="방향"
-                value={direction}
-                onChange={(v) => setDirection(v as "input" | "output")}
-                options={[
-                  { value: "input", label: "입력 가드" },
-                  { value: "output", label: "출력 가드" },
-                ]}
-              />
-              <ControlSelect
-                label="Stage 2"
-                value={stage2}
-                onChange={(v) => setStage2(v as "auto" | "force" | "skip")}
-                options={[
-                  { value: "auto", label: "auto" },
-                  { value: "force", label: "force" },
-                  { value: "skip", label: "skip" },
-                ]}
-              />
-              <ControlSelect
-                label="데이터셋"
-                value={dataset}
-                onChange={setDataset}
-                options={DATASETS.map((d) => ({ value: d.value, label: d.label }))}
-              />
-              <ControlSelect
-                label="샘플 로드"
-                value={sampleMode}
-                onChange={setSampleMode}
-                options={[
-                  { value: "100", label: "100개에서 가져오기" },
-                  { value: "50", label: "50개에서 가져오기" },
-                  { value: "10", label: "10개에서 가져오기" },
-                ]}
+          <SectionCard title="입력" variant="bordered">
+            <Stack gap="sm">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                rows={4}
+                placeholder="PII를 포함한 텍스트를 입력하세요..."
+                className="text-sm resize-y"
               />
 
-              <Button onClick={handleRun} disabled={loading || !input.trim()} className="ml-auto gap-1.5 rounded-lg px-5">
-                <Play className="h-3.5 w-3.5" />
-                Run guard
-              </Button>
-            </div>
-          </div>
+              {/* Controls row */}
+              <div className="flex flex-wrap items-center gap-4">
+                <ControlSelect
+                  label="방향"
+                  value={direction}
+                  onChange={(v) => setDirection(v as "input" | "output")}
+                  options={[
+                    { value: "input", label: "입력 가드" },
+                    { value: "output", label: "출력 가드" },
+                  ]}
+                />
+                <ControlSelect
+                  label="Stage 2"
+                  value={stage2}
+                  onChange={(v) => setStage2(v as "auto" | "force" | "skip")}
+                  options={[
+                    { value: "auto", label: "auto" },
+                    { value: "force", label: "force" },
+                    { value: "skip", label: "skip" },
+                  ]}
+                />
+                <ControlSelect
+                  label="데이터셋"
+                  value={dataset}
+                  onChange={setDataset}
+                  options={DATASETS.map((d) => ({ value: d.value, label: d.label }))}
+                />
+                <ControlSelect
+                  label="샘플 로드"
+                  value={sampleMode}
+                  onChange={setSampleMode}
+                  options={[
+                    { value: "100", label: "100개에서 가져오기" },
+                    { value: "50", label: "50개에서 가져오기" },
+                    { value: "10", label: "10개에서 가져오기" },
+                  ]}
+                />
+
+                <LoadingButton
+                  onClick={handleRun}
+                  disabled={!input.trim()}
+                  loading={loading}
+                  loadingText="실행 중..."
+                  className="ml-auto gap-1.5 rounded-lg px-5"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  Run guard
+                </LoadingButton>
+              </div>
+            </Stack>
+          </SectionCard>
 
           {loading && <LoadingState />}
 
           {result && !loading && <GuardResults result={result} originalText={input} />}
-        </div>
+        </Stack>
       )}
     </div>
   );
@@ -232,13 +238,13 @@ function GuardResults({ result, originalText }: { result: PiiGuardResult; origin
   const stage2 = result.stageDetections.stage2;
 
   return (
-    <div className="space-y-5">
+    <Stack gap="md">
       {/* Detected original + Masked output side by side */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* 탐지된 원문 */}
         <div className="rounded-xl border bg-card p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold">탐지된 원문</h3>
+            <Heading level="section" as="h3">탐지된 원문</Heading>
             <span className={`rounded-full px-3 py-1 text-xs font-medium ${
               result.action === "mask"
                 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
@@ -256,9 +262,9 @@ function GuardResults({ result, originalText }: { result: PiiGuardResult; origin
 
         {/* 마스킹된 출력 */}
         <div className="rounded-xl border bg-card p-5 space-y-3">
-          <h3 className="text-base font-semibold flex items-center gap-1.5">
+          <Heading level="section" as="h3" className="flex items-center gap-1.5">
             &#x2728; 마스킹된 출력
-          </h3>
+          </Heading>
           <div className="rounded-lg bg-muted/40 p-4 text-sm leading-7 whitespace-pre-wrap">
             {result.maskedText}
           </div>
@@ -266,8 +272,7 @@ function GuardResults({ result, originalText }: { result: PiiGuardResult; origin
       </div>
 
       {/* Stage별 탐지 */}
-      <div className="rounded-xl border bg-card p-5 space-y-4">
-        <h3 className="text-base font-semibold">Stage별 탐지</h3>
+      <SectionCard title="Stage별 탐지" variant="bordered">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <StageCard
             title="STAGE 1 · REGEX"
@@ -288,8 +293,8 @@ function GuardResults({ result, originalText }: { result: PiiGuardResult; origin
             detections={stage2}
           />
         </div>
-      </div>
-    </div>
+      </SectionCard>
+    </Stack>
   );
 }
 
@@ -313,7 +318,7 @@ function StageCard({
         <span className="text-xs text-muted-foreground">{hits} hits</span>
       </div>
       {detections.length === 0 ? (
-        <p className="text-sm text-muted-foreground">탐지 없음</p>
+        <Text variant="caption">탐지 없음</Text>
       ) : (
         <div className="space-y-2">
           {detections.map((d, i) => {
