@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/lib/i18n";
+import { Heading } from "@/components/ui/typography";
 
 interface FilterDropdownProps {
   spanKinds: Set<string>;
@@ -44,9 +45,9 @@ export function FilterDropdown({
         style={{ top, left }}
       >
         <div className="border-b px-3 py-2.5">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+          <Heading level="sub" className="mb-2" as="h3">
             {t.playground.spanKind}
-          </p>
+          </Heading>
           <div className="flex flex-wrap gap-1">
             {["ALL", "LLM", "CHAIN", "RETRIEVER", "PROMPT"].map((kind) => {
               const isAll = kind === "ALL";
@@ -81,9 +82,9 @@ export function FilterDropdown({
         </div>
 
         <div className="px-3 py-2.5">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+          <Heading level="sub" className="mb-2" as="h3">
             {t.playground.content}
-          </p>
+          </Heading>
           <div className="flex flex-col gap-0.5">
             {[
               { value: "ALL", label: t.playground.all },

@@ -6,6 +6,7 @@ import { Plus, Check, ChevronRight, Settings2 } from "lucide-react";
 import { Sidebar, SidebarHeader, SidebarItem, SidebarItemDiv } from "@/components/ui/sidebar";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { Text } from "@/components/ui/typography";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -113,7 +114,7 @@ export function EvalList({
           <span className={cn(
             "shrink-0 rounded px-1 py-0.5 text-[8px] font-bold uppercase",
             t === "code_rule" ? "bg-muted text-muted-foreground"
-              : t === "api" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+              : t === "api" ? "bg-muted text-muted-foreground"
               : t === "builtin" ? "bg-foreground/10 text-foreground/70"
               : "bg-foreground text-background"
           )}>
@@ -189,8 +190,8 @@ export function EvalList({
           )}
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          {t.evaluations.selectProject}
+        <div className="flex flex-1 items-center justify-center">
+          <Text variant="caption">{t.evaluations.selectProject}</Text>
         </div>
       )}
     </Sidebar>

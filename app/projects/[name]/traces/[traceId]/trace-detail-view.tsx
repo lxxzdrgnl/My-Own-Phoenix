@@ -9,6 +9,9 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import { useProjectOptional } from "@/lib/project-context";
 import { TraceDetailTabs } from "@/components/trace-detail-tabs";
+import { PageContainer } from "@/components/ui/page-container";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
 
 export function TraceDetailView({ projectName, traceId }: { projectName: string; traceId: string }) {
   const t = useT();
@@ -32,29 +35,29 @@ export function TraceDetailView({ projectName, traceId }: { projectName: string;
   }, [load]);
 
   return (
-    <div className="p-6">
-      <div className="mb-4 flex items-center gap-3">
+    <PageContainer>
+      <Inline gap="sm" className="mb-4">
         <Link
           href={`/projects/${encodeURIComponent(projectName)}`}
           className="rounded p-1.5 transition-colors hover:bg-muted"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">{t.projects.traceDetail}</h1>
-          <p className="text-xs font-mono text-muted-foreground">{traceId}</p>
-        </div>
-      </div>
+        <Stack gap="xs">
+          <Heading level="page">{t.projects.traceDetail}</Heading>
+          <Text variant="mono" className="text-muted-foreground">{traceId}</Text>
+        </Stack>
+      </Inline>
       {loading && <LoadingState />}
       {!loading && traces.length > 0 && (
-        <div className="space-y-4">
+        <Stack gap="md">
           <TraceDetailTabs trace={traces[0]} projectId={projectCtx?.id} onRefresh={load} />
           <SpanTreeView traces={traces} projectName={projectName} onRefresh={load} />
-        </div>
+        </Stack>
       )}
       {!loading && traces.length === 0 && (
-        <p className="text-sm text-muted-foreground">{t.projects.traceNotFound}</p>
+        <Text variant="body" className="text-muted-foreground">{t.projects.traceNotFound}</Text>
       )}
-    </div>
+    </PageContainer>
   );
 }

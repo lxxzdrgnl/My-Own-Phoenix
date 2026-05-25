@@ -6,6 +6,7 @@ import { AnnotationBadges } from "@/components/annotation-badge";
 import { RoleGate } from "@/components/ui/role-gate";
 import { formatDateTime } from "@/lib/date-utils";
 import { useT } from "@/lib/i18n";
+import { Text } from "@/components/ui/typography";
 
 interface TraceListProps {
   traces: Trace[];
@@ -71,9 +72,9 @@ export function TraceList({
                 />
               )}
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 text-sm leading-snug">
+                <Text variant="body" className="line-clamp-2 leading-snug" as="p">
                   {t.query || "(empty)"}
-                </p>
+                </Text>
                 <div className="mt-1 flex items-center gap-2">
                   <time className="text-xs tabular-nums text-muted-foreground">
                     {formatDateTime(t.time)}

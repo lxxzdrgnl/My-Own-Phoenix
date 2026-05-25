@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
 import { apiFetch } from "@/lib/api-client";
 import { useT } from "@/lib/i18n";
+import { Text } from "@/components/ui/typography";
+import { LoadingButton } from "@/components/ui/loading-button";
 
 interface BackfillResult {
   evaluated: number;
@@ -72,23 +73,25 @@ export function EvalBackfillPanel({
           />
           <span className="text-xs font-semibold">{t.evaluations.runOnExistingTraces}</span>
           {backfillResult && (
-            <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">
+            <Text variant="caption" className="ml-auto tabular-nums">
               {backfillResult.evaluated} {t.evaluations.evaluated}, {backfillResult.skipped} {t.evaluations.skipped} /{" "}
               {backfillResult.total}
-            </span>
+            </Text>
           )}
         </div>
         <div className="flex items-center gap-2">
           <DateRangePicker value={backfillRange} onChange={setBackfillRange} />
-          <Button
+          <LoadingButton
             size="sm"
             variant="outline"
             onClick={handleBackfill}
-            disabled={backfilling || !isRunnable}
+            disabled={!isRunnable}
+            loading={backfilling}
+            loadingText={t.common.running}
             className="gap-1.5 text-xs h-8 shrink-0"
           >
-            {backfilling ? t.common.running : t.common.run}
-          </Button>
+            {t.common.run}
+          </LoadingButton>
         </div>
       </div>
     </div>

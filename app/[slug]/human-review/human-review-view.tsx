@@ -12,6 +12,9 @@ import {
 } from "@/components/dashboard/widgets/ai-human-comparison";
 import { StatCard } from "@/components/dashboard/widgets/stat-card";
 import { LoadingState } from "@/components/ui/empty-state";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
 
 const SAMPLE_TRACES: Trace[] = [
   {
@@ -101,24 +104,28 @@ export function HumanReviewView({ phoenixProject, projectId, slug }: Props) {
     <div className="p-6">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
-        <div className="mb-5 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">{t.humanReview.title}</h1>
-            <p className="text-sm text-muted-foreground">{t.humanReview.pageDescription}</p>
-          </div>
+        <Inline gap="sm" className="mb-5 justify-between flex-wrap" align="start">
+          <Stack gap="xs">
+            <Heading level="page" as="h1" className="text-xl">
+              {t.humanReview.title}
+            </Heading>
+            <Text variant="caption" as="p">
+              {t.humanReview.pageDescription}
+            </Text>
+          </Stack>
           {showSample && !hasHuman && (
             <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-dashed border-border bg-muted/40 px-2.5 text-[11px] uppercase tracking-wider text-muted-foreground">
               {t.humanReview.sampleBadge}
             </span>
           )}
-        </div>
+        </Inline>
 
         {loading ? (
           <LoadingState />
         ) : (
-          <>
+          <Stack gap="lg">
             {/* Stat cards (always shown) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="rounded-xl border bg-card h-28">
                 <StatCard
                   value={
@@ -172,7 +179,7 @@ export function HumanReviewView({ phoenixProject, projectId, slug }: Props) {
                 onRefresh={load}
               />
             ) : showSample ? (
-              <div className="space-y-4">
+              <Stack gap="sm">
                 <div className="opacity-70">
                   <AiHumanComparison traces={SAMPLE_TRACES} slug={slug} />
                 </div>
@@ -182,7 +189,7 @@ export function HumanReviewView({ phoenixProject, projectId, slug }: Props) {
                 >
                   {t.humanReview.backToOnboarding}
                 </button>
-              </div>
+              </Stack>
             ) : (
               <EmptyOnboarding
                 slug={slug}
@@ -190,7 +197,7 @@ export function HumanReviewView({ phoenixProject, projectId, slug }: Props) {
                 t={t}
               />
             )}
-          </>
+          </Stack>
         )}
       </div>
     </div>
@@ -246,11 +253,12 @@ function EmptyOnboarding({
   ];
 
   return (
-    <div className="rounded-xl border bg-card p-6">
-      <h2 className="text-lg font-semibold tracking-tight">{t.humanReview.emptyTitle}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{t.humanReview.emptyHowTo}</p>
-
-      <ol className="mt-6 space-y-3">
+    <SectionCard
+      title={t.humanReview.emptyTitle}
+      description={t.humanReview.emptyHowTo}
+      variant="bordered"
+    >
+      <ol className="mt-3 space-y-3">
         {steps.map((step, i) => (
           <li key={i} className="flex items-baseline gap-4">
             <span
@@ -264,7 +272,7 @@ function EmptyOnboarding({
         ))}
       </ol>
 
-      <div className="mt-6 flex gap-2 border-t pt-4">
+      <Inline gap="sm" className="mt-6 border-t pt-4">
         <Link
           href={recentHref}
           className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
@@ -277,7 +285,7 @@ function EmptyOnboarding({
         >
           <Eye className="size-3" /> {t.humanReview.viewSample}
         </button>
-      </div>
-    </div>
+      </Inline>
+    </SectionCard>
   );
 }

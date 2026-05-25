@@ -13,6 +13,9 @@ import { JoinProjectModal } from "@/components/modals/join-project-modal";
 import { Nav } from "@/components/nav";
 import { useT } from "@/lib/i18n";
 import { CreateProjectModal } from "@/components/modals/create-project-modal";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 
 interface ProjectItem {
   id: string;
@@ -79,7 +82,7 @@ export default function ProjectsPage() {
       <div className="min-h-screen bg-background">
         <Nav />
 
-        <div className="mx-auto max-w-6xl px-6 py-10">
+        <PageContainer size="wide" className="py-10">
           {projects.length === 0 ? (
             <div className="flex h-[60vh] flex-col items-center justify-center text-center">
               <EmptyState
@@ -99,41 +102,41 @@ export default function ProjectsPage() {
             </div>
           ) : (
             <>
-              <div className="mb-8 flex items-center justify-between">
-                <h1 className="text-xl font-semibold tracking-tight">{t.projects.title}</h1>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setShowJoin(true)}>{t.projects.join}</Button>
-                  <Button size="sm" onClick={() => setShowCreate(true)}>
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                    {t.projects.newProject}
-                  </Button>
-                </div>
-              </div>
+              <PageHeader
+                title={t.projects.title}
+                actions={
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => setShowJoin(true)}>{t.projects.join}</Button>
+                    <Button size="sm" onClick={() => setShowCreate(true)}>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      {t.projects.newProject}
+                    </Button>
+                  </>
+                }
+              />
 
               {myProjects.length > 0 && (
-                <section className="mb-8">
-                  <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.projects.myProjects}</h2>
+                <SectionCard title={t.projects.myProjects}>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {myProjects.map((p) => (
                       <ProjectCard key={p.id} {...p} onRename={(n) => handleRename(p.id, n)} />
                     ))}
                   </div>
-                </section>
+                </SectionCard>
               )}
 
               {sharedProjects.length > 0 && (
-                <section>
-                  <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.projects.sharedWithMe}</h2>
+                <SectionCard title={t.projects.sharedWithMe}>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {sharedProjects.map((p) => (
                       <ProjectCard key={p.id} {...p} />
                     ))}
                   </div>
-                </section>
+                </SectionCard>
               )}
             </>
           )}
-        </div>
+        </PageContainer>
       </div>
     </>
   );

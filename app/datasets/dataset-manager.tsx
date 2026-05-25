@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api-client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Text } from "@/components/ui/typography";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CSVImportModal } from "@/components/modals/csv-import-modal";
@@ -561,9 +562,9 @@ export function DatasetManager({ projectId }: { projectId?: string } = {}) {
                     {/* Pagination */}
                     {totalRows > pageSize && (
                       <div className="flex items-center justify-between rounded-lg border px-4 py-2.5 mt-4">
-                        <p className="text-xs text-muted-foreground">
+                        <Text variant="caption">
                           {(page * pageSize + 1).toLocaleString()}–{Math.min((page + 1) * pageSize, totalRows).toLocaleString()} of {totalRows.toLocaleString()}
-                        </p>
+                        </Text>
                         <div className="flex items-center gap-1.5">
                           <Button
                             variant="outline" size="sm"

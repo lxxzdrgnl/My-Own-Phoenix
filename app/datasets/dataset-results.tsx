@@ -9,6 +9,7 @@ import { Trash2, ChevronRight, FlaskConical, Filter, X, Pencil, Check as CheckIc
 import { apiFetch } from "@/lib/api-client";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { Heading, Text } from "@/components/ui/typography";
 
 interface RunMeta {
   id: string; agentSource: string; evalNames: string; status: string; createdAt: string;
@@ -113,7 +114,7 @@ export function DatasetResults({
       {/* Run list sidebar */}
       {runs.length > 0 && (
         <div className="w-52 shrink-0 border-r overflow-y-auto">
-          <p className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b">{t.datasets.runs}</p>
+          <Heading level="sub" as="h3" className="px-3 py-2.5 border-b">{t.datasets.runs}</Heading>
           {liveRunId && (
             <div
               onClick={() => onLoadRun("")}
@@ -125,7 +126,7 @@ export function DatasetResults({
               <div className="size-1.5 shrink-0 rounded-full bg-foreground/40 animate-pulse" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium">{t.datasets.liveRun}</p>
-                <p className="text-[10px] text-muted-foreground">{liveResults.length} {t.datasets.responses}</p>
+                <Text variant="caption" className="text-[10px]">{liveResults.length} {t.datasets.responses}</Text>
               </div>
             </div>
           )}
@@ -175,7 +176,7 @@ export function DatasetResults({
                 ) : (
                   <p className="truncate text-xs font-medium">{displayName}</p>
                 )}
-                <p className="text-[10px] text-muted-foreground">{formatDateTime(r.createdAt)}</p>
+                <Text variant="caption" className="text-[10px]">{formatDateTime(r.createdAt)}</Text>
               </div>
               {isEditing ? (
                 <button
@@ -235,16 +236,16 @@ export function DatasetResults({
               return latencies.length > 0 ? (
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-lg border px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.rows}</p>
-                    <p className="text-2xl font-bold tabular-nums">{displayResults.length}</p>
+                    <Heading level="sub" as="h3">{t.datasets.rows}</Heading>
+                    <Heading level="page" className="tabular-nums">{displayResults.length}</Heading>
                   </div>
                   <div className="rounded-lg border px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.avgLatency}</p>
-                    <p className="text-2xl font-bold tabular-nums">{avgLatency!.toFixed(1)}s</p>
+                    <Heading level="sub" as="h3">{t.datasets.avgLatency}</Heading>
+                    <Heading level="page" className="tabular-nums">{avgLatency!.toFixed(1)}s</Heading>
                   </div>
                   <div className="rounded-lg border px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.p95Latency}</p>
-                    <p className="text-2xl font-bold tabular-nums">{p95Latency!.toFixed(1)}s</p>
+                    <Heading level="sub" as="h3">{t.datasets.p95Latency}</Heading>
+                    <Heading level="page" className="tabular-nums">{p95Latency!.toFixed(1)}s</Heading>
                   </div>
                 </div>
               ) : null;
@@ -372,18 +373,18 @@ export function DatasetResults({
                               <td colSpan={colSpan} className="px-4 py-4" style={{ minWidth: 0, maxWidth: 0 }}>
                                 <div className="space-y-3">
                                   <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Query</p>
+                                    <Heading level="sub" as="h3" className="mb-1">Query</Heading>
                                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{query}</p>
                                   </div>
                                   {result.response && (
                                     <div>
-                                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Response</p>
+                                      <Heading level="sub" as="h3" className="mb-1">Response</Heading>
                                       <p className="text-sm leading-relaxed whitespace-pre-wrap rounded border bg-background p-3">{result.response}</p>
                                     </div>
                                   )}
                                   {Object.keys(result.evals).length > 0 && (
                                     <div>
-                                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Evaluations</p>
+                                      <Heading level="sub" as="h3" className="mb-1">Evaluations</Heading>
                                       <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                                         {Object.entries(result.evals).map(([name, ev]) => {
                                           const isError = ev.label === "error";
@@ -485,7 +486,7 @@ function EvalFilterDropdown({
         className="fixed z-50 w-48 rounded-lg border bg-background p-2 shadow-lg text-left"
         style={{ top: pos.top, left: pos.left }}
       >
-        <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Label</p>
+        <Heading level="sub" as="h3" className="px-2 py-1">Label</Heading>
         <button
           onClick={onClear}
           className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent", !current && "bg-accent font-medium")}
@@ -507,7 +508,7 @@ function EvalFilterDropdown({
 
         <div className="my-1.5 h-px bg-border" />
 
-        <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Score</p>
+        <Heading level="sub" as="h3" className="px-2 py-1">Score</Heading>
         <div className="flex items-center gap-1.5 px-2 py-1">
           <select
             value={scoreOp}

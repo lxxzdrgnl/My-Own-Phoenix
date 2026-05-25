@@ -8,12 +8,18 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, CheckCircle, Loader2, AlertTriangle, ArrowRightLeft, Copy, Check, RefreshCw } from "lucide-react";
+import { Trash2, Plus, CheckCircle, AlertTriangle, ArrowRightLeft, Copy, Check, RefreshCw } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { useResourceList } from "@/lib/hooks/use-resource-list";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { Text, Label } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
+import { LoadingButton } from "@/components/ui/loading-button";
 
 function useTabs() {
   const t = useT();
@@ -112,7 +118,7 @@ function ApiKeysTab() {
     reloadProviders();
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground">{t.common.loading}</p>;
+  if (loading) return <Text variant="caption">{t.common.loading}</Text>;
 
   const handleGenerateTraceKey = () => submitGenerateTraceKey();
 
@@ -125,58 +131,58 @@ function ApiKeysTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <Stack gap="lg">
       {/* Trace Key */}
-      <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t.projectSettings.traceKey}</h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          {t.projectSettings.traceKeyDesc}
-        </p>
-        <div className="rounded-lg border px-4 py-3 space-y-3">
-          {traceKey && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">{traceKey}</code>
-                <button onClick={handleCopyKey} className="rounded-md p-2 hover:bg-accent">
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                </button>
-              </div>
-              <div className="rounded-md bg-muted/50 p-3 font-mono text-[11px] text-muted-foreground space-y-1">
-                <p># Agent .env</p>
-                <p>PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.rheon.kr/api/collect</p>
-                <p>PHOENIX_API_KEY={traceKey}</p>
-              </div>
-            </div>
-          )}
-          <RoleGate minRole="owner">
-            <Button size="sm" variant="outline" onClick={handleGenerateTraceKey} disabled={generatingKey}>
-              {generatingKey ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
-              {traceKey ? t.projectSettings.regenerate : t.projectSettings.generateTraceKey}
-            </Button>
-          </RoleGate>
+      <SectionCard
+        title={t.projectSettings.traceKey}
+        description={t.projectSettings.traceKeyDesc}
+      >
+        <div className="rounded-lg border px-4 py-3">
+          <Stack gap="sm">
+            {traceKey && (
+              <Stack gap="sm">
+                <Inline gap="sm">
+                  <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">{traceKey}</code>
+                  <button onClick={handleCopyKey} className="rounded-md p-2 hover:bg-accent">
+                    {copied ? <Check className="h-3.5 w-3.5 text-[#10b981]" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                </Inline>
+                <div className="rounded-md bg-muted/50 p-3 font-mono text-[11px] text-muted-foreground space-y-1">
+                  <p># Agent .env</p>
+                  <p>PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.rheon.kr/api/collect</p>
+                  <p>PHOENIX_API_KEY={traceKey}</p>
+                </div>
+              </Stack>
+            )}
+            <RoleGate minRole="owner">
+              <LoadingButton size="sm" variant="outline" onClick={handleGenerateTraceKey} loading={generatingKey}>
+                {!generatingKey && <RefreshCw className="mr-1.5 h-3 w-3" />}
+                {traceKey ? t.projectSettings.regenerate : t.projectSettings.generateTraceKey}
+              </LoadingButton>
+            </RoleGate>
+          </Stack>
         </div>
-      </section>
+      </SectionCard>
 
       {/* LLM Provider Keys */}
-      <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t.projectSettings.llmProviderKeys}</h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          {t.projectSettings.llmProviderKeysDesc}
-        </p>
-        <div className="space-y-2">
+      <SectionCard
+        title={t.projectSettings.llmProviderKeys}
+        description={t.projectSettings.llmProviderKeysDesc}
+      >
+        <Stack gap="sm">
           {PROVIDERS.map((p) => {
             const existing = keys.find((k) => k.provider === p.id);
             return (
               <div key={p.id} className="flex items-center gap-3 rounded-lg border px-4 py-3">
                 <div className="w-20">
-                  <p className="text-sm font-medium">{p.label}</p>
+                  <Text variant="body" className="font-medium">{p.label}</Text>
                 </div>
                 {existing ? (
                   <>
-                    <div className="flex-1 flex items-center gap-2">
-                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                      <span className="text-xs text-muted-foreground">{t.projectSettings.configured}</span>
-                    </div>
+                    <Inline gap="sm" className="flex-1">
+                      <CheckCircle className="h-3.5 w-3.5 text-[#10b981]" />
+                      <Text variant="caption">{t.projectSettings.configured}</Text>
+                    </Inline>
                     <RoleGate>
                       <button onClick={() => handleDelete(existing.id)} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
@@ -184,7 +190,7 @@ function ApiKeysTab() {
                     </RoleGate>
                   </>
                 ) : adding === p.id ? (
-                  <div className="flex-1 flex items-center gap-2">
+                  <Inline gap="sm" className="flex-1">
                     <Input
                       value={newKey}
                       onChange={(e) => setNewKey(e.target.value)}
@@ -192,13 +198,13 @@ function ApiKeysTab() {
                       autoFocus
                       className="h-8 text-xs font-mono"
                     />
-                    <Button size="sm" onClick={() => handleAdd(p.id)} disabled={saving || !newKey.trim()}>
-                      {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : t.common.save}
-                    </Button>
+                    <LoadingButton size="sm" onClick={() => handleAdd(p.id)} loading={saving} disabled={!newKey.trim()}>
+                      {t.common.save}
+                    </LoadingButton>
                     <Button size="sm" variant="outline" onClick={() => { setAdding(null); setNewKey(""); }}>
                       {t.common.cancel}
                     </Button>
-                  </div>
+                  </Inline>
                 ) : (
                   <div className="flex-1">
                     <RoleGate>
@@ -211,9 +217,9 @@ function ApiKeysTab() {
               </div>
             );
           })}
-        </div>
-      </section>
-    </div>
+        </Stack>
+      </SectionCard>
+    </Stack>
   );
 }
 
@@ -224,11 +230,10 @@ export default function ProjectSettingsPage() {
   const [activeTab, setActiveTab] = useState("members");
 
   return (
-    <div className="mx-auto max-w-2xl px-8 py-8">
-      <h1 className="text-xl font-semibold tracking-tight mb-1">{t.projectSettings.title}</h1>
-      <p className="text-sm text-muted-foreground mb-6">{name}</p>
+    <PageContainer size="narrow">
+      <PageHeader title={t.projectSettings.title} description={name} />
 
-      <div className="flex gap-1 border-b mb-6">
+      <div className="flex gap-1 border-b">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -248,8 +253,8 @@ export default function ProjectSettingsPage() {
       {activeTab === "members" && <MembersTab />}
       {activeTab === "api-keys" && <ApiKeysTab />}
       {activeTab === "agent" && <AgentTab />}
-{activeTab === "danger" && <DangerTab />}
-    </div>
+      {activeTab === "danger" && <DangerTab />}
+    </PageContainer>
   );
 }
 
@@ -326,102 +331,99 @@ function DangerTab() {
     if (!result) alert(`Failed to delete project`);
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground">{t.common.loading}</p>;
+  if (loading) return <Text variant="caption">{t.common.loading}</Text>;
 
   if (!isOwner) {
     return (
       <div className="rounded-lg border px-5 py-8 text-center">
-        <p className="text-sm text-muted-foreground">{t.projectSettings.ownerOnly}</p>
+        <Text variant="caption">{t.projectSettings.ownerOnly}</Text>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <Stack gap="lg">
       {/* Transfer Ownership */}
-      <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          <ArrowRightLeft className="inline h-3 w-3 mr-1" />
-          {t.projectSettings.transferOwnership}
-        </h3>
-        <div className="rounded-lg border px-5 py-4 space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {t.projectSettings.transferOwnershipDesc}
-          </p>
-          {otherMembers.length === 0 ? (
-            <p className="text-xs text-muted-foreground/60">{t.projectSettings.noOtherMembers}</p>
-          ) : (
-            <>
-              <select
-                value={transferTarget}
-                onChange={(e) => setTransferTarget(e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              >
-                <option value="">{t.projectSettings.selectMember}</option>
-                {otherMembers.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.user.name || m.user.email} ({m.role})
-                  </option>
-                ))}
-              </select>
-              {transferTarget && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    {t.projectSettings.typeToConfirm.split("{name}")[0]}<strong>{name}</strong>{t.projectSettings.typeToConfirm.split("{name}")[1]}
-                  </p>
-                  <Input
-                    value={transferConfirm}
-                    onChange={(e) => setTransferConfirm(e.target.value)}
-                    placeholder={name}
-                    className="text-sm"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleTransfer}
-                    disabled={transferConfirm !== name || transferring}
-                  >
-                    {transferring ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-                    {t.projectSettings.transferOwnership}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+      <SectionCard
+        title={t.projectSettings.transferOwnership}
+        description={t.projectSettings.transferOwnershipDesc}
+      >
+        <div className="rounded-lg border px-5 py-4">
+          <Stack gap="sm">
+            {otherMembers.length === 0 ? (
+              <Text variant="caption" className="opacity-60">{t.projectSettings.noOtherMembers}</Text>
+            ) : (
+              <>
+                <select
+                  value={transferTarget}
+                  onChange={(e) => setTransferTarget(e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">{t.projectSettings.selectMember}</option>
+                  {otherMembers.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.user.name || m.user.email} ({m.role})
+                    </option>
+                  ))}
+                </select>
+                {transferTarget && (
+                  <Stack gap="sm">
+                    <Text variant="caption">
+                      {t.projectSettings.typeToConfirm.split("{name}")[0]}<strong>{name}</strong>{t.projectSettings.typeToConfirm.split("{name}")[1]}
+                    </Text>
+                    <Input
+                      value={transferConfirm}
+                      onChange={(e) => setTransferConfirm(e.target.value)}
+                      placeholder={name}
+                      className="text-sm"
+                    />
+                    <LoadingButton
+                      size="sm"
+                      variant="outline"
+                      onClick={handleTransfer}
+                      disabled={transferConfirm !== name}
+                      loading={transferring}
+                    >
+                      {t.projectSettings.transferOwnership}
+                    </LoadingButton>
+                  </Stack>
+                )}
+              </>
+            )}
+          </Stack>
         </div>
-      </section>
+      </SectionCard>
 
       {/* Delete Project */}
-      <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-destructive mb-3">
-          <AlertTriangle className="inline h-3 w-3 mr-1" />
-          {t.projectSettings.deleteProject}
-        </h3>
-        <div className="rounded-lg border border-destructive/20 px-5 py-4 space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {t.projectSettings.deleteProjectDesc}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {t.projectSettings.typeToConfirm.split("{name}")[0]}<strong>{name}</strong>{t.projectSettings.typeToConfirm.split("{name}")[1]}
-          </p>
-          <Input
-            value={deleteConfirm}
-            onChange={(e) => setDeleteConfirm(e.target.value)}
-            placeholder={name}
-            className="text-sm"
-          />
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleteConfirm !== name || deleting}
-          >
-            {deleting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-            {t.projectSettings.deleteProject}
-          </Button>
+      <SectionCard
+        title={t.projectSettings.deleteProject}
+        description={t.projectSettings.deleteProjectDesc}
+        variant="destructive"
+      >
+        <div className="rounded-lg border border-destructive/20 px-5 py-4">
+          <Stack gap="sm">
+            <Text variant="caption">
+              {t.projectSettings.typeToConfirm.split("{name}")[0]}<strong>{name}</strong>{t.projectSettings.typeToConfirm.split("{name}")[1]}
+            </Text>
+            <Input
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder={name}
+              className="text-sm"
+            />
+            <LoadingButton
+              size="sm"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteConfirm !== name}
+              loading={deleting}
+            >
+              {t.projectSettings.deleteProject}
+            </LoadingButton>
+          </Stack>
         </div>
-      </section>
-    </div>
+      </SectionCard>
+    </Stack>
   );
 }
 
@@ -448,64 +450,58 @@ function AgentTab() {
   }, [projectId]);
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          {t.projectSettings.connectedAgents}
-        </h3>
+    <Stack gap="lg">
+      <SectionCard title={t.projectSettings.connectedAgents}>
         {loading ? (
-          <p className="text-sm text-muted-foreground">{t.common.loading}</p>
+          <Text variant="caption">{t.common.loading}</Text>
         ) : connectors.length === 0 ? (
           <div className="rounded-lg border border-dashed px-5 py-8 text-center">
-            <p className="text-sm text-muted-foreground mb-1">{t.projectSettings.noAgentsConnected}</p>
-            <p className="text-xs text-muted-foreground/60">
+            <Text variant="body" className="mb-1">{t.projectSettings.noAgentsConnected}</Text>
+            <Text variant="caption" className="opacity-60">
               {t.projectSettings.noAgentsConnectedDesc}
-            </p>
+            </Text>
           </div>
         ) : (
-          <div className="space-y-1">
+          <Stack gap="xs">
             {connectors.map((c: any) => (
               <div
                 key={c.userId}
                 className="flex items-center justify-between rounded-lg border px-4 py-3"
               >
-                <div className="flex items-center gap-3">
+                <Inline gap="md">
                   {c.status === "online" ? (
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="h-2 w-2 rounded-full bg-[#10b981]" />
                   ) : (
                     <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />
                   )}
                   <div>
-                    <p className="text-sm font-medium">{c.userName}</p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <Text variant="body" className="font-medium">{c.userName}</Text>
+                    <Text variant="caption" className="text-[10px]">
                       {c.agentType} · {c.status}
-                    </p>
+                    </Text>
                   </div>
-                </div>
+                </Inline>
               </div>
             ))}
-          </div>
+          </Stack>
         )}
-      </section>
+      </SectionCard>
 
-      <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          {t.projectSettings.setupGuide}
-        </h3>
-        <div className="rounded-lg border px-5 py-4 space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {t.projectSettings.setupGuideDesc}
-          </p>
+      <SectionCard
+        title={t.projectSettings.setupGuide}
+        description={t.projectSettings.setupGuideDesc}
+      >
+        <Stack gap="sm">
           <div className="rounded-lg bg-muted/50 p-3 font-mono text-xs text-muted-foreground break-all">
             pip install phoenix-connector
             <br />
             phoenix-connector --key=pc_... --agent=http://localhost:2024 --project={name}
           </div>
-          <p className="text-[10px] text-muted-foreground/60">
+          <Text variant="caption" className="opacity-60">
             {t.projectSettings.connectorKeyHint}
-          </p>
-        </div>
-      </section>
-    </div>
+          </Text>
+        </Stack>
+      </SectionCard>
+    </Stack>
   );
 }

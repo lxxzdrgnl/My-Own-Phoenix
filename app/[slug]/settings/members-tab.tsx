@@ -12,6 +12,9 @@ import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { Stack, Inline } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
+import { Text, Label } from "@/components/ui/typography";
 
 interface Member {
   id: string;
@@ -178,18 +181,17 @@ export function MembersTab() {
   if (loading) return <LoadingState />;
 
   return (
-    <div className="space-y-8">
+    <Stack gap="xl">
       {/* Members */}
-      <section>
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t.projectSettings.membersSection}</h3>
-        <div className="space-y-1">
+      <SectionCard title={t.projectSettings.membersSection}>
+        <Stack gap="xs">
           {members.map((m) => (
             <div key={m.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
               <div>
-                <p className="text-sm font-medium">{m.user.name || m.user.email}</p>
-                {m.user.name && <p className="text-xs text-muted-foreground">{m.user.email}</p>}
+                <Text variant="body" className="font-medium">{m.user.name || m.user.email}</Text>
+                {m.user.name && <Text variant="caption">{m.user.email}</Text>}
               </div>
-              <div className="flex items-center gap-2">
+              <Inline gap="sm">
                 {isOwner && m.role !== "owner" ? (
                   <>
                     <RoleGate minRole="owner">
@@ -216,94 +218,96 @@ export function MembersTab() {
                     {m.role}
                   </span>
                 )}
-              </div>
+              </Inline>
             </div>
           ))}
-        </div>
-      </section>
+        </Stack>
+      </SectionCard>
 
       {/* Pending Requests (owner only) */}
       {isOwner && requests.length > 0 && (
-        <section>
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-            {t.projectSettings.pendingRequests}
-            <span className="ml-2 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] text-background">{requests.length}</span>
-          </h3>
-          <div className="space-y-1">
+        <SectionCard
+          title={t.projectSettings.pendingRequests}
+          actions={
+            <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] text-background">{requests.length}</span>
+          }
+        >
+          <Stack gap="xs">
             {requests.map((r) => (
               <div key={r.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium">{r.user.name || r.user.email}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <Text variant="body" className="font-medium">{r.user.name || r.user.email}</Text>
+                  <Text variant="caption">
                     {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </p>
+                  </Text>
                 </div>
-                <div className="flex gap-1">
+                <Inline gap="xs">
                   <Button size="sm" onClick={() => handleApprove(r.id)}>
                     <Check className="mr-1 h-3 w-3" /> {t.projectSettings.approve}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => handleReject(r.id)}>
                     <X className="mr-1 h-3 w-3" /> {t.projectSettings.reject}
                   </Button>
-                </div>
+                </Inline>
               </div>
             ))}
-          </div>
-        </section>
+          </Stack>
+        </SectionCard>
       )}
 
       {/* Invite Codes (owner only) */}
       {isOwner && (
-        <section>
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t.projectSettings.inviteCodes}</h3>
+        <SectionCard title={t.projectSettings.inviteCodes}>
           {codes.length > 0 && (
-            <div className="space-y-1 mb-3">
+            <Stack gap="xs" className="mb-3">
               {codes.map((c) => (
                 <div key={c.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
                   <div>
                     <code className="text-xs font-mono">{c.code}</code>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                    <Text variant="caption" className="mt-0.5">
                       {c.role} · {c.maxUses > 0 ? `${c.useCount}/${c.maxUses} ${t.projectSettings.used}` : `${c.useCount} ${t.projectSettings.used}`}
                       {c.expiresAt && ` · ${t.projectSettings.expires} ${new Date(c.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
-                    </p>
+                    </Text>
                   </div>
-                  <div className="flex gap-1">
+                  <Inline gap="xs">
                     <button onClick={() => copyCode(c.code)} className="rounded p-1.5 text-muted-foreground hover:bg-accent">
-                      {copied === c.code ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied === c.code ? <Check className="h-3.5 w-3.5 text-[#10b981]" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                     <button onClick={() => handleDeleteCode(c.id)} className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
-                  </div>
+                  </Inline>
                 </div>
               ))}
-            </div>
+            </Stack>
           )}
 
           {showGenerate ? (
-            <div className="rounded-lg border p-4 space-y-3">
-              <div className="flex gap-3">
-                <div>
-                  <label className="text-xs font-medium">{t.projectSettings.role}</label>
-                  <select value={genRole} onChange={(e) => setGenRole(e.target.value)} className="mt-1 block w-full rounded-md border bg-background px-2 py-1.5 text-xs">
-                    <option value="editor">editor</option>
-                    <option value="viewer">viewer</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium">{t.projectSettings.expires}</label>
-                  <select value={genExpiry} onChange={(e) => setGenExpiry(e.target.value)} className="mt-1 block w-full rounded-md border bg-background px-2 py-1.5 text-xs">
-                    <option value="1">{t.projectSettings.day1}</option>
-                    <option value="7">{t.projectSettings.days7}</option>
-                    <option value="30">{t.projectSettings.days30}</option>
-                    <option value="">{t.projectSettings.never}</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button type="button" size="sm" onClick={handleGenerate}>{t.projectSettings.generateAndCopy}</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(false)}>{t.common.cancel}</Button>
-              </div>
+            <div className="rounded-lg border p-4">
+              <Stack gap="sm">
+                <Inline gap="md" align="start">
+                  <div>
+                    <Label>{t.projectSettings.role}</Label>
+                    <select value={genRole} onChange={(e) => setGenRole(e.target.value)} className="mt-1 block w-full rounded-md border bg-background px-2 py-1.5 text-xs">
+                      <option value="editor">editor</option>
+                      <option value="viewer">viewer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>{t.projectSettings.expires}</Label>
+                    <select value={genExpiry} onChange={(e) => setGenExpiry(e.target.value)} className="mt-1 block w-full rounded-md border bg-background px-2 py-1.5 text-xs">
+                      <option value="1">{t.projectSettings.day1}</option>
+                      <option value="7">{t.projectSettings.days7}</option>
+                      <option value="30">{t.projectSettings.days30}</option>
+                      <option value="">{t.projectSettings.never}</option>
+                    </select>
+                  </div>
+                </Inline>
+                <Inline gap="sm">
+                  <Button type="button" size="sm" onClick={handleGenerate}>{t.projectSettings.generateAndCopy}</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(false)}>{t.common.cancel}</Button>
+                </Inline>
+              </Stack>
             </div>
           ) : (
             <RoleGate minRole="owner">
@@ -312,8 +316,8 @@ export function MembersTab() {
               </Button>
             </RoleGate>
           )}
-        </section>
+        </SectionCard>
       )}
-    </div>
+    </Stack>
   );
 }

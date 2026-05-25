@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useT } from "@/lib/i18n";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { Heading, Text } from "@/components/ui/typography";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { FAIL_LABELS } from "@/lib/constants";
 import { fetchTraces, fetchTraceTrees, type Trace, type TraceTree } from "@/lib/phoenix";
@@ -320,8 +321,8 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
           <div className="flex items-center justify-between mb-4">
             {!hideTabBar && (
               <div>
-                <h1 className="text-xl font-semibold tracking-tight">{projectName}</h1>
-                <p className="text-sm text-muted-foreground">{t.projects.projectOverview}</p>
+                <Heading level="page">{projectName}</Heading>
+                <Text variant="body" className="text-muted-foreground">{t.projects.projectOverview}</Text>
               </div>
             )}
             <DateRangePicker value={dateRange} onChange={setDateRange} />
@@ -414,12 +415,12 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
             <div className="mb-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-lg font-semibold">{t.projects.traces}</h2>
-                  <p className="text-sm text-muted-foreground">
+                  <Heading level="section">{t.projects.traces}</Heading>
+                  <Text variant="body" className="text-muted-foreground">
                     {hasActiveFilters
                       ? `${filteredTraceTrees.length} / ${traceTrees.length} ${t.projects.tracesCount}`
                       : t.projects.recentRequests}
-                  </p>
+                  </Text>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button

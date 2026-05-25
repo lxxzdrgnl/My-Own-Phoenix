@@ -7,6 +7,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { InlineError } from "@/components/ui/inline-error";
 import {
   RotateCcw,
   FlaskConical,
@@ -279,12 +284,12 @@ export function EvalEditor({
   if (creating && !selectedEval) {
     return (
       <div className="mx-auto max-w-lg p-8">
-        <h1 className="text-xl font-semibold tracking-tight mb-1">{t.evaluations.newEvaluation}</h1>
-        <p className="text-sm text-muted-foreground mb-6">{t.evaluations.newEvalDesc}</p>
+        <Heading level="page" className="mb-1">{t.evaluations.newEvaluation}</Heading>
+        <Text variant="caption" className="mb-6">{t.evaluations.newEvalDesc}</Text>
 
         {/* Step 1: Mode selection (only for project-level, not globalMode) */}
         {effectiveCreateMode === null && (
-          <div className="space-y-4">
+          <Stack gap="md">
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setCreateMode("template")}
@@ -308,12 +313,12 @@ export function EvalEditor({
               </button>
             </div>
             <Button variant="ghost" onClick={onCancelCreate}>{t.common.cancel}</Button>
-          </div>
+          </Stack>
         )}
 
         {/* Step 2a: Template list */}
         {effectiveCreateMode === "template" && (
-          <div className="space-y-3">
+          <Stack gap="sm">
             <button
               onClick={() => setCreateMode(null)}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
@@ -351,12 +356,12 @@ export function EvalEditor({
               ))
             )}
             <Button variant="ghost" onClick={onCancelCreate} className="mt-2">{t.common.cancel}</Button>
-          </div>
+          </Stack>
         )}
 
         {/* Step 2b: Custom create form */}
         {effectiveCreateMode === "custom" && (
-        <div className="space-y-5">
+        <Stack gap="lg">
           {!globalMode && (
             <button
               onClick={() => setCreateMode(null)}
@@ -429,7 +434,7 @@ export function EvalEditor({
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <Inline gap="md" className="pt-2">
             <Button
               onClick={handleCreate}
               disabled={!newName.trim()}
@@ -440,8 +445,8 @@ export function EvalEditor({
             <Button variant="ghost" onClick={onCancelCreate}>
               {t.common.cancel}
             </Button>
-          </div>
-        </div>
+          </Inline>
+        </Stack>
         )}
       </div>
     );
@@ -467,24 +472,25 @@ export function EvalEditor({
       <div className="mx-auto max-w-3xl p-6">
         {/* Header */}
         <div className="mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-semibold tracking-tight">{selectedEval}</h1>
+          <Inline align="center" className="justify-between mb-2">
+            <Inline gap="sm" align="center">
+              <Heading level="page">{selectedEval}</Heading>
               <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-foreground/8 text-foreground/60">
                 {editEvalType === "llm_prompt" ? "LLM" : editEvalType === "code_rule" ? "Rule" : editEvalType === "api" ? "API" : "Built-in"}
               </span>
-            </div>
-            <div className="flex items-center gap-1">
+            </Inline>
+            <Inline gap="xs" align="center">
               {dirty && (
                 <RoleGate>
-                  <Button
+                  <LoadingButton
                     size="sm"
                     onClick={handleSaveProject}
-                    disabled={saving}
+                    loading={saving}
+                    loadingText={t.evaluations.saving}
                     className="gap-1 text-xs h-7"
                   >
-                    {saving ? t.evaluations.saving : t.common.save}
-                  </Button>
+                    {t.common.save}
+                  </LoadingButton>
                 </RoleGate>
               )}
               {isBuiltIn && (
@@ -501,13 +507,11 @@ export function EvalEditor({
                   </Button>
                 </RoleGate>
               )}
-            </div>
-          </div>
-          {(saveGlobalHook.error || saveProjectHook.error) && (
-            <p className="text-xs text-[#ef4444] mt-1">
-              {saveGlobalHook.error ?? saveProjectHook.error}
-            </p>
-          )}
+            </Inline>
+          </Inline>
+          <InlineError className="mt-1">
+            {saveGlobalHook.error ?? saveProjectHook.error ?? undefined}
+          </InlineError>
         </div>
 
         {/* Backfill */}
@@ -527,13 +531,9 @@ export function EvalEditor({
 
         {/* Editor — changes by eval type */}
         {editEvalType === "api" ? (
-          <div className="mb-5 space-y-4">
-            <div className="rounded-lg border p-4 bg-blue-50/50 dark:bg-blue-950/20">
-              <p className="text-xs font-semibold mb-2">{t.evaluations.externalApiEvaluator}</p>
-              <p className="text-[11px] text-muted-foreground mb-3">
-                {t.evaluations.externalApiEvaluatorDesc}
-              </p>
-              <div className="space-y-2">
+          <Stack gap="md" className="mb-5">
+            <SectionCard title={t.evaluations.externalApiEvaluator} description={t.evaluations.externalApiEvaluatorDesc} variant="bordered">
+              <Stack gap="sm">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.evaluations.endpoint}</label>
                 <input
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
@@ -544,13 +544,13 @@ export function EvalEditor({
                   }}
                   placeholder="http://localhost:2024/evaluate"
                 />
-              </div>
-              <div className="mt-3 text-[10px] text-muted-foreground space-y-1">
-                <p><strong>Request:</strong> POST {`{endpoint}`} {`{ evalName, query, response, context }`}</p>
-                <p><strong>Response:</strong> {`{ score, label, explanation }`}</p>
-              </div>
-            </div>
-          </div>
+                <Stack gap="xs" className="text-[10px] text-muted-foreground">
+                  <p><strong>Request:</strong> POST {`{endpoint}`} {`{ evalName, query, response, context }`}</p>
+                  <p><strong>Response:</strong> {`{ score, label, explanation }`}</p>
+                </Stack>
+              </Stack>
+            </SectionCard>
+          </Stack>
         ) : editEvalType === "code_rule" ? (
           <div className="mb-5">
             <RuleBuilder

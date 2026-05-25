@@ -9,6 +9,9 @@ import { LoadingState } from "@/components/ui/empty-state";
 import { ProviderIcon } from "@/components/provider-icon";
 import { useT } from "@/lib/i18n";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack } from "@/components/ui/stack";
+import { InlineError } from "@/components/ui/inline-error";
 
 interface ProviderEntry {
   id: string;
@@ -46,29 +49,29 @@ export function ProvidersSection() {
   const configuredCount = providers.length;
 
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">{t.settings.providers}</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+    <Stack gap="lg">
+      <div>
+        <Heading level="section">{t.settings.providers}</Heading>
+        <Text variant="caption" className="mt-1.5">
           {t.settings.providersDesc}
-        </p>
+        </Text>
       </div>
 
       {loading && <LoadingState />}
 
       {!loading && (
-        <div className="space-y-8">
+        <Stack gap="lg">
           <section>
             <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
+              <Heading level="sub" as="h3">
                 {t.settings.providersLabel}
-              </h3>
+              </Heading>
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {configuredCount}/{ALL_PROVIDERS.length}
               </span>
               <div className="h-px flex-1 bg-border" />
             </div>
-            <div className="space-y-2">
+            <Stack gap="sm">
               {ALL_PROVIDERS.map(({ key, label, placeholder }) => (
                 <ProviderRow
                   key={key}
@@ -79,11 +82,11 @@ export function ProvidersSection() {
                   onUpdate={load}
                 />
               ))}
-            </div>
+            </Stack>
           </section>
-        </div>
+        </Stack>
       )}
-    </div>
+    </Stack>
   );
 }
 
@@ -259,9 +262,7 @@ function ProviderRow({
         </div>
 
         {/* Save error */}
-        {saveError && (
-          <p className="text-sm text-[#ef4444]">{saveError}</p>
-        )}
+        <InlineError>{saveError}</InlineError>
 
         {/* Test result */}
         {testResult && (

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingState } from "@/components/ui/empty-state";
-import { CheckCircle, Copy, Check, RefreshCw, Loader2 } from "lucide-react";
+import { CheckCircle, Copy, Check, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
@@ -16,6 +16,11 @@ import {
   PromptTemplate,
   parsePromptTemplate,
 } from "@/lib/constants";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { InlineError } from "@/components/ui/inline-error";
 
 export function GeneralSection() {
   const { user } = useAuth();
@@ -134,167 +139,161 @@ export function GeneralSection() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-xl font-semibold tracking-tight">{t.settings.account}</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <Heading level="section">{t.settings.account}</Heading>
+        <Text variant="caption" className="mt-1.5">
           {t.settings.accountDesc}
-        </p>
+        </Text>
       </div>
 
       {loading && <LoadingState />}
 
       {!loading && (
-        <div className="space-y-8">
+        <Stack gap="xl">
           {/* Profile */}
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                {t.settings.profileSection}
-              </h3>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <div className="rounded-lg border px-5 py-4 space-y-3">
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t.settings.email}</p>
-                <p className="mt-0.5 text-sm">{user?.email}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">{t.settings.nickname}</p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={nickname}
-                    onChange={(e) => setNickname(e.target.value)}
-                    placeholder={t.settings.nicknamePlaceholder}
-                    className="max-w-xs"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveProfile}
-                    disabled={profileHook.saving || nickname.trim() === savedNickname}
-                  >
-                    {profileHook.saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-                    {profileSaved ? t.settings.saved : t.common.save}
-                  </Button>
+          <SectionCard title={t.settings.profileSection}>
+            <div className="rounded-lg border px-5 py-4">
+              <Stack gap="sm">
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t.settings.email}</p>
+                  <p className="mt-0.5 text-sm">{user?.email}</p>
                 </div>
-                {profileHook.error && (
-                  <p className="text-sm text-[#ef4444]">{profileHook.error}</p>
-                )}
-              </div>
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">{t.settings.nickname}</p>
+                  <Inline gap="sm">
+                    <Input
+                      value={nickname}
+                      onChange={(e) => setNickname(e.target.value)}
+                      placeholder={t.settings.nicknamePlaceholder}
+                      className="max-w-xs"
+                    />
+                    <LoadingButton
+                      size="sm"
+                      onClick={handleSaveProfile}
+                      loading={profileHook.saving}
+                      disabled={profileHook.saving || nickname.trim() === savedNickname}
+                    >
+                      {profileSaved ? t.settings.saved : t.common.save}
+                    </LoadingButton>
+                  </Inline>
+                  <InlineError>{profileHook.error}</InlineError>
+                </div>
+              </Stack>
             </div>
-          </section>
+          </SectionCard>
 
           {/* Default Prompt Template */}
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                {t.settings.promptTemplateSection}
-              </h3>
-              <div className="h-px flex-1 bg-border" />
+          <SectionCard title={t.settings.promptTemplateSection}>
+            <div className="rounded-lg border px-5 py-4">
+              <Stack gap="sm">
+                <Text variant="caption" className="leading-relaxed">
+                  {t.settings.promptTemplateDesc}
+                </Text>
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">
+                    {t.settings.promptSystemLabel}
+                  </p>
+                  <Textarea
+                    value={template.system}
+                    onChange={(e) => setTemplate((p) => ({ ...p, system: e.target.value }))}
+                    placeholder={t.settings.promptSystemPlaceholder}
+                    rows={4}
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">
+                    {t.settings.promptContextLabel}
+                  </p>
+                  <Textarea
+                    value={template.context}
+                    onChange={(e) => setTemplate((p) => ({ ...p, context: e.target.value }))}
+                    placeholder={t.settings.promptContextPlaceholder}
+                    rows={4}
+                    className="text-xs"
+                  />
+                </div>
+                <Inline gap="sm">
+                  <LoadingButton
+                    size="sm"
+                    onClick={handleSaveTemplate}
+                    loading={templateHook.saving}
+                    disabled={templateHook.saving || !templateDirty}
+                  >
+                    {templateSaved && !templateDirty ? t.settings.saved : t.common.save}
+                  </LoadingButton>
+                  {templateSaved && !templateDirty && (
+                    <CheckCircle className="h-3.5 w-3.5 text-[#10b981]" />
+                  )}
+                  <InlineError>{templateHook.error}</InlineError>
+                </Inline>
+              </Stack>
             </div>
-            <div className="rounded-lg border px-5 py-4 space-y-3">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t.settings.promptTemplateDesc}
-              </p>
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">
-                  {t.settings.promptSystemLabel}
-                </p>
-                <Textarea
-                  value={template.system}
-                  onChange={(e) => setTemplate((p) => ({ ...p, system: e.target.value }))}
-                  placeholder={t.settings.promptSystemPlaceholder}
-                  rows={4}
-                  className="text-xs"
-                />
-              </div>
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">
-                  {t.settings.promptContextLabel}
-                </p>
-                <Textarea
-                  value={template.context}
-                  onChange={(e) => setTemplate((p) => ({ ...p, context: e.target.value }))}
-                  placeholder={t.settings.promptContextPlaceholder}
-                  rows={4}
-                  className="text-xs"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleSaveTemplate}
-                  disabled={templateHook.saving || !templateDirty}
-                >
-                  {templateHook.saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-                  {templateSaved && !templateDirty ? t.settings.saved : t.common.save}
-                </Button>
-                {templateSaved && !templateDirty && (
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                )}
-                {templateHook.error && (
-                  <p className="text-sm text-[#ef4444]">{templateHook.error}</p>
-                )}
-              </div>
-            </div>
-          </section>
+          </SectionCard>
 
           {/* Connector Key */}
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
-                {t.settings.connectorKey}
-              </h3>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <div className="rounded-lg border px-5 py-4 space-y-3">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t.settings.connectorKeyDesc}
-              </p>
+          <SectionCard title={t.settings.connectorKey}>
+            <div className="rounded-lg border px-5 py-4">
+              <Stack gap="sm">
+                <Text variant="caption" className="leading-relaxed">
+                  {t.settings.connectorKeyDesc}
+                </Text>
 
-              {newKey ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">
-                      {newKey}
-                    </code>
-                    <button onClick={handleCopy} className="rounded-md p-2 hover:bg-accent">
-                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </button>
-                  </div>
-                  <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                    <CheckCircle className="h-3 w-3 text-emerald-500" />
-                    {t.settings.saveKeyWarning}
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  {hasKey ? (
-                    <>
-                      <code className="rounded-md bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
-                        pc_••••••••••••••••
+                {newKey ? (
+                  <Stack gap="xs">
+                    <Inline gap="sm">
+                      <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">
+                        {newKey}
                       </code>
-                      <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
-                        {generating ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
-                        {t.settings.regenerateKey}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button size="sm" onClick={handleGenerate} disabled={generating}>
-                      {generating ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
-                      {t.settings.generateKey}
-                    </Button>
-                  )}
-                </div>
-              )}
+                      <button onClick={handleCopy} className="rounded-md p-2 hover:bg-accent">
+                        {copied ? <Check className="h-3.5 w-3.5 text-[#10b981]" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </button>
+                    </Inline>
+                    <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <CheckCircle className="h-3 w-3 text-[#10b981]" />
+                      {t.settings.saveKeyWarning}
+                    </p>
+                  </Stack>
+                ) : (
+                  <Inline gap="md">
+                    {hasKey ? (
+                      <>
+                        <code className="rounded-md bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
+                          pc_••••••••••••••••
+                        </code>
+                        <LoadingButton
+                          size="sm"
+                          variant="outline"
+                          onClick={handleGenerate}
+                          loading={generating}
+                          disabled={generating}
+                        >
+                          {!generating && <RefreshCw className="mr-1.5 h-3 w-3" />}
+                          {t.settings.regenerateKey}
+                        </LoadingButton>
+                      </>
+                    ) : (
+                      <LoadingButton
+                        size="sm"
+                        onClick={handleGenerate}
+                        loading={generating}
+                        disabled={generating}
+                      >
+                        {t.settings.generateKey}
+                      </LoadingButton>
+                    )}
+                  </Inline>
+                )}
 
-              <div className="mt-3 rounded-lg bg-muted/50 p-3">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">{t.settings.usage}</p>
-                <code className="text-xs text-muted-foreground font-mono leading-relaxed break-all">
-                  phoenix-connector --key={newKey || "pc_..."} --agent=http://localhost:2024 --project=my-project
-                </code>
-              </div>
+                <div className="mt-3 rounded-lg bg-muted/50 p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">{t.settings.usage}</p>
+                  <code className="text-xs text-muted-foreground font-mono leading-relaxed break-all">
+                    phoenix-connector --key={newKey || "pc_..."} --agent=http://localhost:2024 --project=my-project
+                  </code>
+                </div>
+              </Stack>
             </div>
-          </section>
-        </div>
+          </SectionCard>
+        </Stack>
       )}
     </div>
   );

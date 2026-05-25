@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Play } from "lucide-react";
 import { PASS_LABELS } from "@/lib/constants";
 import { apiFetch } from "@/lib/api-client";
 import { useT } from "@/lib/i18n";
 import { parsePromptToConfig, generatePromptMessages } from "@/components/prompt-builder";
+import { Heading, Label } from "@/components/ui/typography";
+import { Inline } from "@/components/ui/stack";
+import { LoadingButton } from "@/components/ui/loading-button";
 
 interface TestResult {
   label: string;
@@ -85,25 +87,27 @@ export function EvalTestPanel({ editTemplate, projectId }: EvalTestPanelProps) {
 
   return (
     <div className="rounded-lg border p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+      <Inline gap="sm" className="mb-3 justify-between">
+        <Heading level="sub" className="flex items-center gap-1.5">
           <Play className="size-3" /> {t.evaluations.test}
-        </h3>
-        <Button
+        </Heading>
+        <LoadingButton
           size="sm"
           variant="outline"
           onClick={handleTest}
-          disabled={testing || !editTemplate}
+          disabled={!editTemplate}
+          loading={testing}
+          loadingText={t.common.running}
           className="gap-1.5 text-xs"
         >
-          {testing ? t.common.running : t.common.run}
-        </Button>
-      </div>
+          {t.common.run}
+        </LoadingButton>
+      </Inline>
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <Label className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
             {t.evaluations.context}
-          </label>
+          </Label>
           <Textarea
             value={testContext}
             onChange={(e) => setTestContext(e.target.value)}
@@ -113,9 +117,9 @@ export function EvalTestPanel({ editTemplate, projectId }: EvalTestPanelProps) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <Label className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
             {t.evaluations.query}
-          </label>
+          </Label>
           <Textarea
             value={testQuery}
             onChange={(e) => setTestQuery(e.target.value)}
@@ -125,9 +129,9 @@ export function EvalTestPanel({ editTemplate, projectId }: EvalTestPanelProps) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <Label className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
             {t.evaluations.response}
-          </label>
+          </Label>
           <Textarea
             value={testResponse}
             onChange={(e) => setTestResponse(e.target.value)}

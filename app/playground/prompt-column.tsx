@@ -5,6 +5,7 @@ import { PromptVersion } from "@/lib/phoenix";
 import { Column, VersionOption } from "./hooks/use-playground-columns";
 import { AgentModelSelector } from "@/components/agent-model-selector";
 import { useT } from "@/lib/i18n";
+import { Heading, Text, Label } from "@/components/ui/typography";
 
 interface PromptColumnProps {
   col: Column;
@@ -48,9 +49,9 @@ export function PromptColumn({
       {/* Column header: prompt selector + run */}
       <div className="shrink-0 border-b bg-muted/5 px-3 pt-3 pb-2">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          <Heading level="sub" as="h3">
             {t.playground.prompt} {idx + 1}
-          </span>
+          </Heading>
           <div className="flex items-center gap-1">
             {sel && (
               <button
@@ -97,9 +98,9 @@ export function PromptColumn({
 
         {/* Query */}
         <div className="mt-2">
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          <Label className="mb-1 uppercase tracking-widest">
             {t.playground.query}
-          </label>
+          </Label>
           <textarea
             value={col.query}
             onChange={(e) => onUpdate(col.id, { query: e.target.value })}
@@ -153,14 +154,14 @@ export function PromptColumn({
         {col.result ? (
           <div className="h-full px-3 py-3">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <Heading level="sub" as="h3">
                 {t.playground.result}
-              </span>
+              </Heading>
               <div className="flex items-center gap-1.5">
                 {!col.result.loading && col.result.tokens > 0 && (
-                  <span className="text-[10px] tabular-nums text-muted-foreground">
+                  <Text variant="caption" as="span" className="tabular-nums">
                     {col.result.tokens} tokens
-                  </span>
+                  </Text>
                 )}
                 {col.spanId && (
                   <button

@@ -5,6 +5,7 @@ import { AgentModelSelector } from "@/components/agent-model-selector";
 import { Play, X, Pencil } from "lucide-react";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { Heading, Text } from "@/components/ui/typography";
 
 interface EvalOption {
   name: string; evalType: string; template: string;
@@ -45,7 +46,7 @@ export function DatasetConfigPanel({
     <div className="shrink-0 border-b bg-muted/5 px-5 py-4 space-y-4">
       {/* Row 1: Generate */}
       <div className="flex items-center gap-3">
-        <p className="w-24 shrink-0 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.agent}</p>
+        <Heading level="sub" as="h3" className="w-24 shrink-0">{t.datasets.agent}</Heading>
         <div className="w-52">
           <AgentModelSelector value={selectedAgent} onChange={onAgentChange} />
         </div>
@@ -69,7 +70,7 @@ export function DatasetConfigPanel({
 
       {/* Row 2: Evaluate */}
       <div className="flex items-start gap-3">
-        <p className="mt-1.5 w-24 shrink-0 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.datasets.evals}</p>
+        <Heading level="sub" as="h3" className="mt-1.5 w-24 shrink-0">{t.datasets.evals}</Heading>
         <div className="flex flex-1 flex-wrap items-center gap-1.5">
           {checkedEvals.size > 0 ? (
             [...checkedEvals].map(name => {
@@ -82,7 +83,7 @@ export function DatasetConfigPanel({
               );
             })
           ) : (
-            <span className="text-xs text-muted-foreground">{t.datasets.noneSelected}</span>
+            <Text variant="caption" as="span">{t.datasets.noneSelected}</Text>
           )}
           <button onClick={onOpenEvalModal} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
             <Pencil className="size-2.5" /> {t.common.edit}

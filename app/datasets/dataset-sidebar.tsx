@@ -6,6 +6,7 @@ import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Sidebar, SidebarHeader, SidebarItemDiv } from "@/components/ui/sidebar";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
+import { Text } from "@/components/ui/typography";
 
 interface DatasetMeta {
   id: string;
@@ -70,9 +71,9 @@ export function DatasetSidebar({
               >
                 {d.name}
               </p>
-              <p className="text-[10px] text-muted-foreground">
+              <Text variant="caption" className="text-[10px]">
                 {d.rowCount} prompts
-              </p>
+              </Text>
             </div>
             <RoleGate>
               <button
