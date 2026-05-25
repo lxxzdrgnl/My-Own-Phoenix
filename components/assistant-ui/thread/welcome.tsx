@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { ThreadPrimitive } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
@@ -32,7 +33,7 @@ function useChatSuggestions(project: string) {
       const res = await apiFetch("/api/settings");
       const data = await res.json();
       setSuggestions(parseChatSuggestions(data[`chatSuggestions:${project}`]));
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("welcome load chat suggestions failed", e); }
   }, [project]);
 
   useEffect(() => { load(); }, [load]);

@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 import { parseGuardrailDetections } from "./guardrail";
 import type { Annotation, RawSpan } from "./types";
 
@@ -17,14 +18,14 @@ export function extractTag(input: string, tag: string): string {
       const m = content.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`));
       if (m) return m[1].trim();
     }
-  } catch (e) { console.error(e); }
+  } catch (e) { logger.error("extractTag parse failed", e); }
   return "";
 }
 
 export function extractResponse(output: string): string {
   try {
     return JSON.parse(output).generations[0][0].text;
-  } catch (e) { console.error(e); }
+  } catch (e) { logger.error("extractResponse parse failed", e); }
   return "";
 }
 

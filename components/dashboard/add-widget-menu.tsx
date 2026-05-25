@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useT } from "@/lib/i18n";
@@ -100,7 +101,7 @@ export function AddWidgetMenu({ onAdd }: AddWidgetMenuProps) {
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
       setCustomEvals((data.items ?? []).filter((p: CustomEval) => p.isCustom));
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("add-widget-menu fetch eval-prompts failed", e); }
   }, []);
 
   useEffect(() => {

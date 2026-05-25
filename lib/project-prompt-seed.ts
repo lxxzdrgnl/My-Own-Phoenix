@@ -10,6 +10,7 @@
 // Idempotent: if Phoenix already has the prompt name and/or the mapping row
 // already exists, both are treated as success.
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import {
   PROMPT_TEMPLATE_KEY,
   parsePromptTemplate,
@@ -50,7 +51,7 @@ export async function ensureDefaultPromptForProject(projectId: string): Promise<
     // Phoenix may already have a prompt with this name (e.g., from a previous
     // attempt or from someone calling Phoenix directly). That's fine — we just
     // need the mapping row.
-    console.warn(`[project-prompt-seed] phoenix create skipped for ${phoenixName}:`, err);
+    logger.warn("project-prompt-seed phoenix create skipped", { phoenixName, err });
   }
 
   try {

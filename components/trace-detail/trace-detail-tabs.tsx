@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { useEffect, useState, useMemo } from "react";
 import { useT } from "@/lib/i18n";
 import { type TraceTree, type Annotation } from "@/lib/phoenix";
@@ -96,7 +97,7 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
       if (!res.ok) throw new Error(`run ${res.status}`);
       onRefresh?.();
     } catch (e) {
-      console.error("[trace-detail-tabs] run eval failed", e);
+      logger.error("trace-detail-tabs run eval failed", e);
     } finally {
       setRunningEval(null);
     }
@@ -118,7 +119,7 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
       if (!res.ok) throw new Error(`run all ${res.status}`);
       onRefresh?.();
     } catch (e) {
-      console.error("[trace-detail-tabs] run all evals failed", e);
+      logger.error("trace-detail-tabs run all evals failed", e);
     } finally {
       setRunningEval(null);
     }
@@ -167,7 +168,7 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
       }
       onRefresh?.();
     } catch (e) {
-      console.error("[trace-detail-tabs] delete annotation failed", e);
+      logger.error("trace-detail-tabs delete annotation failed", e);
     } finally {
       setSavingName(null);
     }

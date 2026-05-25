@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 import { useState, useEffect } from "react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -527,7 +528,7 @@ export function SpanTreeView({
     try {
       await apiFetch(`/api/v1/traces/${encodeURIComponent(traceId)}`, { method: "DELETE" });
       onRefresh?.();
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("span-tree-view delete trace failed", e); }
   }
 
   async function handleDeleteAnnotation(spanId: string, annotationName: string) {
@@ -545,7 +546,7 @@ export function SpanTreeView({
         body: JSON.stringify({ name: annotationName, span_id: spanId }),
       });
       onRefresh?.();
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("span-tree-view delete annotation failed", e); }
   }
 
   return (
