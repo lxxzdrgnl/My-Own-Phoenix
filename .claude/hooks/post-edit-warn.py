@@ -33,6 +33,19 @@ WARNING_RULES = [
      lambda p: (p.endswith(".ts") or p.endswith(".tsx"))
                and not p.startswith(".claude/")
                and not p.startswith("scripts/")),
+    # Phase 6 follow-up — 추출된 반복 유틸/훅 사용 유도
+    (0, re.compile(r"Date\.now\(\)[^;\n]*Math\.random|Math\.random\(\)[^;\n]*Date\.now\(\)"),
+     "⚠️ raw ID 생성 패턴 — generateId(prefix, sep?) (@/lib/utils) 사용.",
+     lambda p: (p.endswith(".ts") or p.endswith(".tsx")) and not p.endswith("lib/utils.ts")),
+    (0, re.compile(r"navigator\.clipboard\.writeText"),
+     "⚠️ clipboard 직접 사용 — useCopyToClipboard (@/lib/hooks/use-copy-to-clipboard) 검토.",
+     lambda p: p.endswith(".tsx") and "use-copy-to-clipboard" not in p),
+    (0, re.compile(r"const \[[a-zA-Z]*[Oo]pen, set[A-Z][a-zA-Z]*\]\s*=\s*useState(<boolean>)?\(false\)"),
+     "⚠️ 모달/드롭다운 open useState — useDisclosure (@/lib/hooks/use-disclosure) 검토.",
+     lambda p: p.endswith(".tsx")),
+    (0, re.compile(r"toISOString\(\)\.slice\(0, ?1[03]\)"),
+     "⚠️ date bucketing 패턴 — bucketByDay/bucketByHour (@/lib/dashboard-utils) 사용.",
+     lambda p: (p.endswith(".ts") or p.endswith(".tsx")) and not p.endswith("dashboard-utils.ts")),
 ]
 
 
