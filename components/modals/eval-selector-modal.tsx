@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 import { useState, useEffect, useCallback } from "react";
 import { ModalShell, ModalHeader } from "@/components/ui/modal-shell";
@@ -79,7 +80,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
       const res = await apiFetch("/api/eval-prompts");
       const data = await res.json();
       setEvals(data.items ?? []);
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("eval-selector-modal load evals failed", e); }
   }, []);
 
   useEffect(() => {
@@ -185,7 +186,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
           }),
         });
         await loadEvals();
-      } catch (e) { console.error(e); }
+      } catch (e) { logger.error("eval-selector-modal save eval failed", e); }
       setDirty(false);
     }
     setSaving(false);
@@ -233,7 +234,7 @@ export function EvalSelectorModal({ open, onClose, datasetName, checkedEvals, ev
       setEditRuleConfig(DEFAULT_RULE_CONFIG);
       setEditBadgeLabel(name.slice(0, 3).toUpperCase());
       setDirty(false);
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("eval-selector-modal create eval failed", e); }
     setSaving(false);
   }
 

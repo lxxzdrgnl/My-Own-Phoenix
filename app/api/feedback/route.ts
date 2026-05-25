@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-error";
+import { logger } from "@/lib/logger";
 
 const PHOENIX_ENDPOINT =
   process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006";
@@ -43,7 +44,7 @@ async function findSpanForMessage(project: string, messageContent: string, messa
         if (text.includes(snippet)) {
           return s.context.span_id;
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { logger.error("feedback span JSON parse failed", e); }
     }
 
     // Fallback: closest root span within 5 minutes
@@ -76,7 +77,7 @@ async function uploadToPhoenix(spanId: string, label: string, score: number) {
         }],
       }),
     });
-  } catch (e) { console.error(e); }
+  } catch (e) { logger.error("feedback upload to Phoenix failed", e, { route: "uploadToPhoenix" }); }
 }
 
 export const GET = authedHandler(async (request: NextRequest, uid: string) => {

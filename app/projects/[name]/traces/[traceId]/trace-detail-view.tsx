@@ -12,6 +12,7 @@ import { TraceDetailTabs } from "@/components/trace-detail";
 import { PageContainer } from "@/components/ui/page-container";
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack, Inline } from "@/components/ui/stack";
+import { logger } from "@/lib/logger";
 
 export function TraceDetailView({ projectName, traceId }: { projectName: string; traceId: string }) {
   const t = useT();
@@ -25,7 +26,7 @@ export function TraceDetailView({ projectName, traceId }: { projectName: string;
       const result = await fetchTraceTrees(projectName);
       setTraces(result.filter((tt) => tt.traceId === traceId));
     } catch (e) {
-      console.error(e);
+      logger.error("trace detail load failed", e);
     }
     setLoading(false);
   }, [projectName, traceId]);

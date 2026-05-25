@@ -4,6 +4,7 @@ import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { requireProjectMember } from "@/lib/api-helpers";
 import { fetchPromptsScopedToProject } from "@/lib/phoenix-server";
 import { ensureDefaultPromptForProject } from "@/lib/project-prompt-seed";
+import { logger } from "@/lib/logger";
 
 // GET /api/projects/[id]/prompts — list Phoenix prompts (with versions) that are
 // mapped to this project via ProjectPrompt. The playground and prompts manager
@@ -37,7 +38,7 @@ export const GET = authedHandler(
           });
         }
       } catch (err) {
-        console.error("[projects/prompts] lazy seed failed:", err);
+        logger.error("projects/prompts lazy seed failed", err, { route: "GET /api/projects/[id]/prompts" });
       }
     }
 
@@ -48,7 +49,7 @@ export const GET = authedHandler(
       const prompts = await fetchPromptsScopedToProject(names);
       return NextResponse.json({ prompts });
     } catch (err) {
-      console.error("[projects/prompts] phoenix fetch failed:", err);
+      logger.error("projects/prompts phoenix fetch failed", err, { route: "GET /api/projects/[id]/prompts" });
       return apiError(req, ErrorCode.PHOENIX_ERROR, "Failed to load prompts from Phoenix");
     }
   },

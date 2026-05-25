@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 interface UseResourceListOptions<T> {
   dataKey?: string;
@@ -40,7 +41,7 @@ export function useResourceList<T>(
         setItems(arr);
       }
     } catch (e) {
-      console.error(e);
+      logger.error("use-resource-list fetch failed", e);
     }
     setLoading(false);
   }, [endpoint, dataKey, transform, defaultParams]);

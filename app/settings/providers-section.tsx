@@ -12,6 +12,7 @@ import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack } from "@/components/ui/stack";
 import { InlineError } from "@/components/ui/inline-error";
+import { logger } from "@/lib/logger";
 
 interface ProviderEntry {
   id: string;
@@ -37,7 +38,7 @@ export function ProvidersSection() {
       const res = await apiFetch("/api/providers");
       const data = await res.json();
       setProviders(data.items ?? []);
-    } catch { console.error("Failed to load providers"); }
+    } catch (e) { logger.error("load providers failed", e); }
     setLoading(false);
   }, []);
 

@@ -13,6 +13,7 @@ import { JoinProjectModal } from "@/components/modals/join-project-modal";
 import { Nav } from "@/components/nav";
 import { useT } from "@/lib/i18n";
 import { CreateProjectModal } from "@/components/modals/create-project-modal";
+import { logger } from "@/lib/logger";
 import { PageContainer } from "@/components/ui/page-container";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
@@ -53,7 +54,7 @@ export default function ProjectsPage() {
         );
       }
     } catch (e) {
-      console.error(e);
+      logger.error("project rename failed", e);
     }
   }, [setProjects]);
 

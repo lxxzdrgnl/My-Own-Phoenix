@@ -1,6 +1,7 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
 import { useT } from "@/lib/i18n";
+import { logger } from "@/lib/logger";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Heading, Text } from "@/components/ui/typography";
@@ -170,7 +171,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
       setTraceTrees(trees);
       setInitialLoaded(true);
     } catch (e) {
-      console.error(e);
+      logger.error("project view load traces failed", e);
     }
     setTracesLoading(false);
   }, [projectName, dateRange]);
@@ -228,7 +229,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
         const data = await res.json();
         setFeedbackStats({ total: data.totalResponses, downCount: data.downCount });
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("project view load feedback stats failed", e); }
   }, [projectName]);
   useEffect(() => { loadFeedbackStats(); }, [loadFeedbackStats]);
 

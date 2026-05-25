@@ -19,6 +19,7 @@ import { type AnnotationData, type SpanData } from "@/lib/dashboard-utils";
 import { getWidget } from "@/components/dashboard/widgets/registry";
 import { LastUpdatedBadge } from "@/components/dashboard/last-updated-badge";
 import { Heading } from "@/components/ui/typography";
+import { logger } from "@/lib/logger";
 
 // ─── Title sync & layout helpers ───
 
@@ -110,7 +111,7 @@ export default function DashboardPage() {
       setLastUpdatedAt(data.updatedAt ?? null);
       setLastUpdatedByName(data.updatedByName ?? null);
     } catch (e) {
-      console.error(e);
+      logger.error("dashboard load layout failed", e);
     } finally {
       setLayoutLoaded(true);
     }
@@ -150,7 +151,7 @@ export default function DashboardPage() {
             setLastUpdatedByName(user.displayName ?? user.email ?? lastUpdatedByName);
           }
         })
-        .catch((e) => { console.error(e); });
+        .catch((e) => { logger.error("dashboard save layout failed", e); });
     },
     [user, widgets, viewModes, widgetColors, projectId, layoutLoaded, isViewer, lastUpdatedByName],
   );
@@ -196,7 +197,7 @@ export default function DashboardPage() {
           }
         }
       } catch (e) {
-        if ((e as Error).name !== "AbortError") console.error("[sse]", e);
+        if ((e as Error).name !== "AbortError") logger.error("dashboard sse error", e);
       }
     })();
     return () => ctrl.abort();
@@ -240,12 +241,12 @@ export default function DashboardPage() {
                   annResults.push({ name: a.name, label: a.result?.label ?? "", score: a.result?.score ?? 0, time: s.start_time });
                 }
               })
-              .catch((e) => { console.error(e); }),
+              .catch((e) => { logger.error("dashboard load annotations failed", e); }),
           ),
         );
         setAnnotations(annResults);
       } catch (e) {
-        console.error(e);
+        logger.error("dashboard load spans failed", e);
       }
     }
     load();

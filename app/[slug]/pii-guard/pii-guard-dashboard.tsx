@@ -7,6 +7,7 @@ import { useProject } from "@/lib/project-context";
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
+import { logger } from "@/lib/logger";
 
 // ─── Types (matches JSONL from dexter eval results) ───
 
@@ -53,7 +54,7 @@ export function PiiGuardDashboard() {
     apiFetch(`/api/pii-guard/runs?projectId=${encodeURIComponent(projectId)}`)
       .then((r) => r.json())
       .then((data) => setRows(data.items ?? []))
-      .catch((e) => console.error(e))
+      .catch((e) => logger.error("pii-guard dashboard load failed", e))
       .finally(() => setLoading(false));
   }, [projectId]);
 

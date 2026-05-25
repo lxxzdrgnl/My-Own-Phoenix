@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,7 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "", res
         setCreating(false);
         onClose();
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("add-to-dataset create dataset failed", e); }
     setSaving(false);
   }
 
@@ -109,7 +110,7 @@ export function AddToDatasetModal({ open, onClose, query = "", context = "", res
         });
       }
       onClose();
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("add-to-dataset add to existing failed", e); }
     setSaving(false);
   }
 

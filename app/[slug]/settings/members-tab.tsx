@@ -15,6 +15,7 @@ import { useT } from "@/lib/i18n";
 import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
 import { Text, Label } from "@/components/ui/typography";
+import { logger } from "@/lib/logger";
 
 interface Member {
   id: string;
@@ -164,7 +165,7 @@ export function MembersTab() {
         alert(`Failed: ${err.message || res.status}`);
       }
     } catch (e) {
-      console.error("Generate failed:", e);
+      logger.error("generate invite code failed", e);
       alert("Network error");
     }
   };

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { Bot, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { logger } from "@/lib/logger";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n";
@@ -29,7 +30,7 @@ export function ChatSection() {
       ]);
       setConfigs(configRes.items ?? []);
       setTemplates(templateRes.items ?? []);
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error("chat section load failed", e); }
     setLoading(false);
   }, []);
 

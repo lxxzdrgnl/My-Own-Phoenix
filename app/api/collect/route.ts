@@ -6,6 +6,7 @@ import {
   decodeOtlpProtobufTraces,
   encodeOtlpTraceResponse,
 } from "@/lib/otlp-proto";
+import { logger } from "@/lib/logger";
 
 function hashKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
@@ -140,7 +141,7 @@ export async function POST(req: NextRequest) {
       const buf = new Uint8Array(await req.arrayBuffer());
       otlp = decodeOtlpProtobufTraces(buf);
     } catch (e) {
-      console.error("[collect] protobuf decode failed:", e);
+      logger.error("collect protobuf decode failed", e, { route: "POST /api/collect" });
       return NextResponse.json(
         { error: "Invalid OTLP protobuf body" },
         { status: 400 },
@@ -194,13 +195,13 @@ export async function POST(req: NextRequest) {
 
     if (!phoenixRes.ok) {
       const text = await phoenixRes.text();
-      console.error("[collect] Phoenix rejected:", text);
+      logger.error("collect Phoenix rejected spans", undefined, { route: "POST /api/collect", status: phoenixRes.status, body: text });
       return NextResponse.json({ error: "Trace backend error" }, { status: 502 });
     }
 
     return successResponse(spans.length);
   } catch (e) {
-    console.error("[collect] Failed to forward:", e);
+    logger.error("collect failed to forward to Phoenix", e, { route: "POST /api/collect" });
     return NextResponse.json({ error: "Failed to connect to trace backend" }, { status: 502 });
   }
 }

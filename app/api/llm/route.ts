@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callLlm } from "@/lib/llm-providers";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
+import { logger } from "@/lib/logger";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -58,7 +59,7 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
       }),
     });
   } catch (e) {
-    console.error("Failed to record playground span:", e);
+    logger.error("failed to record playground span", e, { route: "POST /api/llm" });
   }
 
   // Return in OpenAI-compatible format for backward compat

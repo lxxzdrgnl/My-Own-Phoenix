@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { LoadingState } from "@/components/ui/empty-state";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ChatSuggestion, MAX_CHAT_SUGGESTIONS, parseChatSuggestions } from "@/lib/constants";
+import { logger } from "@/lib/logger";
 import { useT } from "@/lib/i18n";
 
 // ── Questions Tab ──
@@ -45,7 +46,7 @@ export function QuestionsTab({ project }: { project: string }) {
       });
       setSaved(true);
       setDirty(false);
-    } catch { console.error("Failed to save chat suggestions"); }
+    } catch (e) { logger.error("save chat suggestions failed", e); }
     setSaving(false);
   }
 

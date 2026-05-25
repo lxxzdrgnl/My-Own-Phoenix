@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // ── Error Response Format ──
 
@@ -189,7 +190,7 @@ type AuthedHandlerFn = (req: NextRequest, uid: string, ctx?: any) => Promise<Res
 
 function wrapWithErrorCatching(req: NextRequest, handler: () => Promise<Response>): Promise<Response> {
   return handler().catch((e) => {
-    console.error(`[API Error] ${req.method} ${req.nextUrl.pathname}:`, e);
+    logger.error("API handler error", e, { method: req.method, path: req.nextUrl.pathname });
     const message = e instanceof Error ? e.message : "An unexpected error occurred";
     if (e instanceof Error && e.message.includes("Prisma")) {
       return apiError(req, ErrorCode.DATABASE_ERROR, "Database operation failed", { detail: message });
