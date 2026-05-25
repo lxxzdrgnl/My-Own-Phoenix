@@ -107,7 +107,7 @@ export function AgentModelSelector({
       </button>
 
       {/* Dropdown */}
-      {open && (
+      {dropdown.isOpen && (
         <div className="absolute left-0 top-10 z-50 w-72 overflow-hidden rounded-xl border bg-background shadow-xl">
           {/* Search */}
           <div className="flex items-center gap-2 border-b px-3 py-2">
@@ -143,7 +143,7 @@ export function AgentModelSelector({
                   {isExpanded && filtered.map((a) => (
                     <button
                       key={a.userId}
-                      onClick={() => { onChange(`relay:${a.userId}`); setOpen(false); setSearch(""); }}
+                      onClick={() => { onChange(`relay:${a.userId}`); dropdown.close(); setSearch(""); }}
                       className={`flex w-full items-center gap-2 py-1.5 pl-10 pr-3 text-left text-sm transition-colors ${
                         value === `relay:${a.userId}` ? "bg-accent font-medium" : "hover:bg-muted/60 text-muted-foreground"
                       }`}
@@ -186,7 +186,7 @@ export function AgentModelSelector({
                         disabled={isDisabled}
                         onClick={() => {
                           onChange(`llm:${m.id}`);
-                          setOpen(false);
+                          dropdown.close();
                           setSearch("");
                         }}
                         className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-sm transition-colors ${
@@ -254,7 +254,7 @@ export function AgentModelSelector({
                                 key={m.id}
                                 onClick={() => {
                                   onChange(`llm:${m.id}`);
-                                  setOpen(false);
+                                  dropdown.close();
                                   setSearch("");
                                 }}
                                 className={`flex w-full items-center py-1.5 pl-14 pr-3 text-left font-mono text-sm transition-colors ${
