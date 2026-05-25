@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import { auth } from "@/lib/firebase";
+import { SSE_RETRY_DELAY_MS } from "@/lib/config/timeouts";
 
 export type SseEventHandler = (msg: { type: string; [k: string]: unknown }) => void;
 
@@ -44,7 +45,7 @@ export function useProjectSse(projectIdent: string | undefined, handler: SseEven
       }
 
       if (!token) {
-        if (!stopped) retryTimer = setTimeout(open, 5000);
+        if (!stopped) retryTimer = setTimeout(open, SSE_RETRY_DELAY_MS);
         return;
       }
 
@@ -111,7 +112,7 @@ export function useProjectSse(projectIdent: string | undefined, handler: SseEven
       } catch (e) {
         // network error, auth expired, etc — retry
         if (!stopped) {
-          retryTimer = setTimeout(open, 5000);
+          retryTimer = setTimeout(open, SSE_RETRY_DELAY_MS);
         }
       }
     };

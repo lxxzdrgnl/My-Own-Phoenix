@@ -2,13 +2,14 @@
 // which is not available in Next.js route handlers — use these instead from server code.
 
 import type { PromptInfo, PromptVersion } from "@/lib/phoenix";
+import { PHOENIX_FETCH_TIMEOUT_MS } from "@/lib/config/timeouts";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
 async function phoenixGet<T = unknown>(path: string): Promise<T> {
   const res = await fetch(`${PHOENIX}${path}`, {
     headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(PHOENIX_FETCH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const err = await res.text();
@@ -78,7 +79,7 @@ export async function createPromptServer(
         invocation_parameters: { type: "openai", openai: { temperature } },
       },
     }),
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(PHOENIX_FETCH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const err = await res.text();
