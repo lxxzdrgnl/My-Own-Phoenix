@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { Check, ChevronDown, FolderOpen, Plus, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
@@ -14,24 +15,24 @@ interface ProjectSelectorProps {
 
 export function ProjectSelector({ project, projects, onChange, onAdd, size = "md" }: ProjectSelectorProps) {
   const t = useT();
-  const [open, setOpen] = useState(false);
+  const dropdown = useDisclosure();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!open && !adding) return;
+    if (!dropdown.isOpen && !adding) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+        dropdown.close();
         setAdding(false);
         setNewName("");
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open, adding]);
+  }, [dropdown.isOpen, dropdown.close, adding]);
 
   const isSm = size === "sm";
 
