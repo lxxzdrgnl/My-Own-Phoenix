@@ -29,7 +29,7 @@ export function ModelSelector({
       .then((r) => r.json())
       .then((data) => {
         const active = new Set<string>();
-        for (const p of data.providers ?? []) {
+        for (const p of data.items ?? []) {
           if (p.isActive) active.add(p.provider);
         }
         setActiveProviders(active);

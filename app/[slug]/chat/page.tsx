@@ -16,7 +16,7 @@ export default function ChatPage() {
     apiFetch(`/api/connectors?projectId=${projectId}`)
       .then((r) => r.json())
       .then((data) => {
-        const online = (data.connectors || []).filter((c: any) => c.status === "online");
+        const online = (data.items || []).filter((c: any) => c.status === "online");
         if (online.length > 0 && !selectedValue) {
           setSelectedValue(`relay:${online[0].userId}`);
           setRelayUserId(online[0].userId);
