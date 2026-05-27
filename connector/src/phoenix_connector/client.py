@@ -10,7 +10,11 @@ async def run_connector(key, agent_url, project, agent_type, assistant_id, saas_
 
     while True:
         try:
-            async with websockets.connect(ws_url, close_timeout=None, ping_interval=None, ping_timeout=None) as ws:
+            # ping_interval/ping_timeout enable WebSocket-level keepalive so the
+            # connector detects a dead server (e.g. dashboard redeploy) and the
+            # reconnect loop below fires. Without this the socket can hang as a
+            # zombie until the OS TCP keepalive (~2h) trips.
+            async with websockets.connect(ws_url, close_timeout=10, ping_interval=20, ping_timeout=20) as ws:
                 # Send auth frame
                 await ws.send(json.dumps({
                     "type": "auth",
@@ -63,7 +67,7 @@ async def run_connector(key, agent_url, project, agent_type, assistant_id, saas_
             print(f"⚠ Unexpected error: {e}. Retrying in {backoff}s...")
 
         await asyncio.sleep(backoff)
-        backoff = min(backoff * 2, 30)
+        backoff = min(backoff * 2, 5)
 
 
 async def handle_request(ws, req, agent_url, agent_type, assistant_id):

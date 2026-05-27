@@ -7,9 +7,17 @@ import { logger } from "./logger";
 // In-memory connection pool: key = `${projectId}:${userId}`
 // Use globalThis so the Map is shared between custom server and Next.js API routes
 const globalForRelay = globalThis as unknown as {
-  __wsRelayConnections?: Map<string, { ws: WebSocket; agentType: string; assistantId: string; connectedAt: Date }>;
+  __wsRelayConnections?: Map<string, { ws: WebSocket; agentType: string; assistantId: string; connectedAt: Date; isAlive: boolean }>;
   __wsRelayPendingRequests?: Map<string, (msg: any) => void>;
+  __wsRelayHeartbeat?: ReturnType<typeof setInterval>;
 };
+
+// Heartbeat interval. Each tick pings every connection: this refreshes
+// ConnectorSession.lastPingAt (so /api/connectors keeps reporting "online" —
+// it marks a session offline once lastPingAt is older than 60s) and detects
+// dead sockets, so a redeploy or network drop can't leave a zombie connection
+// in the map. Must stay well under the 60s offline cutoff.
+const HEARTBEAT_MS = 25_000;
 if (!globalForRelay.__wsRelayConnections) {
   globalForRelay.__wsRelayConnections = new Map();
 }
@@ -123,6 +131,7 @@ export function createRelayServer() {
               agentType: agentType || "langgraph",
               assistantId: assistantId || "agent",
               connectedAt: new Date(),
+              isAlive: true,
             });
 
             ws.send(JSON.stringify({ type: "auth_ok", project: projectRecord.name }));
@@ -159,6 +168,24 @@ export function createRelayServer() {
       }
     });
 
+    // Protocol-level pong (reply to our heartbeat ping). Mark the connection
+    // alive and refresh lastPingAt so /api/connectors keeps showing it online.
+    ws.on("pong", async () => {
+      if (!connectionKey) return;
+      const conn = connections.get(connectionKey);
+      if (conn) conn.isAlive = true;
+      try {
+        const prisma = await getPrisma();
+        const [projectId, userId] = connectionKey.split(":");
+        await prisma.connectorSession.update({
+          where: { userId_projectId: { userId, projectId } },
+          data: { lastPingAt: new Date() },
+        });
+      } catch (e) {
+        logger.error("ws-relay lastPingAt update error", e);
+      }
+    });
+
     ws.on("close", async () => {
       if (connectionKey) {
         connections.delete(connectionKey);
@@ -176,10 +203,39 @@ export function createRelayServer() {
       }
     });
 
-    // Heartbeat disabled — Python websockets 15 handles keepalive internally
   });
 
+  // Start the heartbeat once (shared via globalThis across HMR reloads).
+  // ws.ping() triggers the client's pong handler above; any connection that
+  // hasn't answered since the previous tick is treated as dead and terminated.
+  if (!globalForRelay.__wsRelayHeartbeat) {
+    globalForRelay.__wsRelayHeartbeat = setInterval(() => {
+      for (const [key, conn] of connections) {
+        if (!conn.isAlive) {
+          logger.info("ws-relay terminating dead connection", { connectionKey: key });
+          try { conn.ws.terminate(); } catch {}
+          continue;
+        }
+        conn.isAlive = false;
+        try { conn.ws.ping(); } catch {}
+      }
+    }, HEARTBEAT_MS);
+  }
+
   return wss;
+}
+
+// Gracefully close all connections on server shutdown. Sending a close frame
+// lets connectors reconnect to the new instance immediately on redeploy instead
+// of waiting for their own ping timeout to notice the server went away.
+export function shutdownRelay() {
+  if (globalForRelay.__wsRelayHeartbeat) {
+    clearInterval(globalForRelay.__wsRelayHeartbeat);
+    globalForRelay.__wsRelayHeartbeat = undefined;
+  }
+  for (const [, conn] of connections) {
+    try { conn.ws.close(1001, "Server restarting"); } catch {}
+  }
 }
 
 export function getConnection(projectId: string, userId: string) {

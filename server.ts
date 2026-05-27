@@ -1,7 +1,7 @@
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { parse } from "url";
 import next from "next";
-import { createRelayServer, handleUpgrade, sendToConnector, onResponse, getConnection, getProjectConnections } from "./lib/ws-relay";
+import { createRelayServer, handleUpgrade, sendToConnector, onResponse, getConnection, getProjectConnections, shutdownRelay } from "./lib/ws-relay";
 import { randomBytes } from "crypto";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -153,4 +153,22 @@ app.prepare().then(() => {
     console.log(`> Server ready on http://localhost:${port}`);
     console.log(`> Chat relay on http://localhost:${port}/api/chat-relay`);
   });
+
+  // Graceful shutdown: close connector WebSockets with a close frame so they
+  // reconnect to the new instance immediately on redeploy, instead of holding
+  // a dead socket until their ping timeout fires.
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[server] ${signal} received — shutting down gracefully`);
+    shutdownRelay();
+    wss.close();
+    wsServer.close();
+    server.close(() => process.exit(0));
+    // Don't hang forever if a socket refuses to close.
+    setTimeout(() => process.exit(0), 3000).unref();
+  };
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 });

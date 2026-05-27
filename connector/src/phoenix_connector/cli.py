@@ -49,7 +49,7 @@ def select_project(projects):
 @click.option("--saas-url", default=None, help="SaaS WebSocket URL")
 def main(key, agent, project, agent_type, assistant_id, saas_url):
     """Connect your local agent to My Own Phoenix."""
-    click.echo("Phoenix Connector v0.1.0")
+    click.echo("Phoenix Connector v0.1.2")
     click.echo("")
 
     # Interactive prompts for missing args
