@@ -119,10 +119,13 @@ app.prepare().then(() => {
               connectedAt: c.connectedAt,
             }));
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ connectors }));
+            // Match the unified list envelope ({ items, nextCursor }) that the
+            // Next route and the frontend use — this intercept runs before Next,
+            // so returning { connectors } here made the UI never see the agent.
+            res.end(JSON.stringify({ items: connectors, nextCursor: null }));
           } catch (e) {
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ connectors: live.map(c => ({ ...c, status: "online", userName: c.userId })) }));
+            res.end(JSON.stringify({ items: live.map(c => ({ ...c, status: "online", userName: c.userId })), nextCursor: null }));
           }
         })();
         return;
