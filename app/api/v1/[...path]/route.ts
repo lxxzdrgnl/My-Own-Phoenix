@@ -10,7 +10,9 @@ async function proxyToPhoenix(req: NextRequest, method: string) {
   const url = `${PHOENIX}${segments}${search}`;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const options: RequestInit = { method, headers, signal: AbortSignal.timeout(PHOENIX_FETCH_TIMEOUT_MS) };
+  // Phoenix data is dynamic (spans/annotations change on every mutation) — never
+  // let Next's data cache serve a stale upstream response.
+  const options: RequestInit = { method, headers, cache: "no-store", signal: AbortSignal.timeout(PHOENIX_FETCH_TIMEOUT_MS) };
 
   if (method !== "GET" && method !== "HEAD") {
     options.body = await req.text();
@@ -21,7 +23,12 @@ async function proxyToPhoenix(req: NextRequest, method: string) {
     const data = await res.text();
     return new NextResponse(data, {
       status: res.status,
-      headers: { "Content-Type": res.headers.get("Content-Type") || "application/json" },
+      // no-store so the browser doesn't serve a cached annotation/span list after
+      // a mutation (e.g. deleting an annotation reflected only after a hard refresh).
+      headers: {
+        "Content-Type": res.headers.get("Content-Type") || "application/json",
+        "Cache-Control": "no-store",
+      },
     });
   } catch {
     return NextResponse.json({ error: "Proxy request failed" }, { status: 502 });
