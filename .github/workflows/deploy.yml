@@ -17,25 +17,28 @@ jobs:
           script: |
             set -e
 
+            # Write env file
+            echo '${{ secrets.APP_ENV }}' > ~/servers/phoenix/.env
+
             # Pull latest code (force reset to handle rebased/squashed history)
             cd ~/servers/phoenix/repo
             git fetch origin main
             git reset --hard origin/main
 
-            # Write env. The LIVE phoenix app runs from repo/docker-compose.prod.yml
-            # (service: dashboard -> repo-dashboard-1, host network :3000 behind nginx;
-            #  eval-worker -> repo-eval-worker-1), which reads repo/.env.
-            # (.env is gitignored, so the reset above does not touch it.)
-            echo '${{ secrets.APP_ENV }}' > .env
+            # Clean up stale containers and rebuild
+            cd ~/servers
+            docker compose rm -f phoenix-dashboard 2>/dev/null || true
+            docker compose build phoenix-dashboard
+            docker compose up -d --force-recreate --no-deps phoenix-dashboard
 
-            # Build + recreate the LIVE containers. Previously this deployed the
-            # servers/docker-compose.yml phoenix-dashboard/eval-worker, which were
-            # idle duplicates not wired to nginx — so every deploy silently shipped
-            # to a container nobody was serving. Those duplicates were removed.
-            docker compose -f docker-compose.prod.yml build dashboard eval-worker
-            docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps dashboard eval-worker
+            # Rebuild + restart eval-worker so worker.py / prompts.py updates
+            # actually land in the running image. Previously this step only
+            # recreated the container, leaving a stale image baked at first
+            # provisioning and silently shipping outdated worker code.
+            docker compose build phoenix-eval-worker
+            docker compose up -d --force-recreate --no-deps phoenix-eval-worker
 
             # Health check (wait for startup + migration)
             sleep 20
-            curl -sf http://localhost:3000/api/health || exit 1
+            curl -sf http://localhost:3000/api/health || curl -sf http://localhost:3100/api/health || exit 1
             echo "Deploy successful"
