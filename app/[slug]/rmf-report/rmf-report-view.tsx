@@ -309,6 +309,11 @@ export function RmfReportView() {
     for (const f of findings) (m[f.itemKey] ??= []).push(f);
     return m;
   }, [findings]);
+  const findingsByEval = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const f of findings) m[f.eval] = (m[f.eval] ?? 0) + 1;
+    return Object.entries(m).sort((a, b) => b[1] - a[1]);
+  }, [findings]);
   const spanToTrace = useMemo(() => {
     const m = new Map<string, string>();
     for (const t of trees) { const walk = (n: RawSpan) => { m.set(n.spanId, t.traceId); n.children.forEach(walk); }; walk(t.rootSpan); }
@@ -370,6 +375,11 @@ export function RmfReportView() {
               <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">지적 사항</Text><p className="mt-1 text-2xl font-bold">{findings.length}<span className="text-sm font-normal text-muted-foreground">건</span></p></div>
             </div>
 
+            {/* 용어 안내 */}
+            <div className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">평가 방식 안내</span> — 각 항목의 <b>고유위험(인식·측정)</b>에서 통제로 줄인 <b>경감</b>을 뺀 값이 <b className="text-foreground">잔여위험</b>입니다. 모든 항목의 잔여위험을 합산(0–100점)해 <b>위험등급</b>(저/중/고/초고)을 산정합니다. 표기 <b className="text-foreground">잔여 X/Y</b> = 남은 위험 X점(항목 최대 Y점) — <span style={{ color: "#10b981" }}>0에 가까울수록 안전</span>, <span style={{ color: "#ef4444" }}>Y에 가까울수록 위험</span>.
+            </div>
+
             {/* 부문별 위험도 */}
             <SectionCard title="부문별 위험도" variant="bordered">
               <Stack gap="sm">
@@ -414,6 +424,26 @@ export function RmfReportView() {
                   </div>
                 ))}
               </div>
+            </SectionCard>
+
+            {/* 지적 유형별 분포 */}
+            <SectionCard title="지적 사항 유형별 분포" description="eval별 지적 건수" variant="bordered">
+              {findingsByEval.length === 0 ? (
+                <Text variant="caption" as="p">지적 사항이 없습니다.</Text>
+              ) : (
+                <Stack gap="xs">
+                  {findingsByEval.map(([name, count]) => {
+                    const max = findingsByEval[0][1] || 1;
+                    return (
+                      <div key={name} className="flex items-center gap-2 text-xs">
+                        <div className="w-36 shrink-0 font-mono text-[11px]">{name}</div>
+                        <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded" style={{ width: Math.round((count / max) * 100) + "%", background: "#ef4444" }} /></div>
+                        <div className="w-10 shrink-0 text-right tabular-nums">{count}</div>
+                      </div>
+                    );
+                  })}
+                </Stack>
+              )}
             </SectionCard>
 
             {/* 문제되는 트레이스 */}
