@@ -10,7 +10,7 @@ import { extractInputPreview } from "@/lib/span-extraction";
 import { computeMetrics, MEASURE_METRICS } from "@/lib/rmf-utils";
 import type { SpanData, AnnotationData } from "@/lib/dashboard-utils";
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
-import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX, gradeFromTotal } from "@/lib/rmf/finance-rmf";
+import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings } from "@/lib/rmf/finance-prefill";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
 import type { AssessmentState, Finding, Grade } from "@/lib/rmf/types";
@@ -66,9 +66,8 @@ export function RmfReportView() {
   const [trees, setTrees] = useState<ReturnType<typeof buildTraceTrees>>([]);
   const [hasProvider, setHasProvider] = useState(false);
 
-  // 보고서 제어: 평가 기간 + 고영향 AI
+  // 보고서 제어: 평가 기간
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(30));
-  const [highImpact, setHighImpact] = useState(false);
   const generatedAt = useMemo(() => new Date(), []);
 
   useEffect(() => {
@@ -107,10 +106,10 @@ export function RmfReportView() {
   const metricById = useMemo(() => new Map(metrics.map((m) => [m.id, m])), [metrics]);
 
   const state: AssessmentState = useMemo(() => ({
-    highImpact,
+    highImpact: false,
     riskItems: prefillRiskItems(metrics, hasProvider),
     governance: {}, controls: {},
-  }), [metrics, hasProvider, highImpact]);
+  }), [metrics, hasProvider]);
 
   const score = useMemo(() => computeFinanceRisk(state), [state]);
   const findings = useMemo(() => extractFindings(annMap), [annMap]);
@@ -155,10 +154,6 @@ export function RmfReportView() {
             <span className="text-xs text-muted-foreground">평가 기간</span>
             <DateRangePicker value={dateRange} onChange={setDateRange} />
           </div>
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-            <input type="checkbox" checked={highImpact} onChange={(e) => setHighImpact(e.target.checked)} className="rounded" />
-            고영향 AI (대출심사 등 — 최소 고위험)
-          </label>
         </div>
       </div>
 
@@ -174,7 +169,6 @@ export function RmfReportView() {
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">대상 서비스</td><td className="px-3 py-0.5 text-left font-semibold">{phoenixProject}</td></tr>
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">평가 기간</td><td className="px-3 py-0.5 text-left">{fmtDate(dateRange.from)} ~ {fmtDate(dateRange.to)}</td></tr>
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">분석 트레이스</td><td className="px-3 py-0.5 text-left">{trees.length}건</td></tr>
-              <tr><td className="px-3 py-0.5 text-right text-neutral-500">고영향 AI</td><td className="px-3 py-0.5 text-left">{highImpact ? "예" : "아니오"}</td></tr>
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">생성일</td><td className="px-3 py-0.5 text-left">{fmtDate(generatedAt)}</td></tr>
             </tbody>
           </table>
@@ -194,11 +188,6 @@ export function RmfReportView() {
               </div>
             ))}
           </div>
-          {highImpact && score.grade !== gradeFromTotal(score.total) && (
-            <p className="mt-2 rounded bg-neutral-100 px-2 py-1 text-[11px] text-neutral-700">
-              ※ 총점 {score.total}점은 <b>{gradeFromTotal(score.total)}위험</b> 구간이나, <b>고영향 AI</b>(대출심사 등)에 해당하여 FSS 기준에 따라 <b>고위험</b>으로 상향 분류되었습니다.
-            </p>
-          )}
         </section>
 
         {/* 부문별 위험도 (시각화) */}
