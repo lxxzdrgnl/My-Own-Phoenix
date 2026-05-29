@@ -366,13 +366,24 @@ export function RmfReportView() {
         {loading ? (
           <div className="py-16 text-center text-sm text-muted-foreground">불러오는 중…</div>
         ) : (
-          <Stack gap="lg">
-            {/* 요약 통계 */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">종합 위험등급</Text><p className="mt-1 text-2xl font-bold" style={{ color: gradeColor(score.grade) }}>{score.grade}위험</p></div>
-              <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">잔여위험 총점</Text><p className="mt-1 text-2xl font-bold">{score.total}<span className="text-sm font-normal text-muted-foreground"> / 100</span></p></div>
-              <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">분석 트레이스</Text><p className="mt-1 text-2xl font-bold">{trees.length}</p></div>
-              <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">지적 사항</Text><p className="mt-1 text-2xl font-bold">{findings.length}<span className="text-sm font-normal text-muted-foreground">건</span></p></div>
+          <div className="space-y-4">
+            {/* 히어로: 등급 + 게이지 + 핵심 수치 */}
+            <div className="rounded-xl border bg-card p-5">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-bold" style={{ color: gradeColor(score.grade) }}>{score.grade}위험</span>
+                  <span className="text-sm text-muted-foreground">잔여위험 총점 <b className="text-foreground">{score.total}</b> / 100</span>
+                </div>
+                <div className="flex gap-6">
+                  <div className="text-right"><p className="text-xs text-muted-foreground">분석 트레이스</p><p className="text-lg font-semibold">{trees.length}</p></div>
+                  <div className="text-right"><p className="text-xs text-muted-foreground">지적 사항</p><p className="text-lg font-semibold">{findings.length}건</p></div>
+                </div>
+              </div>
+              <div className="mt-4 flex overflow-hidden rounded-full border text-center text-[11px]">
+                {GRADES.map((g) => (
+                  <div key={g} className="flex-1 py-1.5" style={{ background: g === score.grade ? gradeColor(g) : "transparent", color: g === score.grade ? "#fff" : "#737373", fontWeight: g === score.grade ? 700 : 400 }}>{g}위험 ({GRADE_RANGE[g]})</div>
+                ))}
+              </div>
             </div>
 
             {/* 용어 안내 */}
@@ -380,29 +391,50 @@ export function RmfReportView() {
               <span className="font-medium text-foreground">평가 방식 안내</span> — 각 항목의 <b>고유위험(인식·측정)</b>에서 통제로 줄인 <b>경감</b>을 뺀 값이 <b className="text-foreground">잔여위험</b>입니다. 모든 항목의 잔여위험을 합산(0–100점)해 <b>위험등급</b>(저/중/고/초고)을 산정합니다. 표기 <b className="text-foreground">잔여 X/Y</b> = 남은 위험 X점(항목 최대 Y점) — <span style={{ color: "#10b981" }}>0에 가까울수록 안전</span>, <span style={{ color: "#ef4444" }}>Y에 가까울수록 위험</span>.
             </div>
 
-            {/* 부문별 위험도 */}
-            <SectionCard title="부문별 위험도" variant="bordered">
-              <Stack gap="sm">
-                {RISK_SECTIONS.map((sec) => {
-                  const sub = score.sectionSubtotals[sec.key] ?? 0;
-                  const ratio = sec.weight > 0 ? sub / sec.weight : 0;
-                  const pct = Math.min(100, Math.round(ratio * 100));
-                  const color = ratioColor(ratio);
-                  const fc = sec.items.reduce((a, it) => a + (findingsByItem[it.key]?.length ?? 0), 0);
-                  return (
-                    <div key={sec.key} className="flex items-center gap-3 text-xs">
-                      <div className="w-28 shrink-0 font-medium">{sec.label} <span className="text-muted-foreground">({sec.weight}%)</span></div>
-                      <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: pct + "%", background: color }} /></div>
-                      <div className="w-32 shrink-0 text-right"><span className="font-medium" style={{ color }}>{ratioLabel(ratio)}</span><span className="text-muted-foreground"> · {sub}/{sec.weight} · 지적 {fc}</span></div>
-                    </div>
-                  );
-                })}
-              </Stack>
-            </SectionCard>
+            {/* 차트 2단 */}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <SectionCard title="부문별 위험도" variant="bordered">
+                <Stack gap="sm">
+                  {RISK_SECTIONS.map((sec) => {
+                    const sub = score.sectionSubtotals[sec.key] ?? 0;
+                    const ratio = sec.weight > 0 ? sub / sec.weight : 0;
+                    const pct = Math.min(100, Math.round(ratio * 100));
+                    const color = ratioColor(ratio);
+                    const fc = sec.items.reduce((a, it) => a + (findingsByItem[it.key]?.length ?? 0), 0);
+                    return (
+                      <div key={sec.key} className="flex items-center gap-3 text-xs">
+                        <div className="w-24 shrink-0 font-medium">{sec.label} <span className="text-muted-foreground">({sec.weight}%)</span></div>
+                        <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: pct + "%", background: color }} /></div>
+                        <div className="w-24 shrink-0 text-right"><span className="font-medium" style={{ color }}>{ratioLabel(ratio)}</span><span className="text-muted-foreground"> · {sub}/{sec.weight}</span></div>
+                      </div>
+                    );
+                  })}
+                </Stack>
+              </SectionCard>
+
+              <SectionCard title="지적 사항 유형별 분포" description="eval별 지적 건수" variant="bordered">
+                {findingsByEval.length === 0 ? (
+                  <Text variant="caption" as="p">지적 사항이 없습니다.</Text>
+                ) : (
+                  <Stack gap="xs">
+                    {findingsByEval.map(([name, count]) => {
+                      const max = findingsByEval[0][1] || 1;
+                      return (
+                        <div key={name} className="flex items-center gap-2 text-xs">
+                          <div className="w-36 shrink-0 font-mono text-[11px]">{name}</div>
+                          <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded" style={{ width: Math.round((count / max) * 100) + "%", background: "#ef4444" }} /></div>
+                          <div className="w-8 shrink-0 text-right tabular-nums">{count}</div>
+                        </div>
+                      );
+                    })}
+                  </Stack>
+                )}
+              </SectionCard>
+            </div>
 
             {/* 위험평가 항목 */}
             <SectionCard title="위험평가 항목 (7대 원칙)" variant="bordered">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
                 {RISK_SECTIONS.map((sec) => (
                   <div key={sec.key}>
                     <Text variant="body" as="p" className="mb-1.5 font-medium">{sec.label} <span className="text-xs text-muted-foreground">({sec.weight}%)</span></Text>
@@ -424,26 +456,6 @@ export function RmfReportView() {
                   </div>
                 ))}
               </div>
-            </SectionCard>
-
-            {/* 지적 유형별 분포 */}
-            <SectionCard title="지적 사항 유형별 분포" description="eval별 지적 건수" variant="bordered">
-              {findingsByEval.length === 0 ? (
-                <Text variant="caption" as="p">지적 사항이 없습니다.</Text>
-              ) : (
-                <Stack gap="xs">
-                  {findingsByEval.map(([name, count]) => {
-                    const max = findingsByEval[0][1] || 1;
-                    return (
-                      <div key={name} className="flex items-center gap-2 text-xs">
-                        <div className="w-36 shrink-0 font-mono text-[11px]">{name}</div>
-                        <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded" style={{ width: Math.round((count / max) * 100) + "%", background: "#ef4444" }} /></div>
-                        <div className="w-10 shrink-0 text-right tabular-nums">{count}</div>
-                      </div>
-                    );
-                  })}
-                </Stack>
-              )}
             </SectionCard>
 
             {/* 문제되는 트레이스 */}
@@ -497,12 +509,11 @@ export function RmfReportView() {
                 </div>
               </div>
             </SectionCard>
-          </Stack>
+          </div>
         )}
       </div>
     );
   }
-
   // ─── 문서(미리보기 + PDF) 단계 ───
   return (
     <div className="mx-auto max-w-[880px] p-6">
