@@ -89,8 +89,11 @@ def _resolve_project_id(phoenix_project: str) -> str:
             resp = httpx.get(f"{DASHBOARD_URL}/api/projects", headers=DASHBOARD_HEADERS, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
-                # Handle both array and {projects: [...]} formats
-                projects = data if isinstance(data, list) else data.get("projects", [])
+                # Handle array, {items: [...]} envelope, and legacy {projects: [...]}
+                if isinstance(data, list):
+                    projects = data
+                else:
+                    projects = data.get("items") or data.get("projects", [])
                 for p in projects:
                     pp = p.get("phoenixProject", "")
                     if pp:
@@ -252,7 +255,8 @@ def _load_eval_defs(project: str = "") -> dict[str, EvalDef]:
         resp = httpx.get(url, headers=DASHBOARD_HEADERS, timeout=5)
         if resp.status_code == 200:
             defs = {}
-            for p in resp.json().get("prompts", []):
+            body = resp.json()
+            for p in body.get("items") or body.get("prompts", []):
                 rc = {}
                 try:
                     rc = json.loads(p.get("ruleConfig", "{}"))
@@ -289,7 +293,8 @@ def _load_project_config(project: str) -> dict[str, bool]:
     try:
         resp = httpx.get(f"{DASHBOARD_URL}/api/eval-config?projectId={db_id}", headers=DASHBOARD_HEADERS, timeout=5)
         if resp.status_code == 200:
-            configs = resp.json().get("configs", [])
+            body = resp.json()
+            configs = body.get("items") or body.get("configs", [])
             result = {c["evalName"]: c["enabled"] for c in configs}
             _project_configs[project] = result
             _project_configs_loaded_at[project] = now
