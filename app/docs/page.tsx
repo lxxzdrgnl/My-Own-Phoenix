@@ -14,14 +14,20 @@ import { Dashboard } from "./sections/dashboard";
 import { Datasets } from "./sections/datasets";
 import { Chat } from "./sections/chat";
 import { Playground } from "./sections/playground";
+import { TracingSetup } from "./sections/tracing-setup";
+import { HumanReview } from "./sections/human-review";
+import { RmfReport } from "./sections/rmf-report";
 
 const SECTION_COMPONENTS: Record<string, React.FC> = {
   quickstart: QuickStart,
   "connector-setup": ConnectorSetup,
   "api-keys": ApiKeys,
   tracing: PhoenixTracing,
+  "tracing-setup": TracingSetup,
   evaluations: Evaluations,
+  "human-review": HumanReview,
   dashboard: Dashboard,
+  "rmf-report": RmfReport,
   datasets: Datasets,
   chat: Chat,
   playground: Playground,
@@ -46,8 +52,11 @@ export default function DocsPage() {
       label: t.docs.features,
       items: [
         { id: "tracing", label: t.docs.tracing.title },
+        { id: "tracing-setup", label: t.docs.tracingSetup.title },
         { id: "evaluations", label: t.docs.evaluations.title },
+        { id: "human-review", label: t.docs.humanReview.title },
         { id: "dashboard", label: t.docs.dashboard.title },
+        { id: "rmf-report", label: t.docs.rmfReport.title },
         { id: "datasets", label: t.docs.datasets.title },
         { id: "chat", label: t.docs.chat.title },
         { id: "playground", label: t.docs.playground.title },

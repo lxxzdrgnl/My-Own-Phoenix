@@ -213,11 +213,11 @@ interface GraphNode {
   children?: string[];
 }
 
+// NOTE: GUARDRAIL span(pii_guard)은 실제 SpanGraph와 동일하게 그래프에서 제외 — 트리·타임라인에만 표시.
 const GRAPH_NODES: GraphNode[] = [
-  { id: "root", name: "Agent.run", kind: "AGENT", latency: "16.1s", x: 210, y: 20, children: ["planning", "tool1", "guard", "reflection"] },
+  { id: "root", name: "Agent.run", kind: "AGENT", latency: "16.1s", x: 210, y: 20, children: ["planning", "tool1", "reflection"] },
   { id: "planning", name: "planning", kind: "CHAIN", latency: "1.4s", x: 40, y: 130, children: ["llm1"] },
   { id: "tool1", name: "tool.web_sea...", kind: "TOOL", latency: "1.5s", x: 210, y: 130 },
-  { id: "guard", name: "pii_guard", kind: "GUARDRAIL", latency: "0.02s", x: 210, y: 240 },
   { id: "reflection", name: "reflection (...", kind: "CHAIN", latency: "13.3s", x: 380, y: 130, children: ["llm2"] },
   { id: "llm1", name: "llm.chat", kind: "LLM", latency: "1.4s", x: 40, y: 240 },
   { id: "llm2", name: "llm.chat", kind: "LLM", latency: "13.3s", x: 380, y: 240 },
