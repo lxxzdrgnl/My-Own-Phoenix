@@ -19,9 +19,10 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
 export const PUT = authedHandler(async (req: NextRequest, uid: string, { params }: { params: Promise<{ id: string }> }) => {
   const { id: projectId } = await params;
   const check = await requireProjectMember(req, projectId, uid, "editor");
-  if (check instanceof NextResponse) return check;
+  if (check instanceof NextResponse) { logger.warn("rmf-assessment PUT denied", { projectId, uid, status: check.status }); return check; }
 
   const body = await req.json().catch(() => ({}));
+  logger.info("rmf-assessment PUT", { projectId, keys: Object.keys(body) });
   // 부분 업데이트: 전달된 키만 갱신 (입력탭 저장과 AI 피드백 저장이 서로 덮어쓰지 않도록)
   const data: Record<string, unknown> = {};
   if ("highImpact" in body) data.highImpact = !!body.highImpact;

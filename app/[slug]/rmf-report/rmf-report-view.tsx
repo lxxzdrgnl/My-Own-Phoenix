@@ -540,6 +540,7 @@ export function RmfReportView() {
   const [recs, setRecs] = useState<RmfFeedback | null>(null);
   const [recsAt, setRecsAt] = useState("");
   const [recsError, setRecsError] = useState("");
+  const [recsWarn, setRecsWarn] = useState("");
   const [recsLoading, setRecsLoading] = useState(false);
   const [fbModel, setFbModel] = useState("gpt-4o-mini");
   async function generateRecommendations() {
@@ -578,12 +579,18 @@ export function RmfReportView() {
       if (!parsed) { setRecsError("응답을 해석하지 못했습니다. 다시 생성해 주세요."); return; }
       const at = new Date().toISOString();
       setRecs(parsed);
-      setRecsAt(at);
-      // 자동 저장(영속) — 새로고침/재접속해도 유지
-      apiFetch(`/api/projects/${projectId}/rmf-assessment`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feedback: { data: parsed, model: fbModel, at } }),
-      }).catch((e) => logger.error("rmf feedback save failed", e));
+      setRecsWarn("");
+      // 자동 저장(영속) — 성공해야 날짜 표시, 실패 시 경고 노출(조용히 묻히지 않게)
+      try {
+        const sr = await apiFetch(`/api/projects/${projectId}/rmf-assessment`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feedback: { data: parsed, model: fbModel, at } }),
+        });
+        if (sr.ok) { setRecsAt(at); }
+        else { setRecsAt(""); setRecsWarn(`자동 저장 실패 (HTTP ${sr.status}) — 새로고침 시 사라질 수 있습니다`); logger.error("rmf feedback save non-ok", undefined, { status: sr.status }); }
+      } catch (e) {
+        setRecsAt(""); setRecsWarn("자동 저장 실패 — 네트워크 오류"); logger.error("rmf feedback save failed", e);
+      }
     } catch (e) { logger.error("rmf recommendations failed", e); setRecsError("생성 실패"); }
     finally { setRecsLoading(false); }
   }
@@ -644,7 +651,8 @@ export function RmfReportView() {
 
               <SectionCard title="AI 종합 피드백" description="평가 결과 종합 분석·개선 권고 (LLM 생성 · 보고서에는 미포함됩니다)" variant="bordered" actions={
                 <Inline gap="sm">
-                  {recsAt && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" />{new Date(recsAt).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" })}</span>}
+                  {recsAt && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" />{new Date(recsAt).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" })} 저장됨</span>}
+                  {recsWarn && <span className="text-xs" style={{ color: "#ef4444" }}>{recsWarn}</span>}
                   <div className="w-44"><ModelSelector value={fbModel} onChange={setFbModel} /></div>
                   <button onClick={generateRecommendations} disabled={recsLoading} className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-40"><Sparkles className="h-3.5 w-3.5" /> {recsLoading ? "생성 중…" : recs ? "다시 생성" : "종합 피드백 생성"}</button>
                 </Inline>
