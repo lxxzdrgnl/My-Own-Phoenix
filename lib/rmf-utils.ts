@@ -148,6 +148,61 @@ export const MEASURE_METRICS: MeasureMetricDef[] = [
     lowerIsBetter: false,
     threshold: { green: (v) => v > 70, yellow: (v) => v > 50 },
   },
+  // ── 금융 AI RMF 전용 eval 지표 (score 1=양호) ──
+  {
+    id: "bias_rate",
+    label: "Bias-Free Rate",
+    engLabel: "Bias Eval",
+    description: "편향 없는 응답 비율 (신뢰성·편향성). 100% = 편향 없음.",
+    unit: "%",
+    lowerIsBetter: false,
+    threshold: { green: (v) => v > 90, yellow: (v) => v > 75 },
+  },
+  {
+    id: "fairness_rate",
+    label: "Fairness Rate",
+    engLabel: "Fairness Eval",
+    description: "공정한 응답 비율 (신뢰성·공정성). 100% = 차별 없음.",
+    unit: "%",
+    lowerIsBetter: false,
+    threshold: { green: (v) => v > 90, yellow: (v) => v > 75 },
+  },
+  {
+    id: "explainability_rate",
+    label: "Explainability Rate",
+    engLabel: "Explainability Eval",
+    description: "근거를 이해가능하게 설명하는 비율 (신뢰성·설명가능성).",
+    unit: "%",
+    lowerIsBetter: false,
+    threshold: { green: (v) => v > 80, yellow: (v) => v > 60 },
+  },
+  {
+    id: "consumer_protection_rate",
+    label: "Consumer Protection Rate",
+    engLabel: "Consumer Protection Eval",
+    description: "소비자보호 적정 응답 비율 (신의성실). 100% = 오인·불완전판매 없음.",
+    unit: "%",
+    lowerIsBetter: false,
+    threshold: { green: (v) => v > 90, yellow: (v) => v > 75 },
+  },
+  {
+    id: "legal_compliance_rate",
+    label: "Legal Compliance Rate",
+    engLabel: "Legal Compliance Eval",
+    description: "법규 위반 신호 없는 응답 비율 (합법성). 100% = red flag 없음.",
+    unit: "%",
+    lowerIsBetter: false,
+    threshold: { green: (v) => v > 95, yellow: (v) => v > 85 },
+  },
+  {
+    id: "transparency_rate",
+    label: "Transparency Rate",
+    engLabel: "Transparency Eval",
+    description: "투명성·책임 적정 응답 비율 (신의성실). 100% = 권한·책임 오인 없음.",
+    unit: "%",
+    lowerIsBetter: false,
+    threshold: { green: (v) => v > 85, yellow: (v) => v > 70 },
+  },
 ];
 
 // ─── Status helpers ───
@@ -273,6 +328,13 @@ export function computeMetrics(
     })(),
     // Citation: score-based average
     citation_accuracy: annotationScorePercent("citation"),
+    // ── 금융 AI RMF 전용 eval (score-based average, 1=양호) ──
+    bias_rate: annotationScorePercent("bias"),
+    fairness_rate: annotationScorePercent("fairness"),
+    explainability_rate: annotationScorePercent("explainability"),
+    consumer_protection_rate: annotationScorePercent("consumer_protection"),
+    legal_compliance_rate: annotationScorePercent("legal_compliance"),
+    transparency_rate: annotationScorePercent("transparency"),
   };
 
   return MEASURE_METRICS.map((metric) => {
