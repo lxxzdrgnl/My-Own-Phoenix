@@ -74,18 +74,16 @@ export function collectSpans(node: RawSpan): SpanData[] {
 
 export const PRINT_CSS = `
 @page { size: A4; margin: 11mm; }
-/* 화면 미리보기: A4 시트 단위(회색 거터 위 흰 카드) */
+/* 화면 미리보기: A4 폭 단일 문서(흰 카드). 실제 페이지 분할은 PDF 출력(인쇄) 기준. */
 .rmf-report { background: #f4f4f5; }
-.rmf-sheet { width: 210mm; min-height: 297mm; box-sizing: border-box; margin: 0 auto 14px; background: #fff; padding: 11mm; box-shadow: 0 1px 8px rgba(0,0,0,0.12); }
-.rmf-sheet:last-child { margin-bottom: 0; }
+.rmf-sheet { width: 210mm; box-sizing: border-box; margin: 0 auto; background: #fff; padding: 11mm; box-shadow: 0 1px 8px rgba(0,0,0,0.12); }
 @media print {
   html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body * { visibility: hidden !important; }
   .rmf-report, .rmf-report * { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .rmf-report { position: absolute !important; left: 0; top: 0; width: 100% !important; margin: 0 !important; background: none !important; padding: 0 !important; }
-  /* 시트 1개 = 인쇄 1페이지 (화면 경계와 일치) */
-  .rmf-sheet { width: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; break-after: page; }
-  .rmf-sheet:last-child { break-after: auto; }
+  .rmf-sheet { width: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+  .page-break { break-before: page; }
   .no-print { display: none !important; }
   table, .avoid-break { break-inside: avoid; }
   .rmf-report section { margin-bottom: 9px !important; }

@@ -125,11 +125,9 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
         </table>
         <p className="mt-1 text-[10px] text-neutral-500">{ui.summaryNote}</p>
       </section>
-      </div>
 
       {sections.sectionDetail && (
-        <div className="rmf-sheet">
-        <section className="avoid-break">
+        <section className="page-break">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">{ui.detailHeading}</h2>
           {RISK_SECTIONS.map((sec) => (
             <div key={sec.key} className="mb-5">
@@ -145,7 +143,7 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
                         <span className="font-semibold">{itemText(item.key, rmf).label} <SourceBadge source={st?.source} /></span>
                         <span className="text-neutral-600">{st && st.source !== "manual" ? <>{ui.inherent} {st.inherent} · {ui.mitigation} {st.mitigation} · <b>{ui.residual} {score.perItemResidual[item.key] ?? 0}</b> / {item.maxInherent} · {nFindings(itemFindings.length)}</> : <span className="text-neutral-400">{ui.qualitative}</span>}</span>
                       </div>
-                      <p className="mt-1 text-neutral-500">{ui.basisLabel}: {item.providerSignal ? ui.providerSignalFull + (st?.note ? ` — ${st.note}` : "") : m && !m.noData ? metricLabel(item.evalMetricId) + " " + m.value.toFixed(1) + "%" : (st?.note ? `${ui.qualitative} — ${st.note}` : ui.qualNoInput)}<span className="ml-1 text-neutral-400">· {ui.scoringGuide}: {itemText(item.key, rmf).guide}</span></p>
+                      <p className="mt-1 text-neutral-500">{ui.basisLabel}: {item.providerSignal ? ui.providerSignalFull + (st?.note ? ` — ${st.note}` : "") : m && !m.noData ? metricLabel(item.evalMetricId) + " " + m.value.toFixed(1) + "%" : (st?.note ? `${ui.qualitative} — ${st.note}` : ui.qualNoInput)}</p>
                       {sections.findings && itemFindings.length > 0 && (
                         <ul className="mt-1 space-y-1 border-t border-dashed pt-1">
                           {itemFindings.slice(0, findingsCap).map((f, idx) => {
@@ -169,13 +167,10 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
             </div>
           ))}
         </section>
-        </div>
       )}
 
-      {(sections.governance || sections.controls || sections.methodology) && (
-        <div className="rmf-sheet">
       {sections.governance && (
-        <section className="avoid-break mb-7">
+        <section className="page-break avoid-break mb-7">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">{ui.governanceHeading}</h2>
           <ul className="space-y-1.5 text-[11px]">
             {GOVERNANCE_ITEMS.map((g) => {
@@ -229,7 +224,6 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
         </section>
       )}
       </div>
-      )}
     </>
   );
 }
