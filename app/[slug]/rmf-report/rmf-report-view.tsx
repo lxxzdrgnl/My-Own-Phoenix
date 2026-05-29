@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/dashboard/widgets/stat-card";
 import { AnnotationBadge, AnnotationBadges } from "@/components/annotation-badge";
 import { formatSec } from "@/components/trace-tree/span-tree-helpers";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings } from "@/lib/rmf/finance-prefill";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
@@ -75,7 +76,16 @@ const SECTION_LABELS: { key: SectionKey; label: string }[] = [
   { key: "methodology", label: "평가 방법론" },
 ];
 
-function SourceBadge({ source }: { source?: string }) {
+function SourceBadge({ source, subtle }: { source?: string; subtle?: boolean }) {
+  if (subtle) {
+    const text = source === "eval" ? "자동·eval" : source === "provider" ? "공급자 신호" : "수동";
+    const cls = source === "eval"
+      ? "bg-foreground/10 text-foreground/70 font-medium"
+      : source === "provider"
+        ? "bg-muted text-muted-foreground"
+        : "border text-muted-foreground";
+    return <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] ${cls}`}>{text}</span>;
+  }
   if (source === "eval") return <span className="rounded px-1 text-[9px]" style={{ background: "#10b981", color: "#fff" }}>자동·eval</span>;
   if (source === "provider") return <span className="rounded bg-neutral-700 px-1 text-[9px] text-white">공급자 신호</span>;
   return <span className="rounded bg-neutral-200 px-1 text-[9px] text-neutral-600">수동</span>;
@@ -529,31 +539,67 @@ export function RmfReportView() {
                             const st = state.riskItems[item.key];
                             const measured = !!st && st.source !== "manual";
                             const residual = score.perItemResidual[item.key] ?? 0;
+                            const inherent = st?.inherent ?? 0;
+                            const mitigation = st?.mitigation ?? 0;
                             const rr = item.maxInherent > 0 ? residual / item.maxInherent : 0;
                             const pct = Math.min(100, Math.round(rr * 100));
                             const fc = findingsByItem[item.key]?.length ?? 0;
+                            const color = ratioColor(rr);
+                            const m = item.evalMetricId ? metricById.get(item.evalMetricId) : undefined;
+                            const basis = item.providerSignal
+                              ? "외부 공급자 신호"
+                              : m && !m.noData
+                                ? `${metricLabel(item.evalMetricId)} ${m.value.toFixed(0)}%`
+                                : "측정 신호 기반";
+                            const evalText = item.providerSignal
+                              ? "외부 LLM 공급자 설정 신호"
+                              : item.evalMetricId
+                                ? `${metricLabel(item.evalMetricId)} (${item.evalMetricId})${m && !m.noData ? ` · 측정값 ${m.value.toFixed(0)}%` : " · 데이터 없음"}`
+                                : "eval 데이터 없음";
                             return (
-                              <div key={item.key} className="flex flex-col gap-2 rounded-lg border bg-card p-3">
-                                <div className="flex items-start justify-between gap-2">
-                                  <span className="flex items-start gap-1.5 text-xs font-medium leading-tight"><span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: measured ? ratioColor(rr) : "#d4d4d8" }} />{item.label}</span>
-                                  <SourceBadge source={st?.source} />
-                                </div>
-                                {measured ? (
-                                  <>
-                                    <div className="flex items-baseline gap-1">
-                                      <span className="text-base font-medium tabular-nums">{residual}</span>
-                                      <Text variant="caption" as="span">/ {item.maxInherent} 잔여</Text>
+                              <Tooltip key={item.key}>
+                                <TooltipTrigger asChild>
+                                  <div className="flex cursor-help flex-col gap-2 rounded-lg border bg-card p-3 transition-colors hover:border-foreground/30">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <span className="flex items-start gap-1.5 text-xs font-medium leading-tight"><span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: measured ? color : "#d4d4d8" }} />{item.label}</span>
+                                      <SourceBadge source={st?.source} subtle />
                                     </div>
-                                    <div className="relative h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full transition-all" style={{ width: pct + "%", background: ratioColor(rr) }} /></div>
-                                  </>
-                                ) : (
-                                  <Text variant="caption" as="span">미측정 · 수동 평가 필요</Text>
-                                )}
-                                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                  <span>{measured ? ratioLabel(rr) : "—"}</span>
-                                  {fc > 0 && <span className="rounded border bg-muted px-1.5 py-0.5 font-medium text-foreground/70">지적 {fc}</span>}
-                                </div>
-                              </div>
+                                    {measured ? (
+                                      <>
+                                        <div className="flex items-baseline justify-between gap-1">
+                                          <span className="flex items-baseline gap-1">
+                                            <span className="text-base font-medium tabular-nums" style={{ color }}>{residual}</span>
+                                            <Text variant="caption" as="span">/ {item.maxInherent} 잔여</Text>
+                                          </span>
+                                          <span className="text-[11px] font-medium" style={{ color }}>{ratioLabel(rr)}</span>
+                                        </div>
+                                        <div className="relative h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full transition-all" style={{ width: pct + "%", background: color }} /></div>
+                                        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                                          <span className="min-w-0 truncate">{basis}</span>
+                                          {fc > 0 && <span className="shrink-0 rounded border bg-muted px-1.5 py-0.5 font-medium text-foreground/70">지적 {fc}</span>}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <Text variant="caption" as="span">미측정 · 수동 평가 필요</Text>
+                                    )}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[280px]">
+                                  <div className="space-y-1 leading-relaxed">
+                                    <p className="font-medium">{item.label}</p>
+                                    {measured ? (
+                                      <>
+                                        <p>인식·측정 {inherent} − 경감 {mitigation} = <b>잔여 {residual}</b> / {item.maxInherent} ({ratioLabel(rr)})</p>
+                                        <p className="opacity-80">기반 eval: {evalText}</p>
+                                        <p className="opacity-80">채점기준: {item.scoringGuide}</p>
+                                        {fc > 0 && <p className="opacity-80">평가기간 내 자동 탐지 지적 {fc}건</p>}
+                                      </>
+                                    ) : (
+                                      <p className="opacity-80">자동 측정 데이터 없음 — 수동 평가 필요{item.evalMetricId ? ` (기준 eval: ${item.evalMetricId})` : ""}</p>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
                             );
                           })}
                         </div>
