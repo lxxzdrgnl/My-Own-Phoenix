@@ -2,7 +2,7 @@
 import { apiFetch } from "@/lib/api-client";
 import { logger } from "@/lib/logger";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDisclosure } from "@/lib/hooks/use-disclosure";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { type RawSpan, type TraceTree, type Annotation } from "@/lib/phoenix";
@@ -21,6 +21,8 @@ import {
   Plus,
   Trash2,
   Shield,
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
 } from "lucide-react";
 import { GuardrailDetail } from "@/components/span-detail/guardrail-detail";
 import { TraceDetailTabs } from "@/components/trace-detail";
@@ -255,6 +257,14 @@ function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: {
   );
 }
 
+/** Return a copy of the span tree with every level's children reversed, so the
+ *  trace reads in the opposite of Phoenix's default (newest-first) order. Leaf
+ *  nodes are returned as-is (no clone needed). */
+function reverseSpanTree(span: RawSpan): RawSpan {
+  if (!span.children || span.children.length === 0) return span;
+  return { ...span, children: [...span.children].reverse().map(reverseSpanTree) };
+}
+
 // ─── Trace Accordion Item ─────────────────────────────────────────────────────
 
 function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotation, onDeleteTrace, onRefresh, deleteMode, deleteModeVisible, selected, onToggleSelect }: {
@@ -270,7 +280,13 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
   onToggleSelect?: (traceId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [spanReversed, setSpanReversed] = useState(false);
   const [selectedSpan, setSelectedSpan] = useState<RawSpan | null>(null);
+  // Tree/graph render off this; reversed flips sibling order at every level.
+  const displayRoot = useMemo(
+    () => (spanReversed ? reverseSpanTree(trace.rootSpan) : trace.rootSpan),
+    [trace.rootSpan, spanReversed],
+  );
   const [annotateSpanId, setAnnotateSpanId] = useState<string | null>(null);
   const [annotateAnnotations, setAnnotateAnnotations] = useState<Annotation[]>([]);
   const datasetModal = useDisclosure();
@@ -429,13 +445,25 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
             {/* Left: span tree */}
             <div className="w-[400px] shrink-0 border-r bg-card">
               <RootHeader span={trace.rootSpan} onDeleteAnnotation={onDeleteAnnotation} onAnnotate={handleAnnotate} />
+              <div className="flex items-center justify-end border-b px-2 py-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setSpanReversed((v) => !v); }}
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  title={spanReversed ? t.projects.sortOldest : t.projects.sortNewest}
+                >
+                  {spanReversed
+                    ? <ArrowUpNarrowWide className="size-3" />
+                    : <ArrowDownWideNarrow className="size-3" />}
+                  {spanReversed ? t.projects.sortOldest : t.projects.sortNewest}
+                </button>
+              </div>
               <div className="py-1">
-                {trace.rootSpan.children.map((child, i) => (
+                {displayRoot.children.map((child, i) => (
                   <SpanNode
                     key={child.spanId}
                     span={child}
                     depth={1}
-                    isLast={i === trace.rootSpan.children.length - 1}
+                    isLast={i === displayRoot.children.length - 1}
                     selectedId={selectedSpan?.spanId ?? null}
                     onSelect={setSelectedSpan}
                   />
@@ -459,7 +487,7 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
           {trace.rootSpan.children.length > 0 && (
             <div className="border-t p-3">
               <SpanGraph
-                rootSpan={trace.rootSpan}
+                rootSpan={displayRoot}
                 selectedId={selectedSpan?.spanId}
                 onSelect={setSelectedSpan}
                 excludeSpanKinds={["GUARDRAIL"]}
