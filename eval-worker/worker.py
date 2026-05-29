@@ -1051,7 +1051,11 @@ class RunRequest(BaseModel):
 def run_eval(req: RunRequest) -> dict:
     """Re-evaluate one trace for one (or multiple) eval names."""
     db_project_id = _resolve_project_id(req.project)
-    set_current_project(db_project_id or req.project)
+    # _current_project must be the Phoenix project NAME — get_eval_def/get_prompt
+    # call _load_eval_defs(_current_project) which resolves name→id internally.
+    # (Passing the cuid here made _load_eval_defs fail to resolve → empty defs →
+    #  all custom evals silently skipped.)
+    set_current_project(req.project)
 
     # Fetch only this trace's spans via Phoenix's trace_id filter.
     try:
@@ -1124,7 +1128,7 @@ def main() -> None:
 
             for project in projects:
                 db_project_id = _resolve_project_id(project)
-                set_current_project(db_project_id or project)
+                set_current_project(project)  # Phoenix name (get_eval_def resolves name→id internally)
                 if project not in evaluated_traces:
                     evaluated_traces[project] = set()
                     caches[project] = deque(maxlen=MAX_CACHE)
