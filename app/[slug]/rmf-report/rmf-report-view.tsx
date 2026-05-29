@@ -258,6 +258,7 @@ export function RmfReportView() {
   const [hasProvider, setHasProvider] = useState(false);
 
   const [mode, setMode] = useState<"config" | "preview">("config");
+  const [tab, setTab] = useState<"dashboard" | "output">("dashboard");
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(30));
   const [orgName, setOrgName] = useState("");
   const [assessor, setAssessor] = useState("");
@@ -351,166 +352,193 @@ export function RmfReportView() {
 
   // ─── 대시보드 단계 (앱 스타일 — human-review 참고) ───
   if (mode === "config") {
-    return (
-      <div className="mx-auto max-w-[1100px] p-6">
-        <Inline gap="sm" className="mb-5 justify-between flex-wrap" align="start">
-          <Stack gap="xs">
-            <Heading level="page" as="h1" className="text-xl">금융 AI RMF 위험평가</Heading>
-            <Text variant="caption" as="p">{phoenixProject} · 최근 위험 현황을 확인하고 감독 제출용 보고서를 생성하세요</Text>
-          </Stack>
-          <button onClick={() => setMode("preview")} disabled={loading} className="flex shrink-0 items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80 disabled:opacity-40">
-            <FileDown className="h-4 w-4" /> 보고서 생성하기
-          </button>
-        </Inline>
-
-        {loading ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">불러오는 중…</div>
-        ) : (
-          <div className="space-y-4">
-            {/* 히어로: 등급 + 게이지 + 핵심 수치 */}
-            <div className="rounded-xl border bg-card p-5">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-bold" style={{ color: gradeColor(score.grade) }}>{score.grade}위험</span>
-                  <span className="text-sm text-muted-foreground">잔여위험 총점 <b className="text-foreground">{score.total}</b> / 100</span>
-                </div>
-                <div className="flex gap-6">
-                  <div className="text-right"><p className="text-xs text-muted-foreground">분석 트레이스</p><p className="text-lg font-semibold">{trees.length}</p></div>
-                  <div className="text-right"><p className="text-xs text-muted-foreground">지적 사항</p><p className="text-lg font-semibold">{findings.length}건</p></div>
-                </div>
-              </div>
-              <div className="mt-4 flex overflow-hidden rounded-full border text-center text-[11px]">
-                {GRADES.map((g) => (
-                  <div key={g} className="flex-1 py-1.5" style={{ background: g === score.grade ? gradeColor(g) : "transparent", color: g === score.grade ? "#fff" : "#737373", fontWeight: g === score.grade ? 700 : 400 }}>{g}위험 ({GRADE_RANGE[g]})</div>
-                ))}
+    const ACCENT = "#1e3a5f";
+    const dashboardTab = (
+      <div className="mt-5 space-y-4">
+        {/* 히어로 */}
+        <div className="overflow-hidden rounded-xl border bg-card" style={{ borderTop: `3px solid ${ACCENT}` }}>
+          <div className="flex flex-wrap items-end justify-between gap-4 p-5">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">종합 위험등급</p>
+              <div className="mt-1 flex items-baseline gap-3">
+                <span className="text-4xl font-bold tracking-tight" style={{ color: gradeColor(score.grade) }}>{score.grade}위험</span>
+                <span className="text-sm text-muted-foreground">잔여위험 <b className="tabular-nums text-foreground">{score.total}</b> / 100</span>
               </div>
             </div>
-
-            {/* 용어 안내 */}
-            <div className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
-              <span className="font-medium text-foreground">평가 방식 안내</span> — 각 항목의 <b>고유위험(인식·측정)</b>에서 통제로 줄인 <b>경감</b>을 뺀 값이 <b className="text-foreground">잔여위험</b>입니다. 모든 항목의 잔여위험을 합산(0–100점)해 <b>위험등급</b>(저/중/고/초고)을 산정합니다. 표기 <b className="text-foreground">잔여 X/Y</b> = 남은 위험 X점(항목 최대 Y점) — <span style={{ color: "#10b981" }}>0에 가까울수록 안전</span>, <span style={{ color: "#ef4444" }}>Y에 가까울수록 위험</span>.
+            <div className="flex gap-8">
+              <div><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">분석 트레이스</p><p className="mt-0.5 text-xl font-semibold tabular-nums">{trees.length}</p></div>
+              <div><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">지적 사항</p><p className="mt-0.5 text-xl font-semibold tabular-nums">{findings.length}<span className="text-sm font-normal text-muted-foreground">건</span></p></div>
             </div>
+          </div>
+          <div className="flex overflow-hidden border-t text-center text-[11px]">
+            {GRADES.map((g) => (
+              <div key={g} className="flex-1 py-2" style={{ background: g === score.grade ? gradeColor(g) : "transparent", color: g === score.grade ? "#fff" : "#9ca3af", fontWeight: g === score.grade ? 700 : 400 }}>{g}위험 <span className="tabular-nums">({GRADE_RANGE[g]})</span></div>
+            ))}
+          </div>
+        </div>
 
-            {/* 차트 2단 */}
-            <div className="grid gap-4 lg:grid-cols-2">
-              <SectionCard title="부문별 위험도" variant="bordered">
-                <Stack gap="sm">
-                  {RISK_SECTIONS.map((sec) => {
-                    const sub = score.sectionSubtotals[sec.key] ?? 0;
-                    const ratio = sec.weight > 0 ? sub / sec.weight : 0;
-                    const pct = Math.min(100, Math.round(ratio * 100));
-                    const color = ratioColor(ratio);
-                    const fc = sec.items.reduce((a, it) => a + (findingsByItem[it.key]?.length ?? 0), 0);
+        {/* 용어 안내 */}
+        <div className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground">평가 방식</span> — 항목별 <b>고유위험(인식·측정)</b> − <b>경감(통제)</b> = <b className="text-foreground">잔여위험</b>. 잔여위험 합산(0–100)으로 등급 산정. <b className="text-foreground">잔여 X/Y</b> = 남은 위험 X(최대 Y) · <span style={{ color: "#10b981" }}>0=안전</span> ~ <span style={{ color: "#ef4444" }}>Y=위험</span>.
+        </div>
+
+        {/* 차트 2단 */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SectionCard title="부문별 위험도" variant="bordered">
+            <Stack gap="sm">
+              {RISK_SECTIONS.map((sec) => {
+                const sub = score.sectionSubtotals[sec.key] ?? 0;
+                const ratio = sec.weight > 0 ? sub / sec.weight : 0;
+                const pct = Math.min(100, Math.round(ratio * 100));
+                const color = ratioColor(ratio);
+                return (
+                  <div key={sec.key} className="flex items-center gap-3 text-xs">
+                    <div className="w-24 shrink-0 font-medium">{sec.label} <span className="text-muted-foreground">({sec.weight}%)</span></div>
+                    <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full transition-all" style={{ width: pct + "%", background: color }} /></div>
+                    <div className="w-24 shrink-0 text-right"><span className="font-medium" style={{ color }}>{ratioLabel(ratio)}</span><span className="tabular-nums text-muted-foreground"> · {sub}/{sec.weight}</span></div>
+                  </div>
+                );
+              })}
+            </Stack>
+          </SectionCard>
+          <SectionCard title="지적 사항 유형별 분포" description="eval별 지적 건수" variant="bordered">
+            {findingsByEval.length === 0 ? (
+              <Text variant="caption" as="p">지적 사항이 없습니다.</Text>
+            ) : (
+              <Stack gap="xs">
+                {findingsByEval.map(([name, count]) => {
+                  const max = findingsByEval[0][1] || 1;
+                  return (
+                    <div key={name} className="flex items-center gap-2 text-xs">
+                      <div className="w-36 shrink-0 font-mono text-[11px]">{name}</div>
+                      <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded" style={{ width: Math.round((count / max) * 100) + "%", background: "#ef4444" }} /></div>
+                      <div className="w-8 shrink-0 text-right tabular-nums">{count}</div>
+                    </div>
+                  );
+                })}
+              </Stack>
+            )}
+          </SectionCard>
+        </div>
+
+        {/* 위험평가 항목 */}
+        <SectionCard title="위험평가 항목 (7대 원칙)" variant="bordered">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
+            {RISK_SECTIONS.map((sec) => (
+              <div key={sec.key}>
+                <Text variant="body" as="p" className="mb-1.5 font-medium">{sec.label} <span className="text-xs text-muted-foreground">({sec.weight}%)</span></Text>
+                <Stack gap="xs">
+                  {sec.items.map((item) => {
+                    const st = state.riskItems[item.key];
+                    const measured = !!st && st.source !== "manual";
+                    const residual = score.perItemResidual[item.key] ?? 0;
+                    const rr = item.maxInherent > 0 ? residual / item.maxInherent : 0;
+                    const fc = findingsByItem[item.key]?.length ?? 0;
                     return (
-                      <div key={sec.key} className="flex items-center gap-3 text-xs">
-                        <div className="w-24 shrink-0 font-medium">{sec.label} <span className="text-muted-foreground">({sec.weight}%)</span></div>
-                        <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: pct + "%", background: color }} /></div>
-                        <div className="w-24 shrink-0 text-right"><span className="font-medium" style={{ color }}>{ratioLabel(ratio)}</span><span className="text-muted-foreground"> · {sub}/{sec.weight}</span></div>
+                      <div key={item.key} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ background: measured ? ratioColor(rr) : "#d4d4d8" }} />{item.label}</span>
+                        <span className="tabular-nums text-muted-foreground">{measured ? `잔여 ${residual}/${item.maxInherent}` : "미측정"}{fc > 0 ? ` · 지적 ${fc}` : ""}</span>
                       </div>
                     );
                   })}
                 </Stack>
-              </SectionCard>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
 
-              <SectionCard title="지적 사항 유형별 분포" description="eval별 지적 건수" variant="bordered">
-                {findingsByEval.length === 0 ? (
-                  <Text variant="caption" as="p">지적 사항이 없습니다.</Text>
-                ) : (
-                  <Stack gap="xs">
-                    {findingsByEval.map(([name, count]) => {
-                      const max = findingsByEval[0][1] || 1;
-                      return (
-                        <div key={name} className="flex items-center gap-2 text-xs">
-                          <div className="w-36 shrink-0 font-mono text-[11px]">{name}</div>
-                          <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded" style={{ width: Math.round((count / max) * 100) + "%", background: "#ef4444" }} /></div>
-                          <div className="w-8 shrink-0 text-right tabular-nums">{count}</div>
-                        </div>
-                      );
-                    })}
-                  </Stack>
-                )}
-              </SectionCard>
-            </div>
-
-            {/* 위험평가 항목 */}
-            <SectionCard title="위험평가 항목 (7대 원칙)" variant="bordered">
-              <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
-                {RISK_SECTIONS.map((sec) => (
-                  <div key={sec.key}>
-                    <Text variant="body" as="p" className="mb-1.5 font-medium">{sec.label} <span className="text-xs text-muted-foreground">({sec.weight}%)</span></Text>
-                    <Stack gap="xs">
-                      {sec.items.map((item) => {
-                        const st = state.riskItems[item.key];
-                        const measured = !!st && st.source !== "manual";
-                        const residual = score.perItemResidual[item.key] ?? 0;
-                        const rr = item.maxInherent > 0 ? residual / item.maxInherent : 0;
-                        const fc = findingsByItem[item.key]?.length ?? 0;
-                        return (
-                          <div key={item.key} className="flex items-center justify-between gap-2 text-xs">
-                            <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ background: measured ? ratioColor(rr) : "#d4d4d8" }} />{item.label}</span>
-                            <span className="text-muted-foreground">{measured ? `잔여 ${residual}/${item.maxInherent}` : "미측정"}{fc > 0 ? ` · 지적 ${fc}` : ""}</span>
-                          </div>
-                        );
-                      })}
+        {/* 문제되는 트레이스 */}
+        <SectionCard title="문제되는 트레이스" description={`지적이 탐지된 트레이스 ${problematicTraces.length}건 (지적 많은 순)`} variant="bordered">
+          {problematicTraces.length === 0 ? (
+            <Text variant="caption" as="p">자동 탐지된 지적 사항이 없습니다.</Text>
+          ) : (
+            <Stack gap="sm">
+              {problematicTraces.slice(0, 12).map(({ tree, findings: tf }) => {
+                const q = traceQuery.get(tree.traceId) || "(질의 없음)";
+                const evals = Array.from(new Set(tf.map((f) => f.eval)));
+                const hasHuman = tf.some((f) => f.annotatorKind === "HUMAN");
+                return (
+                  <div key={tree.traceId} className="rounded-lg border p-3">
+                    <Inline gap="sm" className="justify-between" align="start">
+                      <Text variant="body" as="p" className="line-clamp-1 font-medium">{q.length > 90 ? q.slice(0, 90) + "…" : q}</Text>
+                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ background: "#ef4444" }}>지적 {tf.length}{hasHuman ? " · 사람" : ""}</span>
+                    </Inline>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {evals.map((e) => <span key={e} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{e}</span>)}
+                    </div>
+                    <Stack gap="xs" className="mt-1.5">
+                      {tf.slice(0, 3).map((f, i) => (
+                        <Text key={i} variant="caption" as="p" className="line-clamp-2"><span className="text-foreground/70">[{ITEM_LABEL[f.itemKey] ?? f.itemKey}]</span>{f.annotatorKind === "HUMAN" ? " (사람평가)" : ""} {f.reason || f.label}</Text>
+                      ))}
+                      {tf.length > 3 && <Text variant="caption" as="p">…외 {tf.length - 3}건</Text>}
                     </Stack>
                   </div>
-                ))}
-              </div>
-            </SectionCard>
+                );
+              })}
+            </Stack>
+          )}
+        </SectionCard>
+      </div>
+    );
 
-            {/* 문제되는 트레이스 */}
-            <SectionCard title="문제되는 트레이스" description={`지적이 탐지된 트레이스 ${problematicTraces.length}건 (지적 많은 순)`} variant="bordered">
-              {problematicTraces.length === 0 ? (
-                <Text variant="caption" as="p">자동 탐지된 지적 사항이 없습니다.</Text>
-              ) : (
-                <Stack gap="sm">
-                  {problematicTraces.slice(0, 12).map(({ tree, findings: tf }) => {
-                    const q = traceQuery.get(tree.traceId) || "(질의 없음)";
-                    const evals = Array.from(new Set(tf.map((f) => f.eval)));
-                    const hasHuman = tf.some((f) => f.annotatorKind === "HUMAN");
-                    return (
-                      <div key={tree.traceId} className="rounded-lg border p-3">
-                        <Inline gap="sm" className="justify-between" align="start">
-                          <Text variant="body" as="p" className="line-clamp-1 font-medium">{q.length > 90 ? q.slice(0, 90) + "…" : q}</Text>
-                          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ background: "#ef4444" }}>지적 {tf.length}{hasHuman ? " · 사람" : ""}</span>
-                        </Inline>
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {evals.map((e) => <span key={e} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{e}</span>)}
-                        </div>
-                        <Stack gap="xs" className="mt-1.5">
-                          {tf.slice(0, 3).map((f, i) => (
-                            <Text key={i} variant="caption" as="p" className="line-clamp-2">
-                              <span className="text-foreground/70">[{ITEM_LABEL[f.itemKey] ?? f.itemKey}]</span>{f.annotatorKind === "HUMAN" ? " (사람평가)" : ""} {f.reason || f.label}
-                            </Text>
-                          ))}
-                          {tf.length > 3 && <Text variant="caption" as="p">…외 {tf.length - 3}건</Text>}
-                        </Stack>
-                      </div>
-                    );
-                  })}
-                </Stack>
-              )}
-            </SectionCard>
-
-            {/* 보고서 출력 옵션 */}
-            <SectionCard title="보고서 출력 옵션" description="생성할 보고서에 반영됩니다" variant="bordered">
-              <div className="grid grid-cols-1 gap-x-6 gap-y-3 text-xs md:grid-cols-2">
-                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">평가 기간</span><DateRangePicker value={dateRange} onChange={setDateRange} /></label>
-                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">지적사항 항목당 표시</span><input type="number" min={1} max={50} value={findingsCap} onChange={(e) => setFindingsCap(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} className="w-20 rounded border px-2 py-1" /></label>
-                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">기관/제출처</span><input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="예: 금융감독원" className="w-44 rounded border px-2 py-1" /></label>
-                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">평가자</span><input value={assessor} onChange={(e) => setAssessor(e.target.value)} placeholder="작성자명" className="w-44 rounded border px-2 py-1" /></label>
-              </div>
-              <div className="mt-3 border-t pt-3">
-                <Text variant="caption" as="p" className="mb-2">포함할 섹션</Text>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  {SECTION_LABELS.map((s) => (
-                    <label key={s.key} className="flex cursor-pointer items-center gap-1.5"><input type="checkbox" checked={sections[s.key]} onChange={(e) => setSections((prev) => ({ ...prev, [s.key]: e.target.checked }))} className="rounded" />{s.label}</label>
-                  ))}
-                </div>
-              </div>
-            </SectionCard>
+    const outputTab = (
+      <div className="mt-5 space-y-4">
+        <div className="rounded-xl border bg-card p-5" style={{ borderTop: `3px solid ${ACCENT}` }}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: ACCENT }}>REPORT</p>
+              <h2 className="mt-1 text-lg font-bold tracking-tight">감독 제출용 보고서</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">아래 옵션으로 A4 문서를 생성·인쇄(PDF)합니다 · 현재 등급 <b style={{ color: gradeColor(score.grade) }}>{score.grade}위험</b> · 총점 {score.total}/100</p>
+            </div>
+            <button onClick={() => setMode("preview")} disabled={loading} className="flex shrink-0 items-center gap-1.5 rounded-md px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40" style={{ background: ACCENT }}>
+              <FileDown className="h-4 w-4" /> 보고서 생성하기
+            </button>
           </div>
-        )}
+        </div>
+
+        <SectionCard title="출력 설정" variant="bordered">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-3 text-xs md:grid-cols-2">
+            <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">평가 기간</span><DateRangePicker value={dateRange} onChange={setDateRange} /></label>
+            <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">지적사항 항목당 표시</span><input type="number" min={1} max={50} value={findingsCap} onChange={(e) => setFindingsCap(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} className="w-20 rounded border px-2 py-1 tabular-nums" /></label>
+            <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">기관/제출처</span><input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="예: 금융감독원" className="w-44 rounded border px-2 py-1" /></label>
+            <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">평가자</span><input value={assessor} onChange={(e) => setAssessor(e.target.value)} placeholder="작성자명" className="w-44 rounded border px-2 py-1" /></label>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="포함할 섹션" variant="bordered">
+          <div className="flex flex-wrap gap-3 text-xs">
+            {SECTION_LABELS.map((s) => (
+              <label key={s.key} className="flex cursor-pointer items-center gap-1.5 rounded border px-2.5 py-1.5" style={{ borderColor: sections[s.key] ? ACCENT : undefined }}>
+                <input type="checkbox" checked={sections[s.key]} onChange={(e) => setSections((prev) => ({ ...prev, [s.key]: e.target.checked }))} className="rounded" />{s.label}
+              </label>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+    );
+
+    return (
+      <div className="mx-auto max-w-[1120px] p-6">
+        {/* 헤더 */}
+        <div className="border-b pb-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>FINANCIAL AI · RMF</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">금융 AI 위험평가</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{phoenixProject} · 금융감독원 AI 위험관리 프레임워크 기준</p>
+        </div>
+
+        {/* 내부 탭 */}
+        <div className="mt-4 flex gap-1 border-b">
+          {([["dashboard", "대시보드"], ["output", "보고서 출력"]] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)} className="relative px-4 py-2.5 text-sm font-medium transition-colors" style={{ color: tab === k ? ACCENT : "#6b7280" }}>
+              {label}
+              {tab === k && <span className="absolute inset-x-0 -bottom-px h-0.5" style={{ background: ACCENT }} />}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="py-20 text-center text-sm text-muted-foreground">불러오는 중…</div>
+        ) : tab === "dashboard" ? dashboardTab : outputTab}
       </div>
     );
   }
