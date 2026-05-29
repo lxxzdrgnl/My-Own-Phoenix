@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { FileDown, ArrowLeft, Save } from "lucide-react";
+import { FileDown, ArrowLeft, Save, Trash2, Sparkles, Clock, Cpu, Coins } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { apiFetch } from "@/lib/api-client";
 import { logger } from "@/lib/logger";
@@ -15,6 +15,8 @@ import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
 import { LoadingState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/dashboard/widgets/stat-card";
+import { AnnotationBadge } from "@/components/annotation-badge";
+import { formatSec } from "@/components/trace-tree/span-tree-helpers";
 import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings } from "@/lib/rmf/finance-prefill";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
@@ -376,6 +378,46 @@ export function RmfReportView() {
     setSaving(false);
   }
 
+  async function deleteVersion(id: string) {
+    if (!projectId) return;
+    if (typeof window !== "undefined" && !window.confirm("이 저장 버전을 삭제할까요?")) return;
+    try {
+      await apiFetch(`/api/projects/${projectId}/rmf-versions/${id}`, { method: "DELETE" });
+      await loadVersions();
+    } catch (e) { logger.error("rmf delete version failed", e); }
+  }
+
+  // ── AI 개선 제안 (LLM) ──
+  const [recs, setRecs] = useState("");
+  const [recsLoading, setRecsLoading] = useState(false);
+  async function generateRecommendations() {
+    if (!projectId) return;
+    setRecsLoading(true);
+    try {
+      const lines: string[] = [
+        `대상 서비스: ${phoenixProject}`,
+        `종합 위험등급: ${score.grade}위험 (잔여위험 총점 ${score.total}/100)`,
+        "부문별 잔여위험(소계/만점):",
+        ...RISK_SECTIONS.map((sec) => `- ${sec.label}: ${score.sectionSubtotals[sec.key] ?? 0}/${sec.weight}`),
+        `주요 지적사항(${findings.length}건 중 상위):`,
+        ...findings.slice(0, 25).map((f) => `- [${ITEM_LABEL[f.itemKey] ?? f.itemKey}] ${f.eval}: ${f.reason || f.label}`),
+      ];
+      const r = await apiFetch("/api/llm", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gpt-4o-mini", projectId, promptLabel: "rmf-improvement", temperature: 0.3,
+          messages: [
+            { role: "system", content: "당신은 금융 AI 위험관리(금융감독원 AI RMF) 전문가입니다. 아래 평가 결과를 보고, 위험을 낮추기 위한 우선순위 있는 구체적·실행가능한 개선 권고를 한국어로 제시하세요. 각 권고는 '무엇을/왜/어떻게'가 드러나게 간결히, 번호 목록으로. 위험이 높은 부문·항목을 우선." },
+            { role: "user", content: lines.join("\n") },
+          ],
+        }),
+      });
+      if (r.ok) { const d = await r.json(); setRecs(d.choices?.[0]?.message?.content ?? "(응답이 비어 있습니다)"); }
+      else setRecs("생성 실패 — 프로젝트 LLM 키 설정을 확인하세요.");
+    } catch (e) { logger.error("rmf recommendations failed", e); setRecs("생성 실패"); }
+    setRecsLoading(false);
+  }
+
   // 문서 렌더 소스: 저장본(viewSnap) 보기 중이면 그 스냅샷, 아니면 라이브
   const snap = viewSnap?.snapshot ?? null;
   const dScore: ScoreResult = snap ? snap.score : score;
@@ -460,7 +502,7 @@ export function RmfReportView() {
                         return (
                           <div key={name} className="flex items-center gap-2 text-xs">
                             <div className="w-36 shrink-0 font-mono text-[11px]">{name}</div>
-                            <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded" style={{ width: Math.round((count / max) * 100) + "%", background: "#ef4444" }} /></div>
+                            <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded bg-foreground/80" style={{ width: Math.round((count / max) * 100) + "%" }} /></div>
                             <div className="w-8 shrink-0 text-right tabular-nums">{count}</div>
                           </div>
                         );
@@ -470,29 +512,55 @@ export function RmfReportView() {
                 </SectionCard>
               </div>
 
-              <SectionCard title="위험평가 항목 (7대 원칙)" variant="bordered">
-                <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
-                  {RISK_SECTIONS.map((sec) => (
-                    <div key={sec.key}>
-                      <Text variant="body" as="p" className="mb-1.5 font-medium">{sec.label} <span className="text-xs text-muted-foreground">({sec.weight}%)</span></Text>
-                      <Stack gap="xs">
-                        {sec.items.map((item) => {
-                          const st = state.riskItems[item.key];
-                          const measured = !!st && st.source !== "manual";
-                          const residual = score.perItemResidual[item.key] ?? 0;
-                          const rr = item.maxInherent > 0 ? residual / item.maxInherent : 0;
-                          const fc = findingsByItem[item.key]?.length ?? 0;
-                          return (
-                            <div key={item.key} className="flex items-center justify-between gap-2 text-xs">
-                              <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ background: measured ? ratioColor(rr) : "#d4d4d8" }} />{item.label}</span>
-                              <span className="tabular-nums text-muted-foreground">{measured ? `잔여 ${residual}/${item.maxInherent}` : "미측정"}{fc > 0 ? ` · 지적 ${fc}` : ""}</span>
-                            </div>
-                          );
-                        })}
-                      </Stack>
-                    </div>
-                  ))}
-                </div>
+              <SectionCard title="위험평가 항목 (7대 원칙)" description="항목별 잔여위험 · 자동 측정 신호 기반" variant="bordered">
+                <Stack gap="md">
+                  {RISK_SECTIONS.map((sec) => {
+                    const sub = score.sectionSubtotals[sec.key] ?? 0;
+                    const sratio = sec.weight > 0 ? sub / sec.weight : 0;
+                    const sfc = sec.items.reduce((a, it) => a + (findingsByItem[it.key]?.length ?? 0), 0);
+                    return (
+                      <div key={sec.key}>
+                        <div className="mb-2 flex items-baseline justify-between gap-2 border-b pb-1.5">
+                          <Text variant="body" as="p" className="font-medium">{sec.label}<span className="ml-1.5 text-xs text-muted-foreground">가중 {sec.weight}%</span></Text>
+                          <Text variant="caption" as="span" className="tabular-nums"><span className="font-medium" style={{ color: ratioColor(sratio) }}>{ratioLabel(sratio)}</span> · 소계 {sub}/{sec.weight}{sfc > 0 ? ` · 지적 ${sfc}` : ""}</Text>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {sec.items.map((item) => {
+                            const st = state.riskItems[item.key];
+                            const measured = !!st && st.source !== "manual";
+                            const residual = score.perItemResidual[item.key] ?? 0;
+                            const rr = item.maxInherent > 0 ? residual / item.maxInherent : 0;
+                            const pct = Math.min(100, Math.round(rr * 100));
+                            const fc = findingsByItem[item.key]?.length ?? 0;
+                            return (
+                              <div key={item.key} className="flex flex-col gap-2 rounded-lg border bg-card p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="flex items-start gap-1.5 text-xs font-medium leading-tight"><span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: measured ? ratioColor(rr) : "#d4d4d8" }} />{item.label}</span>
+                                  <SourceBadge source={st?.source} />
+                                </div>
+                                {measured ? (
+                                  <>
+                                    <div className="flex items-baseline gap-1">
+                                      <span className="text-base font-medium tabular-nums">{residual}</span>
+                                      <Text variant="caption" as="span">/ {item.maxInherent} 잔여</Text>
+                                    </div>
+                                    <div className="relative h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full transition-all" style={{ width: pct + "%", background: ratioColor(rr) }} /></div>
+                                  </>
+                                ) : (
+                                  <Text variant="caption" as="span">미측정 · 수동 평가 필요</Text>
+                                )}
+                                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                  <span>{measured ? ratioLabel(rr) : "—"}</span>
+                                  {fc > 0 && <span className="rounded border bg-muted px-1.5 py-0.5 font-medium text-foreground/70">지적 {fc}</span>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Stack>
               </SectionCard>
 
               <SectionCard title="문제되는 트레이스" description={`지적이 탐지된 트레이스 ${problematicTraces.length}건 (요청·응답 및 지적 사유)`} variant="bordered">
@@ -509,7 +577,7 @@ export function RmfReportView() {
                         <div key={tree.traceId} className="rounded-lg border p-3">
                           <div className="mb-2 flex items-center justify-between gap-2">
                             <Text variant="caption" as="p" className="font-medium uppercase tracking-wide">트레이스</Text>
-                            <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ background: "#ef4444" }}>지적 {tf.length}{hasHuman ? " · 사람평가" : ""}</span>
+                            <span className="shrink-0 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground/70">지적 {tf.length}{hasHuman ? " · 사람평가" : ""}</span>
                           </div>
                           <div className="space-y-1.5 rounded-md bg-muted/40 p-2 text-xs">
                             <p className="whitespace-pre-wrap break-words"><span className="font-medium">입력</span> <span className="text-muted-foreground">{inp}</span></p>
@@ -528,6 +596,14 @@ export function RmfReportView() {
                     })}
                   </Stack>
                 )}
+              </SectionCard>
+
+              <SectionCard title="AI 개선 제안" description="평가 결과·지적사항 기반 개선 권고 (LLM 생성)" variant="bordered" actions={
+                <button onClick={generateRecommendations} disabled={recsLoading} className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-40"><Sparkles className="h-3.5 w-3.5" /> {recsLoading ? "생성 중…" : recs ? "다시 생성" : "개선 제안 생성"}</button>
+              }>
+                {recs
+                  ? <Text variant="caption" as="p" className="whitespace-pre-wrap leading-relaxed text-foreground">{recs}</Text>
+                  : <Text variant="caption" as="p">「개선 제안 생성」을 누르면 평가 결과와 지적사항을 바탕으로 위험을 낮추기 위한 개선 권고를 LLM이 생성합니다.</Text>}
               </SectionCard>
             </Stack>
           ) : (
@@ -566,13 +642,18 @@ export function RmfReportView() {
                   <Stack gap="xs">
                     {versions.map((v) => (
                       <div key={v.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="font-medium tabular-nums">v{v.version}</span>
-                          <span className="text-muted-foreground">{new Date(v.createdAt).toLocaleString("ko-KR")}</span>
-                          <span className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ background: gradeColor(v.grade as Grade) }}>{v.grade}위험 · {v.total}</span>
-                          {v.label && <span className="text-muted-foreground">{v.label}</span>}
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ background: gradeColor(v.grade as Grade) }}>{v.grade}위험</span>
+                            <span className="font-medium tabular-nums">{v.total}점</span>
+                            <span className="text-muted-foreground">· 지적 {Object.values((v.snapshot?.findingsByItem ?? {}) as Record<string, unknown[]>).reduce((a, arr) => a + (arr?.length ?? 0), 0)}건</span>
+                          </div>
+                          <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">v{v.version} · {new Date(v.createdAt).toLocaleString("ko-KR")}{v.label ? ` · ${v.label}` : ""}</p>
                         </div>
-                        <button onClick={() => { setViewSnap({ version: v.version, snapshot: v.snapshot }); setMode("preview"); }} className="shrink-0 rounded-md border px-2.5 py-1 font-medium transition hover:bg-muted">보기</button>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <button onClick={() => { setViewSnap({ version: v.version, snapshot: v.snapshot }); setMode("preview"); }} className="rounded-md border px-2.5 py-1 font-medium transition hover:bg-muted">보기</button>
+                          <button onClick={() => deleteVersion(v.id)} className="rounded-md border p-1.5 text-muted-foreground transition hover:bg-muted" title="삭제"><Trash2 className="h-3.5 w-3.5" /></button>
+                        </div>
                       </div>
                     ))}
                   </Stack>
