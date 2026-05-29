@@ -323,8 +323,9 @@ def get_enabled_evals(project: str) -> set[str]:
             if config[name]:
                 enabled.add(name)
         else:
-            # Built-in evals default to enabled, custom evals default to disabled
-            if name in BUILT_IN_EVALS:
+            # Built-in + 금융 AI RMF evals default to enabled; other custom evals default to disabled.
+            # (RMF evals run via the generic llm_prompt loop since they're not in BUILT_IN_EVALS.)
+            if name in BUILT_IN_EVALS or name in {"bias", "fairness", "explainability", "consumer_protection", "legal_compliance", "transparency"}:
                 enabled.add(name)
     if _force_only_evals is not None:
         enabled &= _force_only_evals
