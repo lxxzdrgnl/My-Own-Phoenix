@@ -15,7 +15,7 @@ Stage 단계: `PHOENIX_HARNESS_STAGE=0..5`. 각 단계는 spec Phase 9g 참조.
 
 | Stage | 활성 룰 | 활성화 시점 |
 |---|---|---|
-| 0 | `requireAuth` (Pre), setSaving / native confirm / magic timeout / TODO / 500줄 (Post) | 즉시 (현재 기본값) |
+| 0 | `requireAuth` (Pre), setSaving / native confirm / magic timeout / TODO / 500줄 / 하드코딩 한국어(i18n) (Post) | 즉시 (현재 기본값) |
 | 1 | `@/components/ui/modal` import 차단, 인라인 모달 위치 차단 | Phase 1 Modal 통합 완료 후 |
 | 2 | raw 타이포 클래스 차단 | Phase 3 Design System 완료 후 |
 | 3 | `@/lib/phoenix/<sub>` `@/lib/openapi/<sub>` 직접 import 차단 | Phase 4 파일 분할 완료 후 |

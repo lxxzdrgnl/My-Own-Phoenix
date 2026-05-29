@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { en } from "./en";
 import { ko } from "./ko";
 
@@ -30,10 +30,15 @@ const I18nContext = createContext<I18nContextValue>({
 });
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window === "undefined") return "ko";
-    return (localStorage.getItem("locale") as Locale) || "ko";
-  });
+  // 서버 렌더 및 클라이언트 첫 렌더는 항상 "ko"로 고정 → 하이드레이션 일치.
+  // 저장된 로케일은 마운트 후 적용(하이드레이션 이후 전환은 허용).
+  const [locale, setLocaleState] = useState<Locale>("ko");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("locale") as Locale | null;
+    if (stored && stored !== locale) setLocaleState(stored);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);

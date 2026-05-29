@@ -46,6 +46,16 @@ WARNING_RULES = [
     (0, re.compile(r"toISOString\(\)\.slice\(0, ?1[03]\)"),
      "⚠️ date bucketing 패턴 — bucketByDay/bucketByHour (@/lib/dashboard-utils) 사용.",
      lambda p: (p.endswith(".ts") or p.endswith(".tsx")) and not p.endswith("dashboard-utils.ts")),
+    # i18n — 사용자 노출 텍스트는 하드코딩 대신 useT/@/lib/i18n 네임스페이스로.
+    # 따옴표 문자열 또는 JSX 텍스트 안의 한글 2자+ 매칭(주석 // ... 은 제외됨).
+    (0, re.compile(r"""(["'][^"'\n]*[가-힣]{2,})|(>[^<>{}]*[가-힣]{2,})"""),
+     "⚠️ 하드코딩 한국어 문자열 — i18n(useT, @/lib/i18n) 사용 검토. 사용자 노출 텍스트는 en/ko 네임스페이스로.",
+     lambda p: p.endswith(".tsx")
+               and not p.startswith("lib/i18n/")
+               and not p.startswith(".claude/")
+               and not p.startswith("scripts/")
+               and "__tests__" not in p
+               and ".test." not in p),
 ]
 
 

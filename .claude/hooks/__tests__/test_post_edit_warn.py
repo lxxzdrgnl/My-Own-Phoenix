@@ -98,6 +98,44 @@ def test_off_disables_warnings(tmp_path):
     assert stdout.strip() == ""
 
 
+def test_warns_on_hardcoded_korean_tsx(tmp_path):
+    f = tmp_path / "view.tsx"
+    f.write_text('export const X = () => <span className="x">대시보드</span>;\n')
+    rc, stdout, _ = run_hook(
+        "post-edit-warn.py",
+        _post(str(f)),
+        env_overrides={"CLAUDE_PROJECT_DIR": str(tmp_path)},
+    )
+    assert rc == 0
+    assert "i18n" in stdout
+
+
+def test_no_korean_warn_on_comment_only(tmp_path):
+    f = tmp_path / "view.tsx"
+    f.write_text("// 한국어 주석 설명\nexport const X = () => <span>{ui.title}</span>;\n")
+    rc, stdout, _ = run_hook(
+        "post-edit-warn.py",
+        _post(str(f)),
+        env_overrides={"CLAUDE_PROJECT_DIR": str(tmp_path)},
+    )
+    assert rc == 0
+    assert "i18n" not in stdout
+
+
+def test_no_korean_warn_in_i18n_files(tmp_path):
+    d = tmp_path / "lib" / "i18n"
+    d.mkdir(parents=True)
+    f = d / "ko.tsx"
+    f.write_text('export const ko = { title: "대시보드" };\n')
+    rc, stdout, _ = run_hook(
+        "post-edit-warn.py",
+        _post(str(f)),
+        env_overrides={"CLAUDE_PROJECT_DIR": str(tmp_path)},
+    )
+    assert rc == 0
+    assert "i18n" not in stdout
+
+
 def test_skips_when_tool_failed(tmp_path):
     f = tmp_path / "big.ts"
     f.write_text("\n".join([f"// line {i}" for i in range(600)]))
