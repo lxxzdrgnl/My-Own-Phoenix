@@ -964,11 +964,11 @@ export const ko = {
   // ── Project Settings ──
   projectSettings: {
     title: "프로젝트 설정",
-    aiLanguage: "언어",
-    aiLanguageDesc: "인터페이스 언어를 선택합니다.",
-    aiLangKoDesc: "한국어 인터페이스",
-    aiLangEnDesc: "영어 인터페이스",
-    languageSaved: "언어가 저장되었습니다",
+    aiLanguage: "AI 출력 언어",
+    aiLanguageDesc: "자동 평가 설명과 금융 AI RMF 종합 피드백을 AI가 생성할 언어. (앱 인터페이스 언어와 무관)",
+    aiLangKoDesc: "평가 설명·종합 피드백을 한국어로 생성",
+    aiLangEnDesc: "Generate eval explanations & feedback in English",
+    languageSaved: "저장됨",
     // Tabs
     members: "멤버",
     apiKeys: "API 키",

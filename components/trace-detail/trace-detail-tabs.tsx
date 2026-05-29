@@ -1,7 +1,7 @@
 "use client";
 
 import { logger } from "@/lib/logger";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useT } from "@/lib/i18n";
 import { type TraceTree, type Annotation } from "@/lib/phoenix";
 import { apiFetch } from "@/lib/api-client";
@@ -72,6 +72,30 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
   const [showRaw, setShowRaw] = useState(false);
   const [savingName, setSavingName] = useState<string | null>(null);
   const [runningEval, setRunningEval] = useState<string | null>(null);
+  // 재실행 후 부모 갱신을 기다리지 않고 이 트레이스의 root annotation을 직접 재페치해 즉시 반영.
+  const [annOverride, setAnnOverride] = useState<Annotation[] | null>(null);
+
+  const refreshAnnotations = useCallback(async () => {
+    if (!projectName) return;
+    const sid = trace.rootSpan.spanId;
+    try {
+      const r = await apiFetch(`/api/v1/projects/${encodeURIComponent(projectName)}/span_annotations?span_ids=${encodeURIComponent(sid)}&limit=1000`);
+      const data = await r.json();
+      const anns: Annotation[] = (data.data ?? [])
+        .filter((a: { span_id?: string }) => a.span_id === sid)
+        .map((a: { name: string; annotator_kind?: string; result?: { label?: string; score?: number; explanation?: string } }) => ({
+          name: a.name,
+          label: a.result?.label ?? "",
+          score: a.result?.score ?? 0,
+          annotatorKind: (a.annotator_kind ?? undefined) as Annotation["annotatorKind"],
+          explanation: a.result?.explanation ?? "",
+        }));
+      setAnnOverride(anns);
+    } catch (e) { logger.error("trace-detail-tabs refresh annotations failed", e); }
+  }, [projectName, trace.rootSpan.spanId]);
+
+  // 부모가 새 trace를 전달하면(예: 다른 트레이스 선택) override 해제
+  useEffect(() => { setAnnOverride(null); }, [trace.traceId]);
 
   const { submit: submitAnnotation } = useFormSubmit<{
     spanId: string;
@@ -79,7 +103,7 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
     label: string;
     score: number;
     explanation?: string;
-  }>("/api/annotations", "POST", { onSuccess: () => onRefresh?.() });
+  }>("/api/annotations", "POST", { onSuccess: () => { void refreshAnnotations(); onRefresh?.(); } });
 
   async function runSingleEval(name: string) {
     if (!projectName) return;
@@ -95,6 +119,7 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
         }),
       });
       if (!res.ok) throw new Error(`run ${res.status}`);
+      await refreshAnnotations();
       onRefresh?.();
     } catch (e) {
       logger.error("trace-detail-tabs run eval failed", e);
@@ -117,6 +142,7 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
         }),
       });
       if (!res.ok) throw new Error(`run all ${res.status}`);
+      await refreshAnnotations();
       onRefresh?.();
     } catch (e) {
       logger.error("trace-detail-tabs run all evals failed", e);
@@ -166,6 +192,7 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
         const txt = await res.text().catch(() => "");
         throw new Error(`delete ${res.status}: ${txt}`);
       }
+      await refreshAnnotations();
       onRefresh?.();
     } catch (e) {
       logger.error("trace-detail-tabs delete annotation failed", e);
@@ -186,7 +213,7 @@ export function TraceDetailTabs({ trace, projectId, projectName, onRefresh }: Pr
   }, [projectId]);
 
   const root = trace.rootSpan;
-  const { llm, human } = partitionAnnotations(root.annotations);
+  const { llm, human } = partitionAnnotations(annOverride ?? root.annotations);
   const uniqueEvalCount = useMemo(() => {
     const s = new Set<string>();
     llm.forEach((a) => s.add(a.name));

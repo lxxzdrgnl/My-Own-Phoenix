@@ -6,6 +6,7 @@ import { authedHandler, apiError, ErrorCode, validateFields } from "@/lib/api-er
 import { requireProjectMember } from "@/lib/api-helpers";
 import { logger } from "@/lib/logger";
 import { PHOENIX_FETCH_TIMEOUT_MS, DEFAULT_API_TIMEOUT_MS } from "@/lib/config/timeouts";
+import { applyLanguageToSystem } from "@/lib/eval-language";
 
 const PHOENIX = process.env.PHOENIX_URL ?? "http://localhost:6006";
 
@@ -257,6 +258,12 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
   const endTime = new Date(endDate + "T23:59:59Z").toISOString();
   const outputMode = evalPrompt.outputMode ?? "score";
 
+  // AI 출력 언어(project-scoped) — 워커와 동일하게 explanation을 해당 언어로 생성.
+  const langSetting = await prisma.appSettings.findUnique({
+    where: { key_userId: { key: "evalLanguage", userId: `project:${projectId}` } },
+  });
+  const evalLanguage = langSetting?.value;
+
   // Fetch spans
   const spans = await phoenixGetSpans(phoenixProject, startTime, endTime);
   if (!spans.length) {
@@ -328,7 +335,8 @@ export const POST = authedHandler(async (req: NextRequest, uid: string) => {
 
         const { system, user } = splitPromptForSystem(filled);
         const messages: { role: string; content: string }[] = [];
-        if (system) messages.push({ role: "system", content: system });
+        const sysContent = applyLanguageToSystem(system, evalLanguage);
+        if (sysContent) messages.push({ role: "system", content: sysContent });
         messages.push({ role: "user", content: user });
 
         const r = await llmEval(messages, evalPrompt.model ?? "gpt-4o-mini", { userId: uid, projectId });

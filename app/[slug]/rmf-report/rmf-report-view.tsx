@@ -23,6 +23,7 @@ import { ModelSelector } from "@/components/model-selector";
 import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings, applyRiskOverrides, type RiskOverride } from "@/lib/rmf/finance-prefill";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
+import { languageInstruction } from "@/lib/eval-language";
 import { useT } from "@/lib/i18n";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
 import type { AssessmentState, Finding, Grade, ScoreResult, ChecklistItemState, ChecklistStatus } from "@/lib/rmf/types";
@@ -265,6 +266,15 @@ export function RmfReportView() {
   const [recsWarn, setRecsWarn] = useState("");
   const [recsLoading, setRecsLoading] = useState(false);
   const [fbModel, setFbModel] = useState("gpt-4o-mini");
+  // AI 출력 언어(프로젝트 설정) — 종합 피드백 출력 언어 (eval과 동일 설정)
+  const [evalLang, setEvalLang] = useState("ko");
+  useEffect(() => {
+    if (!projectId) return;
+    apiFetch(`/api/settings?scope=project&projectId=${projectId}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.evalLanguage === "ko" || d.evalLanguage === "en") setEvalLang(d.evalLanguage); })
+      .catch(() => {});
+  }, [projectId]);
   async function generateRecommendations() {
     if (!projectId) return;
     setRecsLoading(true);
@@ -280,10 +290,11 @@ export function RmfReportView() {
       ];
       const sys = [
         "당신은 금융 AI 위험관리(금융감독원 AI RMF) 전문가입니다.",
-        "아래 평가 결과를 바탕으로 '이 AI 에이전트를 어떻게 개선할지'에 초점을 둔 한국어 종합 피드백을 작성하세요.",
+        "아래 평가 결과를 바탕으로 '이 AI 에이전트를 어떻게 개선할지'에 초점을 둔 종합 피드백을 작성하세요.",
         "반드시 아래 JSON 객체 하나만 출력하세요. 코드펜스·설명·여는말 금지.",
         '{"summary":"현재 위험수준·핵심 문제 총평 2~3문장","risks":[{"area":"부문/항목명","detail":"왜 위험한지 1문장"}],"improvements":[{"area":"부문/항목명","action":"에이전트를 무엇을 바꿀지(프롬프트·가드레일·필터·데이터·휴먼리뷰 등 구체적 조치)","why":"어떤 위험을 줄이는지","how":"실제 적용 방법 1~2문장"}]}',
         "improvements는 위험이 높은 부문·항목 우선으로 3~6개, 에이전트 개선 관점에서 실행가능하게 작성하세요.",
+        languageInstruction(evalLang),
       ].join("\n");
       const r = await apiFetch("/api/llm", {
         method: "POST", headers: { "Content-Type": "application/json" },

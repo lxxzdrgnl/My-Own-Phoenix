@@ -975,11 +975,11 @@ export const en = {
   // ── Project Settings ──
   projectSettings: {
     title: "Project Settings",
-    aiLanguage: "Language",
-    aiLanguageDesc: "Choose the interface language.",
-    aiLangKoDesc: "Korean interface",
-    aiLangEnDesc: "English interface",
-    languageSaved: "Language saved",
+    aiLanguage: "AI Output Language",
+    aiLanguageDesc: "Language the AI uses for automatic eval explanations and the Financial AI RMF summary feedback. (Independent of the app interface language.)",
+    aiLangKoDesc: "평가 설명·종합 피드백을 한국어로 생성",
+    aiLangEnDesc: "Generate eval explanations & feedback in English",
+    languageSaved: "Saved",
     // Tabs
     members: "Members",
     apiKeys: "API Keys",

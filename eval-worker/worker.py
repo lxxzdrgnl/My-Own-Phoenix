@@ -334,11 +334,39 @@ def get_enabled_evals(project: str) -> set[str]:
 
 # Current project context for get_prompt/get_eval_def
 _current_project: str = ""
+_current_eval_language: str = "ko"  # eval 설명 출력 언어 (프로젝트 설정 evalLanguage)
+
+# 프로젝트별 eval 출력 언어 캐시 (phoenix name → "ko"|"en")
+_project_languages: dict[str, str] = {}
+_project_languages_loaded_at: dict[str, float] = {}
+
+
+def _load_project_language(project: str) -> str:
+    """프로젝트 설정 evalLanguage 조회 (60s 캐시). 기본 'ko'."""
+    if not project:
+        return "ko"
+    now = time.time()
+    if project in _project_languages and now - _project_languages_loaded_at.get(project, 0) < 60:
+        return _project_languages[project]
+    db_id = _resolve_project_id(project)
+    if not db_id:
+        return _project_languages.get(project, "ko")
+    try:
+        resp = httpx.get(f"{DASHBOARD_URL}/api/settings?scope=project&projectId={db_id}", headers=DASHBOARD_HEADERS, timeout=5)
+        if resp.status_code == 200:
+            lang = resp.json().get("evalLanguage", "ko") or "ko"
+            _project_languages[project] = lang
+            _project_languages_loaded_at[project] = now
+            return lang
+    except Exception as e:
+        logger.debug("Failed to load eval language: %s", e)
+    return _project_languages.get(project, "ko")
 
 
 def set_current_project(project: str) -> None:
-    global _current_project
+    global _current_project, _current_eval_language
     _current_project = project
+    _current_eval_language = _load_project_language(project)
 
 
 def get_prompt(name: str, default: str) -> str:
@@ -697,12 +725,24 @@ def get_relevance_eval(project_id: str = "") -> RelevanceEvaluator:
 PASS_LABELS = {"pass", "true", "yes", "correct", "factual", "faithful", "appropriate", "clean", "relevant"}
 
 
+# eval 출력 언어 지시 (프로젝트 설정 evalLanguage). JSON 키·label 값은 영어 유지(라벨 매칭용), 자연어 설명만 해당 언어.
+KOREAN_OUTPUT_INSTRUCTION = (
+    "중요: 출력 JSON의 키와 'label' 값은 지정된 영어 그대로 유지하세요. "
+    "다만 'explanation', 'issue' 등 모든 자연어 설명 텍스트는 반드시 한국어로 작성하세요."
+)
+
+
 def _openai_eval(prompt_text: str, system_msg: str | None = None, project_id: str = "") -> dict:
     try:
         client = get_openai_client(project_id)
         messages = []
-        if system_msg:
-            messages.append({"role": "system", "content": system_msg})
+        # 현재 프로젝트의 eval 출력 언어가 한국어면 설명을 한국어로 쓰도록 지시 주입.
+        if _current_eval_language == "ko":
+            sys_content = f"{system_msg}\n\n{KOREAN_OUTPUT_INSTRUCTION}" if system_msg else KOREAN_OUTPUT_INSTRUCTION
+        else:
+            sys_content = system_msg
+        if sys_content:
+            messages.append({"role": "system", "content": sys_content})
         messages.append({"role": "user", "content": prompt_text})
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -804,16 +844,11 @@ def _run_trace_evals(
         phoenix_upload_annotation(root_id, "banned_word", "CODE", r["label"], r["score"], r.get("explanation", ""), project)
 
     if "qa_correctness" in missing and query and response:
-        try:
-            ref = context or response  # Use context if available, else self-reference
-            df = pd.DataFrame([{"context.span_id": root_id, "input": query, "output": response, "reference": ref}]).set_index("context.span_id")
-            (result,) = run_evals(evaluators=[get_qa_eval(project_id)], dataframe=df[["input", "output", "reference"]], provide_explanation=True, concurrency=1)
-            if result is not None and not result.empty:
-                row = result.iloc[0]
-                phoenix_upload_annotation(root_id, "qa_correctness", "LLM",
-                    str(row.get("label", "")), float(row.get("score", 0)), str(row.get("explanation", "")), project)
-        except Exception as e:
-            logger.error("[%s] qa_correctness failed: %s", project, e)
+        # 대시보드 qa_correctness 템플릿 + _openai_eval 경로 사용 → 언어 설정(한국어) 적용.
+        # (이전엔 phoenix.evals QAEvaluator를 써서 설명이 항상 영어로 고정됐음.)
+        r = _run_llm_eval("qa_correctness", QA_CORRECTNESS_PROMPT, context or response, response, query, project_id)
+        if r:
+            phoenix_upload_annotation(root_id, "qa_correctness", "LLM", r["label"], r["score"], r.get("explanation", ""), project)
 
     if "tool_calling" in missing and query and context:
         r = eval_tool_calling(query, context, project_id)
@@ -909,6 +944,24 @@ Important:
 - Judge by whether the documents HELP answer the query, not exact match
 
 Respond with JSON only: {{"label": "relevant" or "irrelevant", "score": 0.0-1.0, "explanation": "one line"}}"""
+
+
+# qa_correctness 기본 템플릿(대시보드 eval 정의가 없을 때의 폴백). 대시보드 템플릿이 있으면 그쪽 우선.
+QA_CORRECTNESS_PROMPT = """You are an expert at evaluating answer correctness.
+
+Given a QUERY, a REFERENCE answer (or context), and the actual RESPONSE, determine whether the RESPONSE correctly answers the QUERY.
+
+QUERY:
+{query}
+
+CONTEXT:
+{context}
+
+RESPONSE:
+{response}
+
+Judge whether the RESPONSE addresses the question, is consistent with the REFERENCE, and gives a substantive answer.
+Respond with JSON only: {{"label": "correct" or "incorrect", "explanation": "one line"}}"""
 
 
 def _run_retriever_span_evals(
@@ -1073,25 +1126,30 @@ def run_eval(req: RunRequest) -> dict:
     # If specific eval names were given, force re-evaluation by temporarily
     # narrowing the enabled set. We monkey-patch get_enabled_evals scope by
     # restricting REEVAL_ANNOTATIONS for this call.
+    # Ad-hoc /run always FORCES re-evaluation (overwrites existing rows) and
+    # lifts the per-trace LLM cap — it's an explicit user action on one trace.
+    #  - evalNames given  → re-run only those.
+    #  - evalNames empty  → "전체 실행": re-run ALL enabled evals.
+    global REEVAL_ANNOTATIONS, _force_only_evals, MAX_LLM_EVALS_PER_TRACE
+    prev_reeval = REEVAL_ANNOTATIONS
+    prev_force = _force_only_evals
+    prev_cap = MAX_LLM_EVALS_PER_TRACE
+    if req.evalNames:
+        REEVAL_ANNOTATIONS = set(req.evalNames)
+        _force_only_evals = set(req.evalNames)
+    else:
+        REEVAL_ANNOTATIONS = get_enabled_evals(req.project)
+        _force_only_evals = None
+    MAX_LLM_EVALS_PER_TRACE = 1000  # ad-hoc: 트레이스당 LLM eval 캡 해제
     try:
-        if req.evalNames:
-            # Restrict enabled evals to only the requested names AND force
-            # re-evaluation (so existing rows are overwritten).
-            global REEVAL_ANNOTATIONS, _force_only_evals
-            prev_reeval = REEVAL_ANNOTATIONS
-            prev_force = _force_only_evals
-            REEVAL_ANNOTATIONS = set(req.evalNames)
-            _force_only_evals = set(req.evalNames)
-            try:
-                count = process_trace(trace_spans, req.project, db_project_id or "")
-            finally:
-                REEVAL_ANNOTATIONS = prev_reeval
-                _force_only_evals = prev_force
-        else:
-            count = process_trace(trace_spans, req.project, db_project_id or "")
+        count = process_trace(trace_spans, req.project, db_project_id or "")
     except Exception as e:
         logger.error("ad-hoc /run process_trace error: %s", e, exc_info=True)
         raise HTTPException(500, f"process_trace failed: {e}")
+    finally:
+        REEVAL_ANNOTATIONS = prev_reeval
+        _force_only_evals = prev_force
+        MAX_LLM_EVALS_PER_TRACE = prev_cap
 
     return {"ok": True, "evalsRun": count}
 

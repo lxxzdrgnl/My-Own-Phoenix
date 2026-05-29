@@ -29,6 +29,7 @@ function useTabs() {
     { id: "members", label: t.projectSettings.members },
     { id: "api-keys", label: t.projectSettings.apiKeys },
     { id: "agent", label: t.projectSettings.agent },
+    { id: "language", label: t.projectSettings.aiLanguage },
     { id: "danger", label: t.projectSettings.dangerZone },
   ];
 }
@@ -253,8 +254,61 @@ export default function ProjectSettingsPage() {
       {activeTab === "members" && <MembersTab />}
       {activeTab === "api-keys" && <ApiKeysTab />}
       {activeTab === "agent" && <AgentTab />}
+      {activeTab === "language" && <LanguageTab />}
       {activeTab === "danger" && <DangerTab />}
     </PageContainer>
+  );
+}
+
+// AI 출력 언어 — eval 설명 + 금융 AI RMF 종합 피드백 공통 설정 (project-scoped)
+function LanguageTab() {
+  const t = useT();
+  const { id: projectId } = useProject();
+  const [language, setLanguage] = useState("ko");
+  const [saved, setSaved] = useState(false);
+  const { submit, saving } = useFormSubmit("/api/settings", "PUT", {
+    onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2000); },
+  });
+
+  useEffect(() => {
+    if (!projectId) return;
+    apiFetch(`/api/settings?scope=project&projectId=${projectId}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.evalLanguage === "ko" || d.evalLanguage === "en") setLanguage(d.evalLanguage); })
+      .catch(() => {});
+  }, [projectId]);
+
+  const choose = async (lang: "ko" | "en") => {
+    if (lang === language) return;
+    setLanguage(lang);
+    await submit({ key: "evalLanguage", value: lang, scope: "project", projectId });
+  };
+
+  return (
+    <Stack gap="lg" className="mt-6">
+      <SectionCard title={t.projectSettings.aiLanguage} description={t.projectSettings.aiLanguageDesc}>
+        <div className="flex gap-2">
+          {(["ko", "en"] as const).map((lang) => (
+            <button
+              key={lang}
+              onClick={() => choose(lang)}
+              disabled={saving}
+              className={cn(
+                "flex flex-1 items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors",
+                language === lang ? "border-foreground bg-foreground/[0.03]" : "border-border/60 hover:border-foreground/30 hover:bg-accent/30",
+              )}
+            >
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium">{lang === "ko" ? "한국어" : "English"}</p>
+                <p className="text-[11px] text-muted-foreground">{lang === "ko" ? t.projectSettings.aiLangKoDesc : t.projectSettings.aiLangEnDesc}</p>
+              </div>
+              {language === lang && <Check className="ml-auto size-4 shrink-0" />}
+            </button>
+          ))}
+        </div>
+        {saved && <Text variant="caption" className="mt-3 flex items-center gap-1"><Check className="size-3.5" /> {t.projectSettings.languageSaved}</Text>}
+      </SectionCard>
+    </Stack>
   );
 }
 
