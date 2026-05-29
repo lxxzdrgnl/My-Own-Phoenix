@@ -250,6 +250,7 @@ model RmfAssessment {
   controls   Json      @default("{}")
   riskItems  Json      @default("{}") // { itemKey: { mitigation, note, inherentOverride? } }
   notes      Json      @default("{}") // { highImpactReason?, gaps?: { clauseKey: text } }
+  feedback   Json?                     // AI 종합 피드백: { data: {summary,risks,improvements}, model, at }
   assessor   String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt

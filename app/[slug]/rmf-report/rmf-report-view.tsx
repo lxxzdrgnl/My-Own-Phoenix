@@ -392,15 +392,21 @@ export function RmfReportView() {
         setGovernance((d.governance ?? {}) as Record<string, ChecklistItemState>);
         setControls((d.controls ?? {}) as Record<string, ChecklistItemState>);
         setHiReason(((d.notes ?? {}) as { highImpactReason?: string }).highImpactReason ?? "");
+        const fb = d.feedback as { data?: RmfFeedback; model?: string; at?: string } | null;
+        if (fb?.data) { setRecs(fb.data); setRecsAt(fb.at ?? ""); if (fb.model) setFbModel(fb.model); }
       } catch (e) { logger.error("rmf-assessment load failed", e); }
     })();
     return () => { active = false; };
   }, [projectId]);
 
+  const [savedTick, setSavedTick] = useState(false);
   const { submit: submitAssessment, saving: savingAssessment } = useFormSubmit(`/api/projects/${projectId}/rmf-assessment`, "PUT");
-  const saveAssessment = useCallback(() => {
-    return submitAssessment({ highImpact, riskItems: overrides, governance, controls, notes: { highImpactReason: hiReason }, assessor });
+  const saveAssessment = useCallback(async () => {
+    const ok = await submitAssessment({ highImpact, riskItems: overrides, governance, controls, notes: { highImpactReason: hiReason }, assessor });
+    if (ok) setSavedTick(true);
+    return ok;
   }, [submitAssessment, highImpact, overrides, governance, controls, hiReason, assessor]);
+  useEffect(() => { setSavedTick(false); }, [highImpact, hiReason, overrides, governance, controls]);
 
   const setChecklist = useCallback((kind: "gov" | "ctrl", key: string, patch: Partial<ChecklistItemState>) => {
     const setter = kind === "gov" ? setGovernance : setControls;
@@ -425,6 +431,14 @@ export function RmfReportView() {
   }, []);
 
   const score = useMemo(() => computeFinanceRisk(state), [state]);
+  const qualProgress = useMemo(() => {
+    const items = RISK_SECTIONS.flatMap((s) => s.items).filter((it) => state.riskItems[it.key]?.source !== "eval");
+    let filled = 0;
+    for (const it of items) if ((overrides[it.key]?.note ?? "").trim()) filled++;
+    for (const g of GOVERNANCE_ITEMS) if ((governance[g.key]?.note ?? "").trim()) filled++;
+    for (const c of CONTROL_ITEMS) if ((controls[c.key]?.note ?? "").trim()) filled++;
+    return { filled, total: items.length + GOVERNANCE_ITEMS.length + CONTROL_ITEMS.length };
+  }, [state.riskItems, overrides, governance, controls]);
   const findings = useMemo(() => extractFindings(annMap), [annMap]);
   const findingsByItem = useMemo(() => {
     const m: Record<string, Finding[]> = {};
@@ -522,6 +536,7 @@ export function RmfReportView() {
 
   // ── AI 종합 피드백 (LLM, JSON 구조) ──
   const [recs, setRecs] = useState<RmfFeedback | null>(null);
+  const [recsAt, setRecsAt] = useState("");
   const [recsError, setRecsError] = useState("");
   const [recsLoading, setRecsLoading] = useState(false);
   const [fbModel, setFbModel] = useState("gpt-4o-mini");
@@ -558,8 +573,15 @@ export function RmfReportView() {
       if (!r.ok) { setRecsError("생성 실패 — 프로젝트 LLM 키 설정을 확인하세요."); return; }
       const d = await r.json();
       const parsed = parseFeedback(d.choices?.[0]?.message?.content ?? "");
-      if (parsed) setRecs(parsed);
-      else setRecsError("응답을 해석하지 못했습니다. 다시 생성해 주세요.");
+      if (!parsed) { setRecsError("응답을 해석하지 못했습니다. 다시 생성해 주세요."); return; }
+      const at = new Date().toISOString();
+      setRecs(parsed);
+      setRecsAt(at);
+      // 자동 저장(영속) — 새로고침/재접속해도 유지
+      apiFetch(`/api/projects/${projectId}/rmf-assessment`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback: { data: parsed, model: fbModel, at } }),
+      }).catch((e) => logger.error("rmf feedback save failed", e));
     } catch (e) { logger.error("rmf recommendations failed", e); setRecsError("생성 실패"); }
     finally { setRecsLoading(false); }
   }
@@ -620,6 +642,7 @@ export function RmfReportView() {
 
               <SectionCard title="AI 종합 피드백" description="평가 결과 종합 분석·개선 권고 (LLM 생성 · 보고서에는 미포함됩니다)" variant="bordered" actions={
                 <Inline gap="sm">
+                  {recsAt && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" />{new Date(recsAt).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" })}</span>}
                   <div className="w-44"><ModelSelector value={fbModel} onChange={setFbModel} /></div>
                   <button onClick={generateRecommendations} disabled={recsLoading} className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-40"><Sparkles className="h-3.5 w-3.5" /> {recsLoading ? "생성 중…" : recs ? "다시 생성" : "종합 피드백 생성"}</button>
                 </Inline>
@@ -870,14 +893,22 @@ export function RmfReportView() {
 
             </Stack>
           ) : tab === "input" ? (
-            <Stack gap="lg">
+            <Stack gap="lg" className="pb-24 duration-300 animate-in fade-in">
+              <Text variant="caption" as="p" className="rounded-lg border bg-muted/40 p-3 leading-relaxed">
+                자동 측정(eval) 항목은 대시보드에서 객관 지표로 산정됩니다. 여기서는 <b className="text-foreground">사람 판단이 필요한 부분</b>(고위험 여부·미측정 항목·거버넌스·통제)을 서술로 평가하며, 정성 평가는 <b className="text-foreground">등급 점수에 반영되지 않고</b> 보고서에 기재됩니다.
+              </Text>
+
               <SectionCard title="고위험 서비스 여부" description="개인 차별·권익·안전에 중대한 위험을 줄 수 있는 서비스면 '예'. 점수와 무관하게 최소 '고위험'으로 승급됩니다 (가이드라인 §2-라)." variant="bordered">
                 <Stack gap="sm">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={highImpact} onChange={(e) => setHighImpact(e.target.checked)} className="rounded" />
-                    <span>이 서비스는 고위험 서비스에 해당</span>
-                  </label>
-                  <textarea value={hiReason} onChange={(e) => setHiReason(e.target.value)} placeholder="판단 근거 (예: 신용평가·여신심사 등 고객 권익에 중대한 영향)" rows={2} className="w-full rounded-md border bg-transparent px-3 py-2 text-sm" />
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm">이 서비스는 고위험 서비스에 해당</span>
+                    <div className="flex shrink-0 overflow-hidden rounded-md border text-xs">
+                      {([[true, "예"], [false, "아니오"]] as const).map(([v, label]) => (
+                        <button key={label} onClick={() => setHighImpact(v)} className={`px-3 py-1.5 transition-colors ${highImpact === v ? "bg-foreground text-background" : "hover:bg-muted"}`}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  {highImpact && <textarea value={hiReason} onChange={(e) => setHiReason(e.target.value)} placeholder="판단 근거 (예: 신용평가·여신심사 등 고객 권익에 중대한 영향)" rows={2} className="w-full rounded-md border bg-transparent px-3 py-2 text-sm duration-200 animate-in fade-in" />}
                 </Stack>
               </SectionCard>
 
@@ -896,10 +927,11 @@ export function RmfReportView() {
                             const st = state.riskItems[item.key];
                             const isProvider = st?.source === "provider";
                             const ov = overrides[item.key] ?? {};
+                            const filled = !!(ov.note ?? "").trim();
                             return (
-                              <div key={item.key} className="rounded-lg border p-3">
-                                <Text variant="caption" as="p" className="font-medium text-foreground">{item.label}{isProvider && <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">· 외부 공급자 신호 감지</span>}</Text>
-                                <p className="mb-2 mt-0.5 text-[11px] leading-relaxed text-muted-foreground">평가 관점: {item.scoringGuide}</p>
+                              <div key={item.key} className={`rounded-lg border p-3 transition-colors ${filled ? "border-l-2 border-l-foreground" : ""}`}>
+                                <Text variant="caption" as="p" className="font-medium text-foreground">{item.label}{isProvider && <span className="ml-1.5 text-xs font-normal text-muted-foreground">· 외부 공급자 신호 감지</span>}</Text>
+                                <p className="mb-2 mt-0.5 text-xs leading-relaxed text-muted-foreground">평가 관점: {item.scoringGuide}</p>
                                 <textarea value={ov.note ?? ""} rows={2}
                                   placeholder="이 항목을 어떻게 평가했는지 서술 (예: 위탁계약에 손해배상·SLA 조항 포함, 분기별 수탁기관 점검 운영…)"
                                   onChange={(e) => setOverride(item.key, { note: e.target.value || undefined })}
@@ -918,14 +950,15 @@ export function RmfReportView() {
                 <Stack gap="sm">
                   {GOVERNANCE_ITEMS.map((g) => {
                     const cur = governance[g.key];
+                    const filled = !!(cur?.note ?? "").trim();
                     return (
-                      <div key={g.key} className="rounded-lg border p-3">
+                      <div key={g.key} className={`rounded-lg border p-3 transition-colors ${filled ? "border-l-2 border-l-foreground" : ""}`}>
                         <div className="mb-2 flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <Text variant="caption" as="p" className="font-medium text-foreground">{g.label}</Text>
-                            <p className="text-[11px] leading-relaxed text-muted-foreground">{g.description}</p>
+                            <p className="text-xs leading-relaxed text-muted-foreground">{g.description}</p>
                           </div>
-                          <div className="flex shrink-0 overflow-hidden rounded-md border text-[11px]">
+                          <div className="flex shrink-0 overflow-hidden rounded-md border text-xs">
                             {CHECK_STATUS.map((cs) => {
                               const active = (cur?.status ?? "done") === cs.v;
                               return <button key={cs.v} onClick={() => setChecklist("gov", g.key, { status: cs.v })} className={`px-2 py-1 transition-colors ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>{cs.label}</button>;
@@ -943,14 +976,15 @@ export function RmfReportView() {
                 <Stack gap="sm">
                   {CONTROL_ITEMS.map((c) => {
                     const cur = controls[c.key];
+                    const filled = !!(cur?.note ?? "").trim();
                     return (
-                      <div key={c.key} className="rounded-lg border p-3">
+                      <div key={c.key} className={`rounded-lg border p-3 transition-colors ${filled ? "border-l-2 border-l-foreground" : ""}`}>
                         <div className="mb-2 flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <Text variant="caption" as="p" className="font-medium text-foreground">{c.label}{c.autoEvidenced && <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">· 자동 증빙</span>}</Text>
-                            <p className="text-[11px] leading-relaxed text-muted-foreground">{c.description}</p>
+                            <Text variant="caption" as="p" className="font-medium text-foreground">{c.label}{c.autoEvidenced && <span className="ml-1.5 text-xs font-normal text-muted-foreground">· 자동 증빙</span>}</Text>
+                            <p className="text-xs leading-relaxed text-muted-foreground">{c.description}</p>
                           </div>
-                          <div className="flex shrink-0 overflow-hidden rounded-md border text-[11px]">
+                          <div className="flex shrink-0 overflow-hidden rounded-md border text-xs">
                             {CHECK_STATUS.map((cs) => {
                               const active = (cur?.status ?? "done") === cs.v;
                               return <button key={cs.v} onClick={() => setChecklist("ctrl", c.key, { status: cs.v })} className={`px-2 py-1 transition-colors ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>{cs.label}</button>;
@@ -964,9 +998,14 @@ export function RmfReportView() {
                 </Stack>
               </SectionCard>
 
-              <div className="flex items-center justify-end gap-3">
-                <Text variant="caption" as="span" className="tabular-nums">총점 {score.total}/100 · {score.grade}위험</Text>
-                <button onClick={() => void saveAssessment()} disabled={savingAssessment} className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80 disabled:opacity-40"><Save className="h-4 w-4" /> {savingAssessment ? "저장 중…" : "평가 저장"}</button>
+              <div className="sticky bottom-0 z-10 -mx-6 flex items-center justify-between gap-3 border-t bg-background/90 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="tabular-nums">총점 <b className="text-foreground">{score.total}</b>/100 · <span style={{ color: gradeColor(score.grade) }}>{score.grade}위험</span></span>
+                  <span className="h-3 w-px bg-border" />
+                  <span className="tabular-nums">정성 입력 <b className="text-foreground">{qualProgress.filled}</b>/{qualProgress.total}</span>
+                  {savedTick && <span className="inline-flex items-center gap-1 duration-200 animate-in fade-in" style={{ color: "#10b981" }}>✓ 저장됨</span>}
+                </div>
+                <button onClick={() => void saveAssessment()} disabled={savingAssessment} className="flex shrink-0 items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80 disabled:opacity-40"><Save className="h-4 w-4" /> {savingAssessment ? "저장 중…" : "평가 저장"}</button>
               </div>
             </Stack>
           ) : (

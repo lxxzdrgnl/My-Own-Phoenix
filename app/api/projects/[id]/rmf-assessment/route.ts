@@ -22,14 +22,15 @@ export const PUT = authedHandler(async (req: NextRequest, uid: string, { params 
   if (check instanceof NextResponse) return check;
 
   const body = await req.json().catch(() => ({}));
-  const data = {
-    highImpact: !!body.highImpact,
-    governance: body.governance ?? {},
-    controls: body.controls ?? {},
-    riskItems: body.riskItems ?? {},
-    notes: body.notes ?? {},
-    assessor: body.assessor ?? null,
-  };
+  // 부분 업데이트: 전달된 키만 갱신 (입력탭 저장과 AI 피드백 저장이 서로 덮어쓰지 않도록)
+  const data: Record<string, unknown> = {};
+  if ("highImpact" in body) data.highImpact = !!body.highImpact;
+  if ("governance" in body) data.governance = body.governance ?? {};
+  if ("controls" in body) data.controls = body.controls ?? {};
+  if ("riskItems" in body) data.riskItems = body.riskItems ?? {};
+  if ("notes" in body) data.notes = body.notes ?? {};
+  if ("feedback" in body) data.feedback = body.feedback ?? null;
+  if ("assessor" in body) data.assessor = body.assessor ?? null;
   try {
     const saved = await prisma.rmfAssessment.upsert({
       where: { projectId },
