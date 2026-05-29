@@ -249,6 +249,7 @@ model RmfAssessment {
   governance Json      @default("{}") // { key: { status, note } }
   controls   Json      @default("{}")
   riskItems  Json      @default("{}") // { itemKey: { mitigation, note, inherentOverride? } }
+  notes      Json      @default("{}") // { highImpactReason?, gaps?: { clauseKey: text } }
   assessor   String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt

@@ -6,6 +6,39 @@ import type { MetricValue } from "@/lib/rmf-utils";
 import { RISK_SECTIONS, EVAL_TO_ITEMS, PROBLEM_LABELS } from "./finance-rmf";
 import type { RiskItemState, Finding } from "./types";
 
+/** 항목별 수동 override(경감·인식 직접입력·메모) */
+export interface RiskOverride {
+  mitigation?: number;
+  inherentOverride?: number;
+  note?: string;
+}
+
+/**
+ * eval 자동 prefill 위에 평가자 수동 override를 병합.
+ * - inherentOverride 지정 시 인식·측정을 수동값으로 대체하고 source=manual
+ * - mitigation/note는 지정 시 덮어씀
+ * 점수 clamp(0..maxInherent, mitigation≤inherent)는 computeFinanceRisk가 담당.
+ */
+export function applyRiskOverrides(
+  base: Record<string, RiskItemState>,
+  overrides?: Record<string, RiskOverride>,
+): Record<string, RiskItemState> {
+  if (!overrides) return base;
+  const out: Record<string, RiskItemState> = {};
+  for (const [key, st] of Object.entries(base)) {
+    const ov = overrides[key];
+    if (!ov) { out[key] = st; continue; }
+    const hasInherent = typeof ov.inherentOverride === "number";
+    out[key] = {
+      inherent: hasInherent ? (ov.inherentOverride as number) : st.inherent,
+      mitigation: typeof ov.mitigation === "number" ? ov.mitigation : st.mitigation,
+      source: hasInherent ? "manual" : st.source,
+      note: ov.note ?? st.note,
+    };
+  }
+  return out;
+}
+
 /** eval metric(0–100, 높을수록 양호) → 항목 인식·측정 위험(0..만점). 위탁/관리는 provider 신호. */
 export function prefillRiskItems(
   metrics: MetricValue[],

@@ -18,11 +18,19 @@ import { StatCard } from "@/components/dashboard/widgets/stat-card";
 import { AnnotationBadge, AnnotationBadges } from "@/components/annotation-badge";
 import { formatSec } from "@/components/trace-tree/span-tree-helpers";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { ModelSelector } from "@/components/model-selector";
 import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings, applyRiskOverrides, type RiskOverride } from "@/lib/rmf/finance-prefill";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
-import type { AssessmentState, Finding, Grade, ScoreResult } from "@/lib/rmf/types";
+import type { AssessmentState, Finding, Grade, ScoreResult, ChecklistItemState, ChecklistStatus } from "@/lib/rmf/types";
+
+const CHECK_STATUS: { v: ChecklistStatus; label: string }[] = [
+  { v: "done", label: "이행" },
+  { v: "partial", label: "부분" },
+  { v: "insufficient", label: "미흡" },
+];
+const checkStatusLabel = (s?: ChecklistStatus) => CHECK_STATUS.find((c) => c.v === s)?.label ?? "미점검";
 
 const GRADES: Grade[] = ["저", "중", "고", "초고"];
 const GRADE_RANGE: Record<Grade, string> = { 저: "0–24", 중: "25–49", 고: "50–74", 초고: "75–100" };
@@ -45,6 +53,31 @@ const ITEM_LABEL: Record<string, string> = (() => {
   for (const s of RISK_SECTIONS) for (const i of s.items) m[i.key] = i.label;
   return m;
 })();
+
+// AI 종합 피드백(JSON) — 에이전트 개선 관점
+interface RmfFeedback {
+  summary: string;
+  risks: { area: string; detail: string }[];
+  improvements: { area: string; action: string; why?: string; how?: string }[];
+}
+
+/** LLM 응답에서 JSON 객체를 관대하게 추출·파싱 (코드펜스/잡설 제거). */
+function parseFeedback(raw: string): RmfFeedback | null {
+  if (!raw) return null;
+  let s = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  const start = s.indexOf("{");
+  const end = s.lastIndexOf("}");
+  if (start === -1 || end === -1) return null;
+  s = s.slice(start, end + 1);
+  try {
+    const o = JSON.parse(s);
+    return {
+      summary: typeof o.summary === "string" ? o.summary : "",
+      risks: Array.isArray(o.risks) ? o.risks.filter((x: unknown) => x && typeof x === "object") : [],
+      improvements: Array.isArray(o.improvements) ? o.improvements.filter((x: unknown) => x && typeof x === "object") : [],
+    };
+  } catch { return null; }
+}
 
 function collectSpans(node: RawSpan): SpanData[] {
   const out: SpanData[] = [{
@@ -178,7 +211,7 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
             <tr className="bg-neutral-50 font-bold"><td className="border px-2 py-1" colSpan={4}>총점</td><td className="border px-2 py-1 text-center" colSpan={2}>{score.total} / 100 → {score.grade}위험</td></tr>
           </tbody>
         </table>
-        <p className="mt-1 text-[10px] text-neutral-500">※ "-"는 자동 측정 데이터가 없어 미평가(수동 평가 필요)임을 의미.</p>
+        <p className="mt-1 text-[10px] text-neutral-500">※ "-"는 자동 측정 불가 항목으로 총점에 미반영하며, 정성 평가(부문별 상세 참조)로 기술함. 총점·등급은 자동 측정 항목의 객관 지표 기준.</p>
       </section>
 
       {sections.sectionDetail && (
@@ -196,9 +229,9 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
                     <div key={item.key} className="avoid-break rounded border border-neutral-200 p-2 text-[11px]">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold">{item.label} <SourceBadge source={st?.source} /></span>
-                        <span className="text-neutral-600">{st && st.source !== "manual" ? <>인식·측정 {st.inherent} · 경감 {st.mitigation} · <b>잔여 {score.perItemResidual[item.key] ?? 0}</b> / {item.maxInherent} · 지적 {itemFindings.length}건</> : <span className="text-neutral-400">미측정 / {item.maxInherent}</span>}</span>
+                        <span className="text-neutral-600">{st && st.source !== "manual" ? <>인식·측정 {st.inherent} · 경감 {st.mitigation} · <b>잔여 {score.perItemResidual[item.key] ?? 0}</b> / {item.maxInherent} · 지적 {itemFindings.length}건</> : <span className="text-neutral-400">정성 평가</span>}</span>
                       </div>
-                      <p className="mt-1 text-neutral-500">근거: {item.providerSignal ? "외부 LLM 공급자 설정 신호" : m && !m.noData ? metricLabel(item.evalMetricId) + " " + m.value.toFixed(1) + "%" : "eval 데이터 없음 — 수동 평가 필요"}<span className="ml-1 text-neutral-400">· 채점기준: {item.scoringGuide}</span></p>
+                      <p className="mt-1 text-neutral-500">근거: {item.providerSignal ? "외부 LLM 공급자 설정 신호" + (st?.note ? ` — ${st.note}` : "") : m && !m.noData ? metricLabel(item.evalMetricId) + " " + m.value.toFixed(1) + "%" : (st?.note ? `정성 평가 — ${st.note}` : "정성 평가 — 서술 미입력")}<span className="ml-1 text-neutral-400">· 채점기준: {item.scoringGuide}</span></p>
                       {sections.findings && itemFindings.length > 0 && (
                         <ul className="mt-1 space-y-1 border-t border-dashed pt-1">
                           {itemFindings.slice(0, findingsCap).map((f, idx) => {
@@ -228,9 +261,14 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
         <section className="page-break avoid-break mb-7">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">Ⅲ. 거버넌스 체계 현황</h2>
           <ul className="space-y-1.5 text-[11px]">
-            {GOVERNANCE_ITEMS.map((g) => (
-              <li key={g.key} className="border-b pb-1.5"><b>{g.label}</b> <span className="rounded bg-neutral-200 px-1 text-[9px] text-neutral-600">자기선언</span><p className="text-neutral-600">{g.description}</p></li>
-            ))}
+            {GOVERNANCE_ITEMS.map((g) => {
+              const cs = state.governance[g.key];
+              const status = cs?.status ?? "done";
+              const stColor = status === "done" ? "#10b981" : status === "insufficient" ? "#ef4444" : "#737373";
+              return (
+                <li key={g.key} className="border-b pb-1.5"><b>{g.label}</b> <span className="rounded px-1 text-[9px] text-white" style={{ background: stColor }}>{checkStatusLabel(status)}</span><p className="text-neutral-600">{cs?.note || g.description}</p></li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -243,14 +281,20 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
             <ul className="ml-4 list-disc">{CONTROL_MATRIX[score.grade].measures.map((m, i) => <li key={i}>{m}</li>)}</ul>
           </div>
           <ul className="space-y-1.5 text-[11px]">
-            {CONTROL_ITEMS.map((c) => (
-              <li key={c.key} className="border-b pb-1.5">
-                <b>{c.label}</b>{" "}
-                {c.autoEvidenced ? <span className="rounded px-1 text-[9px]" style={{ background: "#10b981", color: "#fff" }}>자동 증빙</span> : <span className="rounded bg-neutral-200 px-1 text-[9px] text-neutral-600">자기선언</span>}
-                {c.key === "monitoring" && <span className="ml-1 text-neutral-500">(평가기간 {traceCount}개 트레이스 자동 모니터링)</span>}
-                <p className="text-neutral-600">{c.description}</p>
-              </li>
-            ))}
+            {CONTROL_ITEMS.map((c) => {
+              const cs = state.controls[c.key];
+              const status = cs?.status ?? "done";
+              const stColor = status === "done" ? "#10b981" : status === "insufficient" ? "#ef4444" : "#737373";
+              return (
+                <li key={c.key} className="border-b pb-1.5">
+                  <b>{c.label}</b>{" "}
+                  <span className="rounded px-1 text-[9px] text-white" style={{ background: stColor }}>{checkStatusLabel(status)}</span>
+                  {c.autoEvidenced && <span className="ml-1 rounded bg-neutral-200 px-1 text-[9px] text-neutral-600">자동 증빙</span>}
+                  {c.key === "monitoring" && <span className="ml-1 text-neutral-500">(평가기간 {traceCount}개 트레이스 자동 모니터링)</span>}
+                  <p className="text-neutral-600">{cs?.note || c.description}</p>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -262,7 +306,7 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
             <li>위험평가(②)는 평가기간 내 {traceCount}개 트레이스의 자동 eval을 항목별 인식·측정 위험으로 환산.</li>
             <li>동일 항목에 사람 평가(HUMAN)가 있으면 LLM 평가보다 우선 반영.</li>
             <li>잔여위험 = 인식·측정 − 경감. 부문별 합산 → 총점(0–100) → 위험등급.</li>
-            <li>위탁/관리는 외부 LLM 공급자 사용 여부로 자동 신호화. 거버넌스·교육·보고는 자기선언.</li>
+            <li>위탁/관리는 외부 LLM 공급자 사용 여부로 자동 신호화. 거버넌스·위험통제는 평가자 정성 점검(이행/부분/미흡)으로 기재하며 등급 점수에는 미반영.</li>
             <li>정량 지표는 응답 수준 위험 신호이며, 최종 판단은 평가자·감독당국이 수행.</li>
           </ul>
         </section>
@@ -284,6 +328,8 @@ export function RmfReportView() {
   const [highImpact, setHighImpact] = useState(false);
   const [hiReason, setHiReason] = useState("");
   const [overrides, setOverrides] = useState<Record<string, RiskOverride>>({});
+  const [governance, setGovernance] = useState<Record<string, ChecklistItemState>>({});
+  const [controls, setControls] = useState<Record<string, ChecklistItemState>>({});
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(30));
   const [orgName, setOrgName] = useState("");
   const [assessor, setAssessor] = useState("");
@@ -329,8 +375,8 @@ export function RmfReportView() {
   const state: AssessmentState = useMemo(() => ({
     highImpact,
     riskItems: applyRiskOverrides(prefillRiskItems(metrics, hasProvider), overrides),
-    governance: {}, controls: {},
-  }), [metrics, hasProvider, overrides, highImpact]);
+    governance, controls,
+  }), [metrics, hasProvider, overrides, highImpact, governance, controls]);
 
   // 저장된 수동 평가 로드
   useEffect(() => {
@@ -343,6 +389,8 @@ export function RmfReportView() {
         const d = await r.json();
         setHighImpact(!!d.highImpact);
         setOverrides((d.riskItems ?? {}) as Record<string, RiskOverride>);
+        setGovernance((d.governance ?? {}) as Record<string, ChecklistItemState>);
+        setControls((d.controls ?? {}) as Record<string, ChecklistItemState>);
         setHiReason(((d.notes ?? {}) as { highImpactReason?: string }).highImpactReason ?? "");
       } catch (e) { logger.error("rmf-assessment load failed", e); }
     })();
@@ -351,8 +399,18 @@ export function RmfReportView() {
 
   const { submit: submitAssessment, saving: savingAssessment } = useFormSubmit(`/api/projects/${projectId}/rmf-assessment`, "PUT");
   const saveAssessment = useCallback(() => {
-    return submitAssessment({ highImpact, riskItems: overrides, notes: { highImpactReason: hiReason }, assessor });
-  }, [submitAssessment, highImpact, overrides, hiReason, assessor]);
+    return submitAssessment({ highImpact, riskItems: overrides, governance, controls, notes: { highImpactReason: hiReason }, assessor });
+  }, [submitAssessment, highImpact, overrides, governance, controls, hiReason, assessor]);
+
+  const setChecklist = useCallback((kind: "gov" | "ctrl", key: string, patch: Partial<ChecklistItemState>) => {
+    const setter = kind === "gov" ? setGovernance : setControls;
+    setter((prev) => {
+      const cur = prev[key] ?? { status: "done" as ChecklistStatus };
+      const next: ChecklistItemState = { ...cur, ...patch };
+      if (!next.note) delete next.note;
+      return { ...prev, [key]: next };
+    });
+  }, []);
 
   const setOverride = useCallback((key: string, patch: Partial<RiskOverride>) => {
     setOverrides((prev) => {
@@ -442,7 +500,7 @@ export function RmfReportView() {
     if (!projectId) return;
     setSaving(true);
     try {
-      const snapshot = { score, riskItems: state.riskItems, findingsByItem, traceCount: trees.length, sections, orgName, assessor, highImpact, hiReason, periodFrom: dateRange.from?.toISOString(), periodTo: dateRange.to?.toISOString() };
+      const snapshot = { score, riskItems: state.riskItems, governance, controls, findingsByItem, traceCount: trees.length, sections, orgName, assessor, highImpact, hiReason, periodFrom: dateRange.from?.toISOString(), periodTo: dateRange.to?.toISOString() };
       const r = await apiFetch(`/api/projects/${projectId}/rmf-versions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ grade: score.grade, total: score.total, label: orgName || null, assessor, periodFrom: snapshot.periodFrom, periodTo: snapshot.periodTo, snapshot }),
@@ -462,41 +520,54 @@ export function RmfReportView() {
     } catch (e) { logger.error("rmf delete version failed", e); }
   }
 
-  // ── AI 개선 제안 (LLM) ──
-  const [recs, setRecs] = useState("");
+  // ── AI 종합 피드백 (LLM, JSON 구조) ──
+  const [recs, setRecs] = useState<RmfFeedback | null>(null);
+  const [recsError, setRecsError] = useState("");
   const [recsLoading, setRecsLoading] = useState(false);
+  const [fbModel, setFbModel] = useState("gpt-4o-mini");
   async function generateRecommendations() {
     if (!projectId) return;
     setRecsLoading(true);
+    setRecsError("");
     try {
       const lines: string[] = [
-        `대상 서비스: ${phoenixProject}`,
+        `대상 서비스(에이전트): ${phoenixProject}`,
         `종합 위험등급: ${score.grade}위험 (잔여위험 총점 ${score.total}/100)`,
         "부문별 잔여위험(소계/만점):",
         ...RISK_SECTIONS.map((sec) => `- ${sec.label}: ${score.sectionSubtotals[sec.key] ?? 0}/${sec.weight}`),
         `주요 지적사항(${findings.length}건 중 상위):`,
         ...findings.slice(0, 25).map((f) => `- [${ITEM_LABEL[f.itemKey] ?? f.itemKey}] ${f.eval}: ${f.reason || f.label}`),
       ];
+      const sys = [
+        "당신은 금융 AI 위험관리(금융감독원 AI RMF) 전문가입니다.",
+        "아래 평가 결과를 바탕으로 '이 AI 에이전트를 어떻게 개선할지'에 초점을 둔 한국어 종합 피드백을 작성하세요.",
+        "반드시 아래 JSON 객체 하나만 출력하세요. 코드펜스·설명·여는말 금지.",
+        '{"summary":"현재 위험수준·핵심 문제 총평 2~3문장","risks":[{"area":"부문/항목명","detail":"왜 위험한지 1문장"}],"improvements":[{"area":"부문/항목명","action":"에이전트를 무엇을 바꿀지(프롬프트·가드레일·필터·데이터·휴먼리뷰 등 구체적 조치)","why":"어떤 위험을 줄이는지","how":"실제 적용 방법 1~2문장"}]}',
+        "improvements는 위험이 높은 부문·항목 우선으로 3~6개, 에이전트 개선 관점에서 실행가능하게 작성하세요.",
+      ].join("\n");
       const r = await apiFetch("/api/llm", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gpt-4o-mini", projectId, promptLabel: "rmf-improvement", temperature: 0.3,
+          model: fbModel, projectId, promptLabel: "rmf-improvement", temperature: 0.3,
           messages: [
-            { role: "system", content: "당신은 금융 AI 위험관리(금융감독원 AI RMF) 전문가입니다. 아래 평가 결과를 바탕으로 한국어 종합 피드백을 작성하세요. 구성: ① 종합 평가 — 현재 위험 수준 총평 2~3문장 ② 주요 위험 요인 — 부문·항목별 핵심 3~5개 ③ 우선 개선 권고 — 실행가능하게 '무엇을/왜/어떻게'가 드러나는 번호 목록. 위험이 높은 부문·항목을 우선하세요." },
+            { role: "system", content: sys },
             { role: "user", content: lines.join("\n") },
           ],
         }),
       });
-      if (r.ok) { const d = await r.json(); setRecs(d.choices?.[0]?.message?.content ?? "(응답이 비어 있습니다)"); }
-      else setRecs("생성 실패 — 프로젝트 LLM 키 설정을 확인하세요.");
-    } catch (e) { logger.error("rmf recommendations failed", e); setRecs("생성 실패"); }
-    setRecsLoading(false);
+      if (!r.ok) { setRecsError("생성 실패 — 프로젝트 LLM 키 설정을 확인하세요."); return; }
+      const d = await r.json();
+      const parsed = parseFeedback(d.choices?.[0]?.message?.content ?? "");
+      if (parsed) setRecs(parsed);
+      else setRecsError("응답을 해석하지 못했습니다. 다시 생성해 주세요.");
+    } catch (e) { logger.error("rmf recommendations failed", e); setRecsError("생성 실패"); }
+    finally { setRecsLoading(false); }
   }
 
   // 문서 렌더 소스: 저장본(viewSnap) 보기 중이면 그 스냅샷, 아니면 라이브
   const snap = viewSnap?.snapshot ?? null;
   const dScore: ScoreResult = snap ? snap.score : score;
-  const dState: AssessmentState = snap ? { highImpact: false, riskItems: snap.riskItems, governance: {}, controls: {} } : state;
+  const dState: AssessmentState = snap ? { highImpact: !!snap.highImpact, riskItems: snap.riskItems, governance: snap.governance ?? {}, controls: snap.controls ?? {} } : state;
   const dMetricById = (snap ? new Map() : metricById) as typeof metricById;
   const dFindingsByItem: Record<string, Finding[]> = snap ? snap.findingsByItem : findingsByItem;
   const dFindingQuery = snap ? () => "" : findingQuery;
@@ -546,6 +617,52 @@ export function RmfReportView() {
                   <div key={g} className="flex-1 py-2" style={{ background: g === score.grade ? gradeColor(g) : "transparent", color: g === score.grade ? "#fff" : undefined, fontWeight: g === score.grade ? 600 : 400 }}>{g}위험 <span className="tabular-nums">({GRADE_RANGE[g]})</span></div>
                 ))}
               </div>
+
+              <SectionCard title="AI 종합 피드백" description="평가 결과 종합 분석·개선 권고 (LLM 생성 · 보고서에는 미포함됩니다)" variant="bordered" actions={
+                <Inline gap="sm">
+                  <div className="w-44"><ModelSelector value={fbModel} onChange={setFbModel} /></div>
+                  <button onClick={generateRecommendations} disabled={recsLoading} className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-40"><Sparkles className="h-3.5 w-3.5" /> {recsLoading ? "생성 중…" : recs ? "다시 생성" : "종합 피드백 생성"}</button>
+                </Inline>
+              }>
+                {recs ? (
+                  <Stack gap="md">
+                    <div>
+                      <Text variant="caption" className="font-medium text-foreground">종합 평가</Text>
+                      <Text variant="caption" as="p" className="mt-1 leading-relaxed text-foreground/80">{recs.summary || "—"}</Text>
+                    </div>
+                    {recs.risks.length > 0 && (
+                      <div>
+                        <Text variant="caption" className="font-medium text-foreground">주요 위험 요인</Text>
+                        <ul className="mt-1 space-y-1">
+                          {recs.risks.map((rk, i) => (
+                            <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-foreground/80">
+                              <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full" style={{ background: "#ef4444" }} />
+                              <span><span className="font-medium text-foreground">{rk.area}</span> — {rk.detail}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {recs.improvements.length > 0 && (
+                      <div>
+                        <Text variant="caption" className="font-medium text-foreground">에이전트 개선 권고</Text>
+                        <ol className="mt-1.5 space-y-2">
+                          {recs.improvements.map((im, i) => (
+                            <li key={i} className="rounded-md border bg-muted/30 p-2.5">
+                              <Text variant="caption" className="font-medium text-foreground">{i + 1}. {im.action}</Text>
+                              {im.area && <span className="ml-1.5 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] text-foreground/70">{im.area}</span>}
+                              {im.why && <Text variant="caption" as="p" className="mt-1 text-foreground/70">왜 — {im.why}</Text>}
+                              {im.how && <Text variant="caption" as="p" className="text-foreground/70">어떻게 — {im.how}</Text>}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </Stack>
+                ) : recsError
+                  ? <p className="text-[13px]" style={{ color: "#ef4444" }}>{recsError}</p>
+                  : <Text variant="caption" as="p">「종합 피드백 생성」을 누르면 평가 결과·지적사항을 바탕으로 종합 평가·주요 위험, 그리고 <b className="text-foreground">에이전트 개선 권고</b>를 LLM이 생성합니다. (대시보드 전용 · 보고서에는 미포함됩니다)</Text>}
+              </SectionCard>
 
               <Text variant="caption" as="p" className="rounded-lg border bg-muted/40 p-3 leading-relaxed">
                 <b className="text-foreground">평가 방식</b> — 항목별 <b>고유위험(인식·측정)</b> − <b>경감(통제)</b> = <b className="text-foreground">잔여위험</b>. 잔여위험 합산(0–100)으로 등급 산정. <b className="text-foreground">잔여 X/Y</b> = 남은 위험 X(최대 Y) · <span style={{ color: "#10b981" }}>0=안전</span> ~ <span style={{ color: "#ef4444" }}>Y=위험</span>.
@@ -751,13 +868,6 @@ export function RmfReportView() {
                 )}
               </SectionCard>
 
-              <SectionCard title="AI 종합 피드백" description="평가 결과 종합 분석·개선 권고 (LLM 생성 · 보고서 미포함)" variant="bordered" actions={
-                <button onClick={generateRecommendations} disabled={recsLoading} className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-40"><Sparkles className="h-3.5 w-3.5" /> {recsLoading ? "생성 중…" : recs ? "다시 생성" : "종합 피드백 생성"}</button>
-              }>
-                {recs
-                  ? <Text variant="caption" as="p" className="whitespace-pre-wrap leading-relaxed text-foreground">{recs}</Text>
-                  : <Text variant="caption" as="p">「종합 피드백 생성」을 누르면 평가 결과·지적사항을 바탕으로 종합 평가·주요 위험·우선 개선 권고를 LLM이 생성합니다. (대시보드 전용 — 보고서 PDF에는 포함되지 않습니다)</Text>}
-              </SectionCard>
             </Stack>
           ) : tab === "input" ? (
             <Stack gap="lg">
@@ -771,7 +881,7 @@ export function RmfReportView() {
                 </Stack>
               </SectionCard>
 
-              <SectionCard title="수동 평가가 필요한 항목" description="자동 평가(eval)된 항목은 대시보드에 자동 반영되어 여기서는 제외됩니다. 사람 판단이 필요한 항목(미측정·공급자 신호)만 입력하세요." variant="bordered">
+              <SectionCard title="정성 평가가 필요한 항목" description="자동 측정(eval)되지 않는 항목을 서술로 평가합니다. 총점·등급은 자동 측정 항목의 객관 지표로만 산정되며, 아래 서술은 보고서에 정성 평가로 실립니다." variant="bordered">
                 <Stack gap="md">
                   {(() => {
                     const blocks = RISK_SECTIONS
@@ -786,36 +896,14 @@ export function RmfReportView() {
                             const st = state.riskItems[item.key];
                             const isProvider = st?.source === "provider";
                             const ov = overrides[item.key] ?? {};
-                            const autoInherent = st?.inherent ?? 0;
-                            const residual = score.perItemResidual[item.key] ?? 0;
-                            const mitCap = ov.inherentOverride ?? (isProvider ? autoInherent : item.maxInherent);
                             return (
                               <div key={item.key} className="rounded-lg border p-3">
-                                <div className="mb-2 flex items-baseline justify-between gap-2">
-                                  <Text variant="caption" as="span" className="font-medium text-foreground">{item.label} <span className="text-[11px] font-normal text-muted-foreground">/ 만점 {item.maxInherent}{isProvider ? " · 공급자 신호" : " · 미측정"}</span></Text>
-                                  <span className="text-[11px] tabular-nums" style={{ color: ratioColor(item.maxInherent > 0 ? residual / item.maxInherent : 0) }}>잔여 {residual}</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-                                  <label className="flex flex-col gap-1">
-                                    <span className="text-[11px] text-muted-foreground">인식·측정 (0–{item.maxInherent})</span>
-                                    <input type="number" min={0} max={item.maxInherent} value={ov.inherentOverride ?? ""} placeholder={isProvider ? `신호 ${autoInherent}` : "미측정"}
-                                      onChange={(e) => setOverride(item.key, { inherentOverride: e.target.value === "" ? undefined : Math.max(0, Math.min(item.maxInherent, Number(e.target.value))) })}
-                                      className="rounded border bg-transparent px-2 py-1 text-sm tabular-nums" />
-                                  </label>
-                                  <label className="flex flex-col gap-1">
-                                    <span className="text-[11px] text-muted-foreground">경감(통제) (0–{mitCap})</span>
-                                    <input type="number" min={0} value={ov.mitigation ?? ""} placeholder="0"
-                                      onChange={(e) => setOverride(item.key, { mitigation: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })}
-                                      className="rounded border bg-transparent px-2 py-1 text-sm tabular-nums" />
-                                  </label>
-                                  <label className="col-span-2 flex flex-col gap-1 sm:col-span-1">
-                                    <span className="text-[11px] text-muted-foreground">메모</span>
-                                    <input value={ov.note ?? ""} placeholder="통제·근거 등"
-                                      onChange={(e) => setOverride(item.key, { note: e.target.value || undefined })}
-                                      className="rounded border bg-transparent px-2 py-1 text-sm" />
-                                  </label>
-                                </div>
-                                {isProvider && <p className="mt-1.5 text-[11px] text-muted-foreground">외부 공급자 사용 감지 — 위탁 관리체계 점검 후 값을 조정하세요 (기본 신호값 {autoInherent}).</p>}
+                                <Text variant="caption" as="p" className="font-medium text-foreground">{item.label}{isProvider && <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">· 외부 공급자 신호 감지</span>}</Text>
+                                <p className="mb-2 mt-0.5 text-[11px] leading-relaxed text-muted-foreground">평가 관점: {item.scoringGuide}</p>
+                                <textarea value={ov.note ?? ""} rows={2}
+                                  placeholder="이 항목을 어떻게 평가했는지 서술 (예: 위탁계약에 손해배상·SLA 조항 포함, 분기별 수탁기관 점검 운영…)"
+                                  onChange={(e) => setOverride(item.key, { note: e.target.value || undefined })}
+                                  className="w-full rounded border bg-transparent px-2 py-1.5 text-sm leading-relaxed" />
                               </div>
                             );
                           })}
@@ -823,6 +911,56 @@ export function RmfReportView() {
                       </div>
                     ));
                   })()}
+                </Stack>
+              </SectionCard>
+
+              <SectionCard title="거버넌스 체계 점검" description="조직·정책 측면 정성 평가 (이행/부분/미흡 + 서술). 등급 점수에는 반영되지 않으며 보고서 Ⅲ에 기재됩니다." variant="bordered">
+                <Stack gap="sm">
+                  {GOVERNANCE_ITEMS.map((g) => {
+                    const cur = governance[g.key];
+                    return (
+                      <div key={g.key} className="rounded-lg border p-3">
+                        <div className="mb-2 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <Text variant="caption" as="p" className="font-medium text-foreground">{g.label}</Text>
+                            <p className="text-[11px] leading-relaxed text-muted-foreground">{g.description}</p>
+                          </div>
+                          <div className="flex shrink-0 overflow-hidden rounded-md border text-[11px]">
+                            {CHECK_STATUS.map((cs) => {
+                              const active = (cur?.status ?? "done") === cs.v;
+                              return <button key={cs.v} onClick={() => setChecklist("gov", g.key, { status: cs.v })} className={`px-2 py-1 transition-colors ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>{cs.label}</button>;
+                            })}
+                          </div>
+                        </div>
+                        <textarea value={cur?.note ?? ""} rows={1} placeholder="이행 현황·증빙 서술 (예: AI윤리위원회 분기 개최, 위원장 CEO 정기보고)" onChange={(e) => setChecklist("gov", g.key, { note: e.target.value })} className="w-full rounded border bg-transparent px-2 py-1.5 text-sm" />
+                      </div>
+                    );
+                  })}
+                </Stack>
+              </SectionCard>
+
+              <SectionCard title="위험통제 점검" description="통제·운영 측면 정성 평가. '자동 증빙' 항목은 플랫폼 데이터로 뒷받침되며, 필요 시 보완 서술을 추가하세요. 보고서 Ⅳ에 기재됩니다." variant="bordered">
+                <Stack gap="sm">
+                  {CONTROL_ITEMS.map((c) => {
+                    const cur = controls[c.key];
+                    return (
+                      <div key={c.key} className="rounded-lg border p-3">
+                        <div className="mb-2 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <Text variant="caption" as="p" className="font-medium text-foreground">{c.label}{c.autoEvidenced && <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">· 자동 증빙</span>}</Text>
+                            <p className="text-[11px] leading-relaxed text-muted-foreground">{c.description}</p>
+                          </div>
+                          <div className="flex shrink-0 overflow-hidden rounded-md border text-[11px]">
+                            {CHECK_STATUS.map((cs) => {
+                              const active = (cur?.status ?? "done") === cs.v;
+                              return <button key={cs.v} onClick={() => setChecklist("ctrl", c.key, { status: cs.v })} className={`px-2 py-1 transition-colors ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>{cs.label}</button>;
+                            })}
+                          </div>
+                        </div>
+                        <textarea value={cur?.note ?? ""} rows={1} placeholder="이행 현황·증빙 서술" onChange={(e) => setChecklist("ctrl", c.key, { note: e.target.value })} className="w-full rounded border bg-transparent px-2 py-1.5 text-sm" />
+                      </div>
+                    );
+                  })}
                 </Stack>
               </SectionCard>
 
@@ -897,9 +1035,7 @@ export function RmfReportView() {
       <div className="no-print mb-4 flex items-center justify-between gap-3">
         <button onClick={() => { setViewSnap(null); setMode("config"); }} className="flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium transition hover:bg-muted"><ArrowLeft className="h-4 w-4" /> 대시보드로</button>
         <div className="flex items-center gap-2">
-          {viewSnap
-            ? <span className="rounded-md border bg-muted px-2 py-1 text-xs text-muted-foreground">저장본 v{viewSnap.version} 보기 중</span>
-            : <span className="rounded-md border px-2 py-1 text-xs text-muted-foreground" style={{ borderColor: "#10b981", color: "#10b981" }}><Save className="mr-1 inline h-3 w-3" />생성 시 자동 저장됨</span>}
+          {viewSnap && <span className="rounded-md border bg-muted px-2 py-1 text-xs text-muted-foreground">저장본 v{viewSnap.version} 보기 중</span>}
           <button onClick={() => {
             const safe = String(phoenixProject || "report").replace(/[\\/:*?"<>|\s]+/g, "_");
             const prev = document.title;
