@@ -100,6 +100,7 @@ export const en = {
     tracesCount: "traces",
     sortNewest: "Newest first",
     sortOldest: "Oldest first",
+    financeRmf: "Finance AI RMF",
     noTracesFound: "No traces found",
     noTracesYet: "This project has no traces yet.",
     noTracesMatch: "No traces match the current filters",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ensureBuiltInEvals } from "@/lib/eval-seed";
+import { ensureBuiltInEvals, seedProjectEvals } from "@/lib/eval-seed";
 import { authedHandler, apiError, ErrorCode } from "@/lib/api-error";
 import { requireProjectMember } from "@/lib/api-helpers";
 
@@ -10,6 +10,9 @@ export const GET = authedHandler(async (request: NextRequest) => {
   const includeGlobalTemplates = request.nextUrl.searchParams.get("includeGlobalTemplates") === "true";
 
   if (projectId) {
+    // Auto-backfill: default(global) eval 중 이 프로젝트에 없는 것을 자동 추가.
+    // 신규 기본 eval(금융 AI RMF 등)이 기존 프로젝트에도 접근 시점에 전파됨. (idempotent)
+    await seedProjectEvals(projectId);
     const prompts = await prisma.evalPrompt.findMany({
       where: { projectId },
       orderBy: { name: "asc" },
