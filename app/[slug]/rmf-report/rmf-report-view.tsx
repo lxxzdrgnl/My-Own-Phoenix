@@ -15,7 +15,7 @@ import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
 import { LoadingState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/dashboard/widgets/stat-card";
-import { AnnotationBadge } from "@/components/annotation-badge";
+import { AnnotationBadge, AnnotationBadges } from "@/components/annotation-badge";
 import { formatSec } from "@/components/trace-tree/span-tree-helpers";
 import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings } from "@/lib/rmf/finance-prefill";
@@ -569,28 +569,51 @@ export function RmfReportView() {
                 ) : (
                   <Stack gap="sm">
                     {problematicTraces.slice(0, 15).map(({ tree, findings: tf }) => {
-                      const inp = extractText(tree.rootSpan.input) || "(입력 없음)";
-                      const out = extractText(tree.rootSpan.output) || "(출력 없음)";
-                      const evals = Array.from(new Set(tf.map((f) => f.eval)));
+                      const root = tree.rootSpan;
+                      const inp = extractText(root.input) || "(입력 없음)";
+                      const out = extractText(root.output) || "(출력 없음)";
                       const hasHuman = tf.some((f) => f.annotatorKind === "HUMAN");
+                      const isError = (root.status || "OK") !== "OK";
                       return (
                         <div key={tree.traceId} className="rounded-lg border p-3">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <Text variant="caption" as="p" className="font-medium uppercase tracking-wide">트레이스</Text>
+                          <div className="mb-2 flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <Text variant="caption" as="p" className="font-medium uppercase tracking-wide text-foreground/70">트레이스</Text>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatSec(tree.latency)}</span>
+                                {root.model && <span className="flex items-center gap-1"><Cpu className="h-3 w-3" />{root.model}</span>}
+                                {root.totalTokens > 0 && <span className="flex items-center gap-1"><Coins className="h-3 w-3" /><span className="tabular-nums">{root.totalTokens.toLocaleString()}</span> tok</span>}
+                                <span className="tabular-nums">{new Date(tree.time).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                                <span className="rounded bg-muted px-1.5 py-0.5 tabular-nums">{tree.spanCount} span</span>
+                                {isError && <span className="font-medium" style={{ color: "#ef4444" }}>ERROR</span>}
+                              </div>
+                            </div>
                             <span className="shrink-0 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground/70">지적 {tf.length}{hasHuman ? " · 사람평가" : ""}</span>
                           </div>
-                          <div className="space-y-1.5 rounded-md bg-muted/40 p-2 text-xs">
-                            <p className="whitespace-pre-wrap break-words"><span className="font-medium">입력</span> <span className="text-muted-foreground">{inp}</span></p>
-                            <p className="whitespace-pre-wrap break-words"><span className="font-medium">출력</span> <span className="text-muted-foreground">{out}</span></p>
+                          {root.annotations.length > 0 && (
+                            <div className="mb-2"><AnnotationBadges annotations={root.annotations} includeHuman /></div>
+                          )}
+                          <div className="grid gap-2 md:grid-cols-2">
+                            <div className="rounded-md bg-muted/40 p-2">
+                              <Text variant="caption" as="p" className="mb-1 font-medium text-foreground/70">입력</Text>
+                              <p className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">{inp}</p>
+                            </div>
+                            <div className="rounded-md bg-muted/40 p-2">
+                              <Text variant="caption" as="p" className="mb-1 font-medium text-foreground/70">출력</Text>
+                              <p className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">{out}</p>
+                            </div>
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {evals.map((e) => <span key={e} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{e}</span>)}
+                          <div className="mt-2 border-t pt-2">
+                            <Text variant="caption" as="p" className="mb-1.5 font-medium uppercase tracking-wide text-foreground/70">지적 사유 {tf.length}건</Text>
+                            <Stack gap="sm">
+                              {tf.map((f, i) => (
+                                <div key={i} className="flex items-start gap-2">
+                                  <span className="mt-0.5 shrink-0"><AnnotationBadge annotation={{ name: f.eval, label: f.label, score: f.score, annotatorKind: f.annotatorKind === "HUMAN" ? "HUMAN" : "LLM", explanation: f.reason }} /></span>
+                                  <Text variant="caption" as="p" className="min-w-0 flex-1"><span className="text-foreground/70">[{ITEM_LABEL[f.itemKey] ?? f.itemKey}]</span> {f.reason || f.label}</Text>
+                                </div>
+                              ))}
+                            </Stack>
                           </div>
-                          <Stack gap="xs" className="mt-2 border-t pt-2">
-                            {tf.map((f, i) => (
-                              <Text key={i} variant="caption" as="p"><span className="text-foreground/70">[{ITEM_LABEL[f.itemKey] ?? f.itemKey}]</span>{f.annotatorKind === "HUMAN" ? " (사람평가)" : ""} {f.reason || f.label}</Text>
-                            ))}
-                          </Stack>
                         </div>
                       );
                     })}

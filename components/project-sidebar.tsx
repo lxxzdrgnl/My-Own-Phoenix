@@ -17,6 +17,7 @@ import {
   Settings,
   LogOut,
   FileText,
+  Landmark,
   PanelLeftClose,
   PanelLeft,
   Users,
@@ -65,7 +66,7 @@ export function ProjectSidebar({ slug, projectName }: ProjectSidebarProps) {
       label: t.projects.safety ?? "Safety",
       items: [
         { href: "measure", label: t.projects.measureNav ?? "Risk Management", icon: Gauge },
-        { href: "rmf-report", label: t.projects.financeRmf ?? "금융 AI RMF", icon: FileText },
+        { href: "rmf-report", label: t.projects.financeRmf ?? "금융 AI RMF", icon: Landmark },
         { href: "pii-guard", label: t.projects.piiGuard ?? "PII Guard", icon: Shield },
       ],
     },
