@@ -28,42 +28,53 @@ function fmtMs(ms: number) { return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms /
 
 function buildGraph(root: RawSpan, exclude?: Set<string>) {
   const nodes = new Map<string, GNode>();
-  const levels: string[][] = [];
-  const q: { s: RawSpan; l: number }[] = [{ s: root, l: 0 }];
-  while (q.length) {
-    const { s, l } = q.shift()!;
-    if (nodes.has(s.spanId)) continue;
-    if (exclude && exclude.has((s.spanKind ?? "").toUpperCase())) {
-      // Skip this span entirely AND its descendants — they're not meaningful
-      // standalone in the graph view.
-      continue;
-    }
-    if (!levels[l]) levels[l] = [];
-    levels[l].push(s.spanId);
+  const isExcluded = (s: RawSpan) =>
+    !!exclude && exclude.has((s.spanKind ?? "").toUpperCase());
+
+  // Create nodes, skipping excluded spans AND their descendants — they're not
+  // meaningful standalone in the graph view.
+  function create(s: RawSpan) {
+    if (isExcluded(s)) return;
+    const kids = s.children.filter((c) => !isExcluded(c));
     nodes.set(s.spanId, {
-      id: s.spanId, name: s.name.length > 14 ? s.name.slice(0, 12) + "…" : s.name,
+      id: s.spanId,
+      name: s.name.length > 14 ? s.name.slice(0, 12) + "…" : s.name,
       kind: s.spanKind,
       latency: s.latency,
-      childIds: s.children
-        .filter((c) => !exclude || !exclude.has((c.spanKind ?? "").toUpperCase()))
-        .map((c) => c.spanId),
+      childIds: kids.map((c) => c.spanId),
       x: 0, y: 0,
     });
-    for (const c of s.children) q.push({ s: c, l: l + 1 });
+    kids.forEach(create);
   }
-  let maxW = 0;
-  for (const ids of levels) maxW = Math.max(maxW, ids.length * W + (ids.length - 1) * GX);
-  for (let l = 0; l < levels.length; l++) {
-    const ids = levels[l];
-    const tw = ids.length * W + (ids.length - 1) * GX;
-    const sx = (maxW - tw) / 2;
-    for (let i = 0; i < ids.length; i++) {
-      const n = nodes.get(ids[i])!;
-      n.x = sx + i * (W + GX);
-      n.y = l * (H + GY);
+  if (isExcluded(root)) return { nodes, w: W, h: H };
+  create(root);
+
+  // Tidy-tree layout: place each subtree under its parent. Leaves take the next
+  // horizontal slot (so sibling subtrees never overlap); a parent is centered
+  // over the span of its children. Depth maps to the vertical axis.
+  let cursor = 0;
+  let maxDepth = 0;
+  function place(s: RawSpan, depth: number) {
+    const n = nodes.get(s.spanId);
+    if (!n) return;
+    maxDepth = Math.max(maxDepth, depth);
+    n.y = depth * (H + GY);
+    const kids = s.children.filter((c) => nodes.has(c.spanId));
+    if (kids.length === 0) {
+      n.x = cursor;
+      cursor += W + GX;
+      return;
     }
+    kids.forEach((c) => place(c, depth + 1));
+    const first = nodes.get(kids[0].spanId)!;
+    const last = nodes.get(kids[kids.length - 1].spanId)!;
+    n.x = (first.x + last.x) / 2;
   }
-  return { nodes, w: maxW + W, h: levels.length * (H + GY) - GY + H };
+  place(root, 0);
+
+  let maxX = 0;
+  nodes.forEach((n) => { maxX = Math.max(maxX, n.x); });
+  return { nodes, w: maxX + W, h: maxDepth * (H + GY) + H };
 }
 
 // ─── Canvas renderer ────────────────────────────────────────────────────
