@@ -20,6 +20,15 @@ const PY_KW = new Set([
 ]);
 const PY_CONST = new Set(["True","False","None","self"]);
 
+const TS_KW = new Set([
+  "const","let","var","function","return","import","from","export","default",
+  "new","class","interface","type","enum","extends","implements","async","await",
+  "if","else","for","while","do","switch","case","break","continue","try","catch",
+  "finally","throw","typeof","instanceof","in","of","as","void","public","private",
+  "readonly","static","get","set","yield",
+]);
+const TS_CONST = new Set(["true","false","null","undefined","this","super"]);
+
 function hlPython(line: string): ReactNode[] {
   const out: ReactNode[] = [];
   let i = 0, k = 0;
@@ -62,6 +71,41 @@ function hlPython(line: string): ReactNode[] {
   return out;
 }
 
+function hlTs(line: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  let i = 0, k = 0;
+  while (i < line.length) {
+    if (line[i] === "/" && line[i + 1] === "/") {
+      out.push(<span key={k++} style={{ color: C.cmt }}>{line.slice(i)}</span>);
+      return out;
+    }
+    if (line[i] === '"' || line[i] === "'" || line[i] === "`") {
+      const q = line[i];
+      let j = i + 1;
+      while (j < line.length && line[j] !== q) { if (line[j] === "\\") j++; j++; }
+      j = Math.min(j + 1, line.length);
+      out.push(<span key={k++} style={{ color: C.str }}>{line.slice(i, j)}</span>);
+      i = j;
+      continue;
+    }
+    if (/[a-zA-Z_$]/.test(line[i])) {
+      let j = i;
+      while (j < line.length && /[\w$]/.test(line[j])) j++;
+      const w = line.slice(i, j);
+      if (TS_KW.has(w)) out.push(<span key={k++} style={{ color: C.kw }}>{w}</span>);
+      else if (TS_CONST.has(w)) out.push(<span key={k++} style={{ color: C.const }}>{w}</span>);
+      else out.push(<span key={k++}>{w}</span>);
+      i = j;
+      continue;
+    }
+    let j = i;
+    while (j < line.length && !/[/"'`a-zA-Z_$]/.test(line[j])) j++;
+    out.push(<span key={k++}>{line.slice(i, j)}</span>);
+    i = j;
+  }
+  return out;
+}
+
 function hlBash(line: string): ReactNode[] {
   const trimmed = line.trimStart();
   if (trimmed.startsWith("#")) {
@@ -90,8 +134,9 @@ function hlBash(line: string): ReactNode[] {
 function highlight(code: string, filename?: string): ReactNode {
   const isPy = filename?.endsWith(".py");
   const isBash = filename === "terminal" || filename?.endsWith(".sh");
-  if (!isPy && !isBash) return code;
-  const fn = isPy ? hlPython : hlBash;
+  const isTs = filename?.endsWith(".ts") || filename?.endsWith(".tsx");
+  if (!isPy && !isBash && !isTs) return code;
+  const fn = isPy ? hlPython : isTs ? hlTs : hlBash;
   return code.split("\n").map((line, i) => (
     <span key={i}>
       {i > 0 && "\n"}
