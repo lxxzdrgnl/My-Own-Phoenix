@@ -16,7 +16,7 @@ interface GNode {
   y: number;
 }
 
-const W = 120, H = 72, GX = 40, GY = 50, PAD = 40;
+const W = 104, H = 72, GX = 16, GY = 34, PAD = 40;
 const ZOOM_STEP = 0.1, MIN_Z = 0.2, MAX_Z = 2;
 
 const KIND_COLORS: Record<string, string> = {
