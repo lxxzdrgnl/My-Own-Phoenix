@@ -364,8 +364,72 @@ export function RmfReportView() {
               </div>
             </div>
 
-            {/* 보고서 내용을 대시보드 형태로 */}
-            <div className="rounded-lg border bg-card p-5 text-neutral-900">{body}</div>
+            {/* 부문별 위험도 (대시보드) */}
+            <div className="rounded-lg border bg-card p-4">
+              <p className="mb-3 text-sm font-medium">부문별 위험도</p>
+              <div className="space-y-2">
+                {RISK_SECTIONS.map((sec) => {
+                  const sub = score.sectionSubtotals[sec.key] ?? 0;
+                  const ratio = sec.weight > 0 ? sub / sec.weight : 0;
+                  const pct = Math.min(100, Math.round(ratio * 100));
+                  const color = ratioColor(ratio);
+                  const fc = sec.items.reduce((a, it) => a + (findingsByItem[it.key]?.length ?? 0), 0);
+                  return (
+                    <div key={sec.key} className="flex items-center gap-3 text-xs">
+                      <div className="w-24 shrink-0 font-medium">{sec.label} <span className="text-muted-foreground">({sec.weight}%)</span></div>
+                      <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full" style={{ width: pct + "%", background: color }} /></div>
+                      <div className="w-28 shrink-0 text-right"><span className="font-medium" style={{ color }}>{ratioLabel(ratio)}</span><span className="text-muted-foreground"> · {sub}/{sec.weight} · 지적 {fc}</span></div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 위험평가 항목 (카드 그리드) */}
+            <div className="grid grid-cols-2 gap-3">
+              {RISK_SECTIONS.map((sec) => (
+                <div key={sec.key} className="rounded-lg border bg-card p-4">
+                  <p className="mb-2 text-sm font-medium">{sec.label} <span className="text-xs text-muted-foreground">({sec.weight}%)</span></p>
+                  <div className="space-y-1.5">
+                    {sec.items.map((item) => {
+                      const st = state.riskItems[item.key];
+                      const measured = !!st && st.source !== "manual";
+                      const residual = score.perItemResidual[item.key] ?? 0;
+                      const rr = item.maxInherent > 0 ? residual / item.maxInherent : 0;
+                      const fc = findingsByItem[item.key]?.length ?? 0;
+                      return (
+                        <div key={item.key} className="flex items-center justify-between gap-2 text-xs">
+                          <span className="flex items-center gap-1.5">
+                            <span className="inline-block h-2 w-2 rounded-full" style={{ background: measured ? ratioColor(rr) : "#d4d4d8" }} />
+                            {item.label}
+                          </span>
+                          <span className="text-muted-foreground">{measured ? `잔여 ${residual}/${item.maxInherent}` : "미측정"}{fc > 0 ? ` · 지적 ${fc}` : ""}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 주요 지적사항 (대시보드) */}
+            <div className="rounded-lg border bg-card p-4">
+              <p className="mb-2 text-sm font-medium">주요 지적사항 <span className="text-xs text-muted-foreground">({findings.length}건)</span></p>
+              {findings.length === 0 ? (
+                <p className="text-xs text-muted-foreground">자동 탐지된 지적 사항이 없습니다.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {findings.slice(0, 15).map((f, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-xs">
+                      <span className="shrink-0 rounded bg-muted px-1 font-mono text-[10px]">{f.eval}</span>
+                      {f.annotatorKind === "HUMAN" && <span className="shrink-0 rounded px-1 text-[10px] text-white" style={{ background: "#10b981" }}>사람</span>}
+                      <span className="text-muted-foreground">{f.reason || f.label}</span>
+                    </li>
+                  ))}
+                  {findings.length > 15 && <li className="text-xs text-muted-foreground">…외 {findings.length - 15}건</li>}
+                </ul>
+              )}
+            </div>
           </>
         )}
       </div>
