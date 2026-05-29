@@ -5,11 +5,14 @@ import { FileDown, ArrowLeft } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { apiFetch } from "@/lib/api-client";
 import { logger } from "@/lib/logger";
-import { fetchSpansAndAnnotations, buildTraceTrees, type RawSpan, type Annotation } from "@/lib/phoenix";
+import { fetchSpansAndAnnotations, buildTraceTrees, type RawSpan, type Annotation, type TraceTree } from "@/lib/phoenix";
 import { extractInputPreview } from "@/lib/span-extraction";
 import { computeMetrics, MEASURE_METRICS } from "@/lib/rmf-utils";
 import type { SpanData, AnnotationData } from "@/lib/dashboard-utils";
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
+import { Heading, Text } from "@/components/ui/typography";
+import { Stack, Inline } from "@/components/ui/stack";
+import { SectionCard } from "@/components/ui/section-card";
 import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings } from "@/lib/rmf/finance-prefill";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
@@ -20,15 +23,22 @@ const GRADE_RANGE: Record<Grade, string> = { 저: "0–24", 중: "25–49", 고:
 function gradeColor(g: Grade): string {
   if (g === "초고" || g === "고") return "#ef4444";
   if (g === "저") return "#10b981";
-  return "#525252";
+  return "#737373";
 }
+// 모노톤 팔레트: 높음(적)/낮음(녹)/보통(회)
 function ratioColor(r: number): string {
   if (r >= 0.5) return "#ef4444";
-  if (r >= 0.25) return "#a16207";
+  if (r >= 0.25) return "#737373";
   return "#10b981";
 }
 const ratioLabel = (r: number) => (r >= 0.5 ? "높음" : r >= 0.25 ? "보통" : "낮음");
 const metricLabel = (id?: string) => MEASURE_METRICS.find((m) => m.id === id)?.label ?? "";
+
+const ITEM_LABEL: Record<string, string> = (() => {
+  const m: Record<string, string> = {};
+  for (const s of RISK_SECTIONS) for (const i of s.items) m[i.key] = i.label;
+  return m;
+})();
 
 function collectSpans(node: RawSpan): SpanData[] {
   const out: SpanData[] = [{
@@ -78,7 +88,7 @@ interface BodyProps {
   findingsCap: number;
 }
 
-// 보고서 본문 — 대시보드/문서 양쪽에서 공유 (표지·인쇄 래퍼만 다름)
+// 보고서 본문(A4 문서) — 미리보기/인쇄 전용
 function RmfBody({ score, state, metricById, findingsByItem, findingQuery, traceCount, sections, findingsCap }: BodyProps) {
   const sectionRatio = (key: string) => {
     const sec = RISK_SECTIONS.find((s) => s.key === key)!;
@@ -86,7 +96,6 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
   };
   return (
     <>
-      {/* 종합 위험등급 */}
       <section className="avoid-break mb-7">
         <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">종합 위험등급</h2>
         <div className="flex items-baseline gap-4">
@@ -102,7 +111,6 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
         </div>
       </section>
 
-      {/* 부문별 위험도 */}
       <section className="avoid-break mb-7">
         <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">부문별 위험도</h2>
         <div className="space-y-2">
@@ -122,7 +130,6 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
         </div>
       </section>
 
-      {/* Ⅰ. 위험평가 결과 요약표 */}
       <section className="avoid-break mb-7">
         <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">Ⅰ. 위험평가 결과 요약 (7대 원칙)</h2>
         <table className="w-full border-collapse text-[11px]">
@@ -247,7 +254,7 @@ export function RmfReportView() {
   const { phoenixProject, id: projectId } = useProject();
   const [loading, setLoading] = useState(true);
   const [annMap, setAnnMap] = useState<Record<string, Annotation[]>>({});
-  const [trees, setTrees] = useState<ReturnType<typeof buildTraceTrees>>([]);
+  const [trees, setTrees] = useState<TraceTree[]>([]);
   const [hasProvider, setHasProvider] = useState(false);
 
   const [mode, setMode] = useState<"config" | "preview">("config");
@@ -315,59 +322,57 @@ export function RmfReportView() {
   const findingQuery = (f: Finding) => traceQuery.get(spanToTrace.get(f.spanId) ?? "") ?? "";
   const fmtDate = (d?: Date) => (d ? d.toISOString().slice(0, 10) : "-");
 
+  // 문제되는 트레이스 — 지적이 있는 트레이스 묶음 (지적 많은 순)
+  const problematicTraces = useMemo(() => {
+    const treeById = new Map(trees.map((t) => [t.traceId, t]));
+    const byTrace = new Map<string, Finding[]>();
+    for (const f of findings) {
+      const tid = spanToTrace.get(f.spanId);
+      if (!tid) continue;
+      const arr = byTrace.get(tid) ?? [];
+      arr.push(f);
+      byTrace.set(tid, arr);
+    }
+    return [...byTrace.entries()]
+      .map(([tid, fs]) => ({ tree: treeById.get(tid), findings: fs }))
+      .filter((x): x is { tree: TraceTree; findings: Finding[] } => !!x.tree)
+      .sort((a, b) => b.findings.length - a.findings.length);
+  }, [findings, trees, spanToTrace]);
+
   const body = (
     <RmfBody score={score} state={state} metricById={metricById} findingsByItem={findingsByItem}
       findingQuery={findingQuery} traceCount={trees.length} sections={sections} findingsCap={findingsCap} />
   );
 
-  // ─── 설정/대시보드 단계 ───
+  // ─── 대시보드 단계 (앱 스타일 — human-review 참고) ───
   if (mode === "config") {
     return (
-      <div className="mx-auto max-w-[980px] space-y-4 p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-bold">금융 AI RMF 위험평가</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">{phoenixProject} · 대시보드에서 확인 후 보고서를 생성하세요</p>
-          </div>
+      <div className="mx-auto max-w-[1100px] p-6">
+        <Inline gap="sm" className="mb-5 justify-between flex-wrap" align="start">
+          <Stack gap="xs">
+            <Heading level="page" as="h1" className="text-xl">금융 AI RMF 위험평가</Heading>
+            <Text variant="caption" as="p">{phoenixProject} · 최근 위험 현황을 확인하고 감독 제출용 보고서를 생성하세요</Text>
+          </Stack>
           <button onClick={() => setMode("preview")} disabled={loading} className="flex shrink-0 items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80 disabled:opacity-40">
             <FileDown className="h-4 w-4" /> 보고서 생성하기
           </button>
-        </div>
+        </Inline>
 
         {loading ? (
-          <div className="p-12 text-center text-sm text-muted-foreground">불러오는 중…</div>
+          <div className="py-16 text-center text-sm text-muted-foreground">불러오는 중…</div>
         ) : (
-          <>
-            <div className="grid grid-cols-4 gap-3">
-              <div className="rounded-lg border bg-card p-4"><p className="text-xs text-muted-foreground">종합 위험등급</p><p className="mt-1 text-2xl font-bold" style={{ color: gradeColor(score.grade) }}>{score.grade}위험</p></div>
-              <div className="rounded-lg border bg-card p-4"><p className="text-xs text-muted-foreground">잔여위험 총점</p><p className="mt-1 text-2xl font-bold">{score.total}<span className="text-sm text-muted-foreground"> / 100</span></p></div>
-              <div className="rounded-lg border bg-card p-4"><p className="text-xs text-muted-foreground">분석 트레이스</p><p className="mt-1 text-2xl font-bold">{trees.length}</p></div>
-              <div className="rounded-lg border bg-card p-4"><p className="text-xs text-muted-foreground">지적 사항</p><p className="mt-1 text-2xl font-bold">{findings.length}<span className="text-sm text-muted-foreground">건</span></p></div>
+          <Stack gap="lg">
+            {/* 요약 통계 */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">종합 위험등급</Text><p className="mt-1 text-2xl font-bold" style={{ color: gradeColor(score.grade) }}>{score.grade}위험</p></div>
+              <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">잔여위험 총점</Text><p className="mt-1 text-2xl font-bold">{score.total}<span className="text-sm font-normal text-muted-foreground"> / 100</span></p></div>
+              <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">분석 트레이스</Text><p className="mt-1 text-2xl font-bold">{trees.length}</p></div>
+              <div className="rounded-lg border bg-card p-4"><Text variant="caption" as="p">지적 사항</Text><p className="mt-1 text-2xl font-bold">{findings.length}<span className="text-sm font-normal text-muted-foreground">건</span></p></div>
             </div>
 
-            {/* 출력 옵션 */}
-            <div className="rounded-lg border bg-card p-4">
-              <p className="mb-3 text-sm font-medium">보고서 출력 옵션</p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs">
-                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">평가 기간</span><DateRangePicker value={dateRange} onChange={setDateRange} /></label>
-                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">지적사항 항목당 표시</span><input type="number" min={1} max={50} value={findingsCap} onChange={(e) => setFindingsCap(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} className="w-20 rounded border px-2 py-1" /></label>
-                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">기관/제출처</span><input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="예: 금융감독원" className="w-40 rounded border px-2 py-1" /></label>
-                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">평가자</span><input value={assessor} onChange={(e) => setAssessor(e.target.value)} placeholder="작성자명" className="w-40 rounded border px-2 py-1" /></label>
-              </div>
-              <div className="mt-3 border-t pt-3">
-                <p className="mb-2 text-xs text-muted-foreground">포함할 섹션</p>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  {SECTION_LABELS.map((s) => (
-                    <label key={s.key} className="flex cursor-pointer items-center gap-1.5"><input type="checkbox" checked={sections[s.key]} onChange={(e) => setSections((prev) => ({ ...prev, [s.key]: e.target.checked }))} className="rounded" />{s.label}</label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* 부문별 위험도 (대시보드) */}
-            <div className="rounded-lg border bg-card p-4">
-              <p className="mb-3 text-sm font-medium">부문별 위험도</p>
-              <div className="space-y-2">
+            {/* 부문별 위험도 */}
+            <SectionCard title="부문별 위험도" variant="bordered">
+              <Stack gap="sm">
                 {RISK_SECTIONS.map((sec) => {
                   const sub = score.sectionSubtotals[sec.key] ?? 0;
                   const ratio = sec.weight > 0 ? sub / sec.weight : 0;
@@ -376,61 +381,93 @@ export function RmfReportView() {
                   const fc = sec.items.reduce((a, it) => a + (findingsByItem[it.key]?.length ?? 0), 0);
                   return (
                     <div key={sec.key} className="flex items-center gap-3 text-xs">
-                      <div className="w-24 shrink-0 font-medium">{sec.label} <span className="text-muted-foreground">({sec.weight}%)</span></div>
-                      <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full" style={{ width: pct + "%", background: color }} /></div>
-                      <div className="w-28 shrink-0 text-right"><span className="font-medium" style={{ color }}>{ratioLabel(ratio)}</span><span className="text-muted-foreground"> · {sub}/{sec.weight} · 지적 {fc}</span></div>
+                      <div className="w-28 shrink-0 font-medium">{sec.label} <span className="text-muted-foreground">({sec.weight}%)</span></div>
+                      <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: pct + "%", background: color }} /></div>
+                      <div className="w-32 shrink-0 text-right"><span className="font-medium" style={{ color }}>{ratioLabel(ratio)}</span><span className="text-muted-foreground"> · {sub}/{sec.weight} · 지적 {fc}</span></div>
                     </div>
                   );
                 })}
-              </div>
-            </div>
+              </Stack>
+            </SectionCard>
 
-            {/* 위험평가 항목 (카드 그리드) */}
-            <div className="grid grid-cols-2 gap-3">
-              {RISK_SECTIONS.map((sec) => (
-                <div key={sec.key} className="rounded-lg border bg-card p-4">
-                  <p className="mb-2 text-sm font-medium">{sec.label} <span className="text-xs text-muted-foreground">({sec.weight}%)</span></p>
-                  <div className="space-y-1.5">
-                    {sec.items.map((item) => {
-                      const st = state.riskItems[item.key];
-                      const measured = !!st && st.source !== "manual";
-                      const residual = score.perItemResidual[item.key] ?? 0;
-                      const rr = item.maxInherent > 0 ? residual / item.maxInherent : 0;
-                      const fc = findingsByItem[item.key]?.length ?? 0;
-                      return (
-                        <div key={item.key} className="flex items-center justify-between gap-2 text-xs">
-                          <span className="flex items-center gap-1.5">
-                            <span className="inline-block h-2 w-2 rounded-full" style={{ background: measured ? ratioColor(rr) : "#d4d4d8" }} />
-                            {item.label}
-                          </span>
-                          <span className="text-muted-foreground">{measured ? `잔여 ${residual}/${item.maxInherent}` : "미측정"}{fc > 0 ? ` · 지적 ${fc}` : ""}</span>
-                        </div>
-                      );
-                    })}
+            {/* 위험평가 항목 */}
+            <SectionCard title="위험평가 항목 (7대 원칙)" variant="bordered">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {RISK_SECTIONS.map((sec) => (
+                  <div key={sec.key}>
+                    <Text variant="body" as="p" className="mb-1.5 font-medium">{sec.label} <span className="text-xs text-muted-foreground">({sec.weight}%)</span></Text>
+                    <Stack gap="xs">
+                      {sec.items.map((item) => {
+                        const st = state.riskItems[item.key];
+                        const measured = !!st && st.source !== "manual";
+                        const residual = score.perItemResidual[item.key] ?? 0;
+                        const rr = item.maxInherent > 0 ? residual / item.maxInherent : 0;
+                        const fc = findingsByItem[item.key]?.length ?? 0;
+                        return (
+                          <div key={item.key} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ background: measured ? ratioColor(rr) : "#d4d4d8" }} />{item.label}</span>
+                            <span className="text-muted-foreground">{measured ? `잔여 ${residual}/${item.maxInherent}` : "미측정"}{fc > 0 ? ` · 지적 ${fc}` : ""}</span>
+                          </div>
+                        );
+                      })}
+                    </Stack>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </SectionCard>
 
-            {/* 주요 지적사항 (대시보드) */}
-            <div className="rounded-lg border bg-card p-4">
-              <p className="mb-2 text-sm font-medium">주요 지적사항 <span className="text-xs text-muted-foreground">({findings.length}건)</span></p>
-              {findings.length === 0 ? (
-                <p className="text-xs text-muted-foreground">자동 탐지된 지적 사항이 없습니다.</p>
+            {/* 문제되는 트레이스 */}
+            <SectionCard title="문제되는 트레이스" description={`지적이 탐지된 트레이스 ${problematicTraces.length}건 (지적 많은 순)`} variant="bordered">
+              {problematicTraces.length === 0 ? (
+                <Text variant="caption" as="p">자동 탐지된 지적 사항이 없습니다.</Text>
               ) : (
-                <ul className="space-y-1.5">
-                  {findings.slice(0, 15).map((f, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-xs">
-                      <span className="shrink-0 rounded bg-muted px-1 font-mono text-[10px]">{f.eval}</span>
-                      {f.annotatorKind === "HUMAN" && <span className="shrink-0 rounded px-1 text-[10px] text-white" style={{ background: "#10b981" }}>사람</span>}
-                      <span className="text-muted-foreground">{f.reason || f.label}</span>
-                    </li>
-                  ))}
-                  {findings.length > 15 && <li className="text-xs text-muted-foreground">…외 {findings.length - 15}건</li>}
-                </ul>
+                <Stack gap="sm">
+                  {problematicTraces.slice(0, 12).map(({ tree, findings: tf }) => {
+                    const q = traceQuery.get(tree.traceId) || "(질의 없음)";
+                    const evals = Array.from(new Set(tf.map((f) => f.eval)));
+                    const hasHuman = tf.some((f) => f.annotatorKind === "HUMAN");
+                    return (
+                      <div key={tree.traceId} className="rounded-lg border p-3">
+                        <Inline gap="sm" className="justify-between" align="start">
+                          <Text variant="body" as="p" className="line-clamp-1 font-medium">{q.length > 90 ? q.slice(0, 90) + "…" : q}</Text>
+                          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ background: "#ef4444" }}>지적 {tf.length}{hasHuman ? " · 사람" : ""}</span>
+                        </Inline>
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {evals.map((e) => <span key={e} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{e}</span>)}
+                        </div>
+                        <Stack gap="xs" className="mt-1.5">
+                          {tf.slice(0, 3).map((f, i) => (
+                            <Text key={i} variant="caption" as="p" className="line-clamp-2">
+                              <span className="text-foreground/70">[{ITEM_LABEL[f.itemKey] ?? f.itemKey}]</span>{f.annotatorKind === "HUMAN" ? " (사람평가)" : ""} {f.reason || f.label}
+                            </Text>
+                          ))}
+                          {tf.length > 3 && <Text variant="caption" as="p">…외 {tf.length - 3}건</Text>}
+                        </Stack>
+                      </div>
+                    );
+                  })}
+                </Stack>
               )}
-            </div>
-          </>
+            </SectionCard>
+
+            {/* 보고서 출력 옵션 */}
+            <SectionCard title="보고서 출력 옵션" description="생성할 보고서에 반영됩니다" variant="bordered">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 text-xs md:grid-cols-2">
+                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">평가 기간</span><DateRangePicker value={dateRange} onChange={setDateRange} /></label>
+                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">지적사항 항목당 표시</span><input type="number" min={1} max={50} value={findingsCap} onChange={(e) => setFindingsCap(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} className="w-20 rounded border px-2 py-1" /></label>
+                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">기관/제출처</span><input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="예: 금융감독원" className="w-44 rounded border px-2 py-1" /></label>
+                <label className="flex items-center justify-between gap-2"><span className="text-muted-foreground">평가자</span><input value={assessor} onChange={(e) => setAssessor(e.target.value)} placeholder="작성자명" className="w-44 rounded border px-2 py-1" /></label>
+              </div>
+              <div className="mt-3 border-t pt-3">
+                <Text variant="caption" as="p" className="mb-2">포함할 섹션</Text>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  {SECTION_LABELS.map((s) => (
+                    <label key={s.key} className="flex cursor-pointer items-center gap-1.5"><input type="checkbox" checked={sections[s.key]} onChange={(e) => setSections((prev) => ({ ...prev, [s.key]: e.target.checked }))} className="rounded" />{s.label}</label>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+          </Stack>
         )}
       </div>
     );
@@ -441,7 +478,7 @@ export function RmfReportView() {
     <div className="mx-auto max-w-[880px] p-6">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
       <div className="no-print mb-4 flex items-center justify-between gap-3">
-        <button onClick={() => setMode("config")} className="flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium transition hover:bg-muted"><ArrowLeft className="h-4 w-4" /> 설정 수정</button>
+        <button onClick={() => setMode("config")} className="flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium transition hover:bg-muted"><ArrowLeft className="h-4 w-4" /> 대시보드로</button>
         <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80"><FileDown className="h-4 w-4" /> PDF 출력</button>
       </div>
       <div className="rmf-report rounded-lg border bg-white p-10 text-[13px] leading-relaxed text-neutral-900 shadow-sm">
