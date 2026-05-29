@@ -964,6 +964,11 @@ export const ko = {
   // ── Project Settings ──
   projectSettings: {
     title: "프로젝트 설정",
+    aiLanguage: "언어",
+    aiLanguageDesc: "인터페이스 언어를 선택합니다.",
+    aiLangKoDesc: "한국어 인터페이스",
+    aiLangEnDesc: "영어 인터페이스",
+    languageSaved: "언어가 저장되었습니다",
     // Tabs
     members: "멤버",
     apiKeys: "API 키",

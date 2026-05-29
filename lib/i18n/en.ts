@@ -975,6 +975,11 @@ export const en = {
   // ── Project Settings ──
   projectSettings: {
     title: "Project Settings",
+    aiLanguage: "Language",
+    aiLanguageDesc: "Choose the interface language.",
+    aiLangKoDesc: "Korean interface",
+    aiLangEnDesc: "English interface",
+    languageSaved: "Language saved",
     // Tabs
     members: "Members",
     apiKeys: "API Keys",
