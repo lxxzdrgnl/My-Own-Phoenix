@@ -30,7 +30,7 @@ import type { AssessmentState, Finding, Grade, ScoreResult, ChecklistItemState, 
 import { RmfBody } from "./rmf-report-body";
 import {
   GRADES, GRADE_RANGE, gradeColor, gradeText, ratioColor, ratioLabel, metricLabel,
-  sectionLabel, itemText, govText, ctrlText, checkStatusLabel, CHECK_STATUS_VALUES,
+  sectionLabel, itemText, govText, ctrlText,
   SourceBadge, SECTION_DEFS, PRINT_CSS, parseFeedback, collectSpans,
   type SectionKey, type RmfFeedback,
 } from "./rmf-helpers";
@@ -701,17 +701,9 @@ export function RmfReportView() {
                     const filled = !!(cur?.note ?? "").trim();
                     return (
                       <div key={g.key} className={`rounded-lg border p-3 transition-colors ${filled ? "border-l-2 border-l-foreground" : ""}`}>
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <Text variant="caption" as="p" className="font-medium text-foreground">{govText(g.key, rmf).label}</Text>
-                            <p className="text-xs leading-relaxed text-muted-foreground">{govText(g.key, rmf).desc}</p>
-                          </div>
-                          <div className="flex shrink-0 overflow-hidden rounded-md border text-xs">
-                            {CHECK_STATUS_VALUES.map((v) => {
-                              const active = (cur?.status ?? "done") === v;
-                              return <button key={v} onClick={() => setChecklist("gov", g.key, { status: v })} className={`px-2 py-1 transition-colors ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>{checkStatusLabel(v, rmf.statuses)}</button>;
-                            })}
-                          </div>
+                        <div className="mb-2">
+                          <Text variant="caption" as="p" className="font-medium text-foreground">{govText(g.key, rmf).label}</Text>
+                          <p className="text-xs leading-relaxed text-muted-foreground">{govText(g.key, rmf).desc}</p>
                         </div>
                         <textarea value={cur?.note ?? ""} rows={1} placeholder={govText(g.key, rmf).ex} onChange={(e) => setChecklist("gov", g.key, { note: e.target.value })} className="w-full rounded border bg-transparent px-2 py-1.5 text-sm" />
                       </div>
@@ -727,17 +719,9 @@ export function RmfReportView() {
                     const filled = !!(cur?.note ?? "").trim();
                     return (
                       <div key={c.key} className={`rounded-lg border p-3 transition-colors ${filled ? "border-l-2 border-l-foreground" : ""}`}>
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <Text variant="caption" as="p" className="font-medium text-foreground">{ctrlText(c.key, rmf).label}{c.autoEvidenced && <span className="ml-1.5 text-xs font-normal text-muted-foreground">· {ui.autoEvidenced}</span>}</Text>
-                            <p className="text-xs leading-relaxed text-muted-foreground">{ctrlText(c.key, rmf).desc}</p>
-                          </div>
-                          <div className="flex shrink-0 overflow-hidden rounded-md border text-xs">
-                            {CHECK_STATUS_VALUES.map((v) => {
-                              const active = (cur?.status ?? "done") === v;
-                              return <button key={v} onClick={() => setChecklist("ctrl", c.key, { status: v })} className={`px-2 py-1 transition-colors ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>{checkStatusLabel(v, rmf.statuses)}</button>;
-                            })}
-                          </div>
+                        <div className="mb-2">
+                          <Text variant="caption" as="p" className="font-medium text-foreground">{ctrlText(c.key, rmf).label}{c.autoEvidenced && <span className="ml-1.5 text-xs font-normal text-muted-foreground">· {ui.autoEvidenced}</span>}</Text>
+                          <p className="text-xs leading-relaxed text-muted-foreground">{ctrlText(c.key, rmf).desc}</p>
                         </div>
                         <textarea value={cur?.note ?? ""} rows={1} placeholder={ctrlText(c.key, rmf).ex} onChange={(e) => setChecklist("ctrl", c.key, { note: e.target.value })} className="w-full rounded border bg-transparent px-2 py-1.5 text-sm" />
                       </div>

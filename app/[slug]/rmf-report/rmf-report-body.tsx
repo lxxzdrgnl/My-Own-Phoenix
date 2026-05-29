@@ -7,7 +7,7 @@ import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS } from "@/lib/rmf/financ
 import type { AssessmentState, Finding, ScoreResult } from "@/lib/rmf/types";
 import {
   GRADES, GRADE_RANGE, gradeColor, gradeText, ratioColor, ratioLabel, metricLabel,
-  sectionLabel, itemText, govText, ctrlText, matrixText, checkStatusLabel,
+  sectionLabel, itemText, govText, ctrlText, matrixText,
   SourceBadge, type SectionKey,
 } from "./rmf-helpers";
 
@@ -143,7 +143,7 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
                         <span className="font-semibold">{itemText(item.key, rmf).label} <SourceBadge source={st?.source} /></span>
                         <span className="text-neutral-600">{st && st.source !== "manual" ? <>{ui.inherent} {st.inherent} · {ui.mitigation} {st.mitigation} · <b>{ui.residual} {score.perItemResidual[item.key] ?? 0}</b> / {item.maxInherent} · {nFindings(itemFindings.length)}</> : <span className="text-neutral-400">{ui.qualitative}</span>}</span>
                       </div>
-                      <p className="mt-1 text-neutral-500">{ui.basisLabel}: {item.providerSignal ? ui.providerSignalFull + (st?.note ? ` — ${st.note}` : "") : m && !m.noData ? metricLabel(item.evalMetricId) + " " + m.value.toFixed(1) + "%" : (st?.note ? `${ui.qualitative} — ${st.note}` : ui.qualNoInput)}</p>
+                      <p className="mt-1 text-neutral-500">{ui.basisLabel}: {item.providerSignal ? ui.providerSignalFull + (st?.note ? ` — ${st.note}` : "") : m && !m.noData ? metricLabel(item.evalMetricId) + " " + m.value.toFixed(1) + "%" : (st?.note?.trim() ? `${ui.qualitative} — ${st.note}` : "-")}</p>
                       {sections.findings && itemFindings.length > 0 && (
                         <ul className="mt-1 space-y-1 border-t border-dashed pt-1">
                           {itemFindings.slice(0, findingsCap).map((f, idx) => {
@@ -175,10 +175,8 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
           <ul className="space-y-1.5 text-[11px]">
             {GOVERNANCE_ITEMS.map((g) => {
               const cs = state.governance[g.key];
-              const status = cs?.status ?? "done";
-              const stColor = status === "done" ? "#10b981" : status === "insufficient" ? "#ef4444" : "#737373";
               return (
-                <li key={g.key} className="border-b pb-1.5"><b>{govText(g.key, rmf).label}</b> <span className="rounded px-1 text-[9px] text-white" style={{ background: stColor }}>{checkStatusLabel(status, rmf.statuses)}</span><p className="text-neutral-600">{cs?.note || govText(g.key, rmf).desc}</p></li>
+                <li key={g.key} className="border-b pb-1.5"><b>{govText(g.key, rmf).label}</b><p className="text-neutral-600">{cs?.note?.trim() || "-"}</p></li>
               );
             })}
           </ul>
@@ -195,15 +193,12 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
           <ul className="space-y-1.5 text-[11px]">
             {CONTROL_ITEMS.map((c) => {
               const cs = state.controls[c.key];
-              const status = cs?.status ?? "done";
-              const stColor = status === "done" ? "#10b981" : status === "insufficient" ? "#ef4444" : "#737373";
               return (
                 <li key={c.key} className="border-b pb-1.5">
                   <b>{ctrlText(c.key, rmf).label}</b>{" "}
-                  <span className="rounded px-1 text-[9px] text-white" style={{ background: stColor }}>{checkStatusLabel(status, rmf.statuses)}</span>
                   {c.autoEvidenced && <span className="ml-1 rounded bg-neutral-200 px-1 text-[9px] text-neutral-600">{ui.autoEvidenced}</span>}
                   {c.key === "monitoring" && <span className="ml-1 text-neutral-500">{ui.monitoringNote.replace("{n}", String(traceCount))}</span>}
-                  <p className="text-neutral-600">{cs?.note || ctrlText(c.key, rmf).desc}</p>
+                  <p className="text-neutral-600">{cs?.note?.trim() || "-"}</p>
                 </li>
               );
             })}
