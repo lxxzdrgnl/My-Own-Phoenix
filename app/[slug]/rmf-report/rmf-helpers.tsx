@@ -33,8 +33,8 @@ export const metricLabel = (id?: string) => MEASURE_METRICS.find((m) => m.id ===
 // finance-rmf 키 → 표시 라벨/설명 해석 (현재 로케일)
 export const sectionLabel = (key: string, rmf: RmfL10n) => (rmf.sections as Record<string, string>)[key] ?? key;
 export const itemText = (key: string, rmf: RmfL10n) => (rmf.items as Record<string, { label: string; guide: string }>)[key] ?? { label: key, guide: "" };
-export const govText = (key: string, rmf: RmfL10n) => (rmf.governance as Record<string, { label: string; desc: string }>)[key] ?? { label: key, desc: "" };
-export const ctrlText = (key: string, rmf: RmfL10n) => (rmf.controls as Record<string, { label: string; desc: string }>)[key] ?? { label: key, desc: "" };
+export const govText = (key: string, rmf: RmfL10n) => (rmf.governance as Record<string, { label: string; desc: string; ex: string }>)[key] ?? { label: key, desc: "", ex: "" };
+export const ctrlText = (key: string, rmf: RmfL10n) => (rmf.controls as Record<string, { label: string; desc: string; ex: string }>)[key] ?? { label: key, desc: "", ex: "" };
 export const matrixText = (g: Grade, rmf: RmfL10n) => (rmf.matrix as Record<string, { title: string; measures: readonly string[] }>)[g];
 
 // AI 종합 피드백(JSON) — 에이전트 개선 관점

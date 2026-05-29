@@ -713,7 +713,7 @@ export function RmfReportView() {
                             })}
                           </div>
                         </div>
-                        <textarea value={cur?.note ?? ""} rows={1} placeholder={ui.govNotePh} onChange={(e) => setChecklist("gov", g.key, { note: e.target.value })} className="w-full rounded border bg-transparent px-2 py-1.5 text-sm" />
+                        <textarea value={cur?.note ?? ""} rows={1} placeholder={govText(g.key, rmf).ex} onChange={(e) => setChecklist("gov", g.key, { note: e.target.value })} className="w-full rounded border bg-transparent px-2 py-1.5 text-sm" />
                       </div>
                     );
                   })}
@@ -739,7 +739,7 @@ export function RmfReportView() {
                             })}
                           </div>
                         </div>
-                        <textarea value={cur?.note ?? ""} rows={1} placeholder={ui.ctrlNotePh} onChange={(e) => setChecklist("ctrl", c.key, { note: e.target.value })} className="w-full rounded border bg-transparent px-2 py-1.5 text-sm" />
+                        <textarea value={cur?.note ?? ""} rows={1} placeholder={ctrlText(c.key, rmf).ex} onChange={(e) => setChecklist("ctrl", c.key, { note: e.target.value })} className="w-full rounded border bg-transparent px-2 py-1.5 text-sm" />
                       </div>
                     );
                   })}
