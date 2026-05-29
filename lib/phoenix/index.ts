@@ -20,13 +20,15 @@ export {
   computeHasGuardrailTriggered,
 } from "./guardrail";
 
-export { normalizeContent } from "./helpers";
+export { normalizeContent, fetchSpansAndAnnotations } from "./helpers";
 
 export { fetchProjects } from "./projects";
 
 export {
   fetchTraces,
   fetchTraceTrees,
+  buildTraces,
+  buildTraceTrees,
   deleteTrace,
 } from "./traces";
 

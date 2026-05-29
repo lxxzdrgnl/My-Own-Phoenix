@@ -31,18 +31,26 @@ export function extractResponse(output: string): string {
 
 // ─── Shared: fetch spans + annotations ─────────────────────────────────────
 
+/** Default span page size — preserves prior single-shot behaviour for callers
+ *  that don't paginate. */
+const DEFAULT_SPANS_LIMIT = 1000;
+
 export async function fetchSpansAndAnnotations(
   projectName: string,
   startTime?: string,
   endTime?: string,
-): Promise<{ allSpans: any[]; annMap: Record<string, Annotation[]> }> {
-  let spansUrl = `/api/v1/projects/${encodeURIComponent(projectName)}/spans?limit=1000`;
+  cursor?: string,
+  limit: number = DEFAULT_SPANS_LIMIT,
+): Promise<{ allSpans: any[]; annMap: Record<string, Annotation[]>; nextCursor: string | null }> {
+  let spansUrl = `/api/v1/projects/${encodeURIComponent(projectName)}/spans?limit=${limit}`;
   if (startTime) spansUrl += `&start_time=${encodeURIComponent(startTime)}`;
   if (endTime) spansUrl += `&end_time=${encodeURIComponent(endTime)}`;
+  if (cursor) spansUrl += `&cursor=${encodeURIComponent(cursor)}`;
 
   const spansRes = await apiFetch(spansUrl);
   const spansData = await spansRes.json();
   const allSpans: any[] = spansData.data ?? [];
+  const nextCursor: string | null = spansData.next_cursor ?? null;
 
   // Fetch annotations in batches of 50
   const allIds = allSpans.map((s) => s.context?.span_id).filter(Boolean) as string[];
@@ -73,7 +81,7 @@ export async function fetchSpansAndAnnotations(
     }),
   );
 
-  return { allSpans, annMap };
+  return { allSpans, annMap, nextCursor };
 }
 
 /** Merge all annotations from a trace's spans into one list.

@@ -1,7 +1,7 @@
 import { apiFetch } from "@/lib/api-client";
 import { fetchSpansAndAnnotations, mergeTraceAnnotations, buildSpanTree, extractTag, extractResponse } from "./helpers";
 import { computeHasGuardrailTriggered } from "./guardrail";
-import type { Trace, TraceTree } from "./types";
+import type { Trace, TraceTree, Annotation } from "./types";
 
 export async function fetchTraces(
   projectName: string,
@@ -11,7 +11,18 @@ export async function fetchTraces(
   endTime?: string,
 ): Promise<Trace[]> {
   const { allSpans, annMap } = await fetchSpansAndAnnotations(projectName, startTime, endTime);
+  return buildTraces(allSpans, annMap, spanKinds, contentFilter);
+}
 
+/** Build the deduplicated, root-span Trace list from already-fetched spans.
+ *  Split out from fetchTraces so paginating callers can accumulate spans across
+ *  pages and rebuild without refetching. */
+export function buildTraces(
+  allSpans: any[],
+  annMap: Record<string, Annotation[]>,
+  spanKinds?: string,
+  contentFilter?: string,
+): Trace[] {
   // Default: only root spans (no parent). With explicit spanKinds, filter all spans.
   const kinds = spanKinds?.split(",").filter(Boolean) ?? [];
   let filtered = kinds.length > 0 && !kinds.includes("ALL")
@@ -213,7 +224,15 @@ export async function fetchTraceTrees(
   endTime?: string,
 ): Promise<TraceTree[]> {
   const { allSpans, annMap } = await fetchSpansAndAnnotations(projectName, startTime, endTime);
+  return buildTraceTrees(allSpans, annMap);
+}
 
+/** Build TraceTree[] from already-fetched spans. Split out from fetchTraceTrees
+ *  so paginating callers can accumulate spans across pages and rebuild. */
+export function buildTraceTrees(
+  allSpans: any[],
+  annMap: Record<string, Annotation[]>,
+): TraceTree[] {
   // Group by trace
   const traceGroups: Record<string, any[]> = {};
   for (const s of allSpans) {

@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Heading, Text } from "@/components/ui/typography";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { FAIL_LABELS } from "@/lib/constants";
-import { fetchTraces, fetchTraceTrees, deleteTrace, type Trace, type TraceTree } from "@/lib/phoenix";
+import { fetchSpansAndAnnotations, buildTraces, buildTraceTrees, deleteTrace, type Trace, type TraceTree, type Annotation } from "@/lib/phoenix";
 import { SpanTreeView } from "@/components/trace-tree";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -30,6 +30,11 @@ import { useProjectSse } from "@/lib/hooks/use-project-sse";
 import { useProjectOptional } from "@/lib/project-context";
 import { useDisclosure } from "@/lib/hooks/use-disclosure";
 
+
+// Infinite scroll: spans per page (Phoenix cursor pagination) and how early to
+// prefetch the next page before the sentinel scrolls fully into view.
+const TRACES_PAGE_SIZE = 200;
+const INFINITE_SCROLL_ROOT_MARGIN = "300px";
 
 function formatMs(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`;
@@ -163,32 +168,99 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
     [syncUrl],
   );
 
-  const loadTraces = useCallback(async () => {
-    setTracesLoading(true);
+  // ── Infinite-scroll paging over Phoenix spans ──
+  // We accumulate raw spans (deduped by span_id) across cursor pages and rebuild
+  // Trace[] / TraceTree[] from the full set, so traces whose spans straddle a
+  // page boundary still assemble into a complete tree.
+  const spansRef = useRef<Map<string, any>>(new Map());
+  const annMapRef = useRef<Record<string, Annotation[]>>({});
+  const cursorRef = useRef<string | null>(null);
+  const loadingMoreRef = useRef(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const mergeAndRebuild = useCallback((spans: any[], annMap: Record<string, Annotation[]>) => {
+    for (const s of spans) {
+      const id = s.context?.span_id;
+      if (id) spansRef.current.set(id, s);
+    }
+    Object.assign(annMapRef.current, annMap);
+    const all = [...spansRef.current.values()];
+    setTraces(buildTraces(all, annMapRef.current));
+    setTraceTrees(buildTraceTrees(all, annMapRef.current));
+  }, []);
+
+  const loadPage = useCallback(async (reset: boolean) => {
+    if (reset) {
+      spansRef.current = new Map();
+      annMapRef.current = {};
+      cursorRef.current = null;
+      setTracesLoading(true);
+    } else {
+      if (loadingMoreRef.current || !cursorRef.current) return;
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
+    }
     try {
-      const [t, trees] = await Promise.all([
-        fetchTraces(projectName, undefined, undefined, dateRange.from?.toISOString(), dateRange.to?.toISOString()),
-        fetchTraceTrees(projectName, dateRange.from?.toISOString(), dateRange.to?.toISOString()),
-      ]);
-      t.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-      setTraces(t);
-      setTraceTrees(trees);
+      const { allSpans, annMap, nextCursor } = await fetchSpansAndAnnotations(
+        projectName,
+        dateRange.from?.toISOString(),
+        dateRange.to?.toISOString(),
+        reset ? undefined : cursorRef.current ?? undefined,
+        TRACES_PAGE_SIZE,
+      );
+      cursorRef.current = nextCursor;
+      setHasMore(!!nextCursor);
+      mergeAndRebuild(allSpans, annMap);
       setInitialLoaded(true);
     } catch (e) {
       logger.error("project view load traces failed", e);
     }
-    setTracesLoading(false);
-  }, [projectName, dateRange]);
+    if (reset) setTracesLoading(false);
+    else {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [projectName, dateRange, mergeAndRebuild]);
 
   useEffect(() => {
-    loadTraces();
-  }, [loadTraces]);
+    loadPage(true);
+  }, [loadPage]);
 
-  // Live updates via SSE — re-fetch traces when an eval completes for this project
+  // Refresh the most-recent page in place (merge) so new annotations show
+  // without dropping already-loaded pages or scroll position.
+  const refreshRecent = useCallback(() => {
+    fetchSpansAndAnnotations(
+      projectName,
+      dateRange.from?.toISOString(),
+      dateRange.to?.toISOString(),
+      undefined,
+      TRACES_PAGE_SIZE,
+    )
+      .then(({ allSpans, annMap }) => mergeAndRebuild(allSpans, annMap))
+      .catch((e) => logger.error("project view refresh failed", e));
+  }, [projectName, dateRange, mergeAndRebuild]);
+
+  // Live updates via SSE — refresh recent annotations when an eval completes.
   const projectCtx = useProjectOptional();
   useProjectSse(projectCtx?.id, (msg) => {
-    if (msg.type === "eval-completed") loadTraces();
+    if (msg.type === "eval-completed") refreshRecent();
   });
+
+  // Infinite-scroll sentinel — load the next page as it nears the viewport.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const ob = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadPage(false);
+      },
+      { rootMargin: INFINITE_SCROLL_ROOT_MARGIN },
+    );
+    ob.observe(el);
+    return () => ob.disconnect();
+  }, [loadPage, hasMore]);
 
   // ── Multi-select delete ──
   const confirm = useConfirm();
@@ -199,6 +271,10 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
   // return a just-deleted trace; drop it from local state immediately.
   const removeTraces = useCallback((ids: string[]) => {
     const idSet = new Set(ids);
+    // Drop the spans too so a later rebuild (e.g. eval-completed) can't resurrect them.
+    for (const [spanId, s] of spansRef.current) {
+      if (idSet.has(s.context?.trace_id)) spansRef.current.delete(spanId);
+    }
     setTraces((prev) => prev.filter((tr) => !idSet.has(tr.traceId)));
     setTraceTrees((prev) => prev.filter((tr) => !idSet.has(tr.traceId)));
   }, []);
@@ -553,13 +629,21 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
               <SpanTreeView
                 traces={filteredTraceTrees}
                 projectName={projectName}
-                onRefresh={loadTraces}
+                onRefresh={refreshRecent}
                 onDeleted={(traceId) => removeTraces([traceId])}
                 deleteMode={sel.deleteMode}
                 deleteModeVisible={sel.deleteModeVisible}
                 selectedIds={sel.selectedIds}
                 onToggleSelect={sel.toggleSelect}
               />
+            )}
+
+            {hasMore && (
+              <div ref={sentinelRef} className="flex justify-center py-4">
+                <Text variant="caption" className="text-muted-foreground">
+                  {loadingMore ? t.common.loading : ""}
+                </Text>
+              </div>
             )}
           </>
         )}
