@@ -470,6 +470,7 @@ export function Dashboard() {
           <p className="text-xs text-muted-foreground mb-4">
             {t.docs.dashboard.nistFrameworkDesc}
           </p>
+          <p className="mt-2 text-xs text-muted-foreground">{t.docs.dashboard.rmfReportLink}</p>
           <div className="grid grid-cols-4 gap-3">
             {FRAMEWORK_CARDS.map((card) => (
               <div key={card.label} className="rounded-xl border overflow-hidden">

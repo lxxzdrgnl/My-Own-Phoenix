@@ -18,7 +18,7 @@ const MOCK_ANNOTATIONS = [
 interface SpanNode {
   id: string;
   name: string;
-  kind: "AGENT" | "CHAIN" | "LLM" | "TOOL" | "RETRIEVER";
+  kind: "AGENT" | "CHAIN" | "LLM" | "TOOL" | "RETRIEVER" | "GUARDRAIL";
   model?: string;
   latency: string;
   status: "ok" | "error";
@@ -74,6 +74,15 @@ const MOCK_SPANS: SpanNode = {
         '{"results": [{"title": "Google Gemini 2.0 Released", "snippet": "Google has released Gemini 2.0..."}, {"title": "Project Astra Demo", "snippet": "Real-time AI assistant..."}]}',
     },
     {
+      id: "guard",
+      name: "pii_guard",
+      kind: "GUARDRAIL",
+      latency: "0.02s",
+      status: "ok",
+      input: '{ "text": "내 카드번호 1234-5678-..." }',
+      output: '{ "triggered": true, "masked": "[REDACTED_CARD]" }',
+    },
+    {
       id: "reflection",
       name: "reflection (iteration 2)",
       kind: "CHAIN",
@@ -107,6 +116,7 @@ const KIND_STYLES: Record<string, { bg: string; fg: string; icon: string }> = {
   LLM: { bg: "bg-[#e8f5e9] dark:bg-[#2d4a2e]", fg: "text-[#2e7d32] dark:text-[#6fcf6f]", icon: "L" },
   TOOL: { bg: "bg-[#fef3e2] dark:bg-[#4a3b2d]", fg: "text-[#b57530] dark:text-[#e0a86b]", icon: "T" },
   RETRIEVER: { bg: "bg-[#fce4ec] dark:bg-[#4a2d3a]", fg: "text-[#b0446e] dark:text-[#e07baf]", icon: "R" },
+  GUARDRAIL: { bg: "bg-[#ef4444]/10", fg: "text-[#ef4444]", icon: "G" },
 };
 
 /* ── Components ── */
@@ -204,20 +214,33 @@ interface GraphNode {
 }
 
 const GRAPH_NODES: GraphNode[] = [
-  { id: "root", name: "Agent.run", kind: "AGENT", latency: "16.1s", x: 210, y: 20, children: ["planning", "tool1", "reflection"] },
+  { id: "root", name: "Agent.run", kind: "AGENT", latency: "16.1s", x: 210, y: 20, children: ["planning", "tool1", "guard", "reflection"] },
   { id: "planning", name: "planning", kind: "CHAIN", latency: "1.4s", x: 40, y: 130, children: ["llm1"] },
   { id: "tool1", name: "tool.web_sea...", kind: "TOOL", latency: "1.5s", x: 210, y: 130 },
+  { id: "guard", name: "pii_guard", kind: "GUARDRAIL", latency: "0.02s", x: 210, y: 240 },
   { id: "reflection", name: "reflection (...", kind: "CHAIN", latency: "13.3s", x: 380, y: 130, children: ["llm2"] },
   { id: "llm1", name: "llm.chat", kind: "LLM", latency: "1.4s", x: 40, y: 240 },
   { id: "llm2", name: "llm.chat", kind: "LLM", latency: "13.3s", x: 380, y: 240 },
 ];
 
 const GRAPH_KIND_COLORS: Record<string, { border: string; iconBg: string; iconFg: string }> = {
-  AGENT: { border: "border-foreground/30", iconBg: "bg-foreground", iconFg: "text-background" },
-  CHAIN: { border: "border-[#3555c4]/30", iconBg: "bg-[#3555c4]", iconFg: "text-white" },
-  LLM: { border: "border-[#2e7d32]/30", iconBg: "bg-[#2e7d32]", iconFg: "text-white" },
-  TOOL: { border: "border-[#b57530]/30", iconBg: "bg-[#b57530]", iconFg: "text-white" },
+  AGENT: { border: "border-[#171717]/30", iconBg: "bg-[#171717]", iconFg: "text-background" },
+  CHAIN: { border: "border-[#2563eb]/30", iconBg: "bg-[#2563eb]", iconFg: "text-white" },
+  LLM: { border: "border-[#059669]/30", iconBg: "bg-[#059669]", iconFg: "text-white" },
+  TOOL: { border: "border-[#d97706]/30", iconBg: "bg-[#d97706]", iconFg: "text-white" },
+  RETRIEVER: { border: "border-[#db2777]/30", iconBg: "bg-[#db2777]", iconFg: "text-white" },
+  GUARDRAIL: { border: "border-[#ef4444]/30", iconBg: "bg-[#ef4444]", iconFg: "text-white" },
 };
+
+/* ── Timeline (root children latency proportions) ── */
+
+const TIMELINE_SEGMENTS = [
+  { id: "planning", name: "planning", label: "1.4s", seconds: 1.4, color: "bg-[#2563eb]" },
+  { id: "tool1", name: "tool", label: "1.5s", seconds: 1.5, color: "bg-[#d97706]" },
+  { id: "guard", name: "guard", label: "0.02s", seconds: 0.02, color: "bg-[#ef4444]" },
+  { id: "reflection", name: "reflection", label: "13.3s", seconds: 13.3, color: "bg-[#2563eb]" },
+];
+const TIMELINE_TOTAL = TIMELINE_SEGMENTS.reduce((s, seg) => s + seg.seconds, 0);
 
 function SpanGraph({ selected, onSelect }: { selected: string; onSelect: (id: string) => void }) {
   const nodeMap = Object.fromEntries(GRAPH_NODES.map((n) => [n.id, n]));
@@ -282,7 +305,7 @@ function SpanGraph({ selected, onSelect }: { selected: string; onSelect: (id: st
 
 function TracePreview() {
   const [selectedSpan, setSelectedSpan] = useState("root");
-  const [tab, setTab] = useState<"input" | "output">("input");
+  const [tab, setTab] = useState<"input" | "output" | "evals">("input");
   // graph always visible below tree
 
   const findSpan = (node: SpanNode, id: string): SpanNode | null => {
@@ -315,6 +338,28 @@ function TracePreview() {
         <div className="flex flex-wrap gap-1.5">
           {MOCK_ANNOTATIONS.map((a) => (
             <Badge key={a.name} {...a} />
+          ))}
+        </div>
+      </div>
+
+      {/* Timeline bar — root children latency proportions */}
+      <div className="border-b px-4 py-3">
+        <div className="flex h-2 rounded overflow-hidden">
+          {TIMELINE_SEGMENTS.map((seg) => (
+            <div
+              key={seg.id}
+              className={seg.color}
+              style={{ width: `${(seg.seconds / TIMELINE_TOTAL) * 100}%` }}
+              title={`${seg.name} ${seg.label}`}
+            />
+          ))}
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+          {TIMELINE_SEGMENTS.map((seg) => (
+            <span key={seg.id} className="flex items-center gap-1 text-[9px] text-muted-foreground">
+              <span className={`h-2 w-2 rounded-sm ${seg.color}`} />
+              {seg.name} {seg.label}
+            </span>
           ))}
         </div>
       </div>
@@ -370,7 +415,7 @@ function TracePreview() {
 
           {/* Tabs */}
           <div className="flex border-b">
-            {(["input", "output"] as const).map((t) => (
+            {(["input", "output", "evals"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -387,9 +432,34 @@ function TracePreview() {
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4">
-            <pre className="whitespace-pre-wrap break-words text-xs font-mono text-muted-foreground leading-relaxed">
-              {tab === "input" ? span.input : span.output}
-            </pre>
+            {tab === "evals" ? (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <th className="pb-2 font-medium">Eval</th>
+                    <th className="pb-2 font-medium">AI</th>
+                    <th className="pb-2 font-medium text-right">Human</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {MOCK_ANNOTATIONS.map((a, i) => (
+                    <tr key={a.name}>
+                      <td className="py-2 font-mono text-muted-foreground">{a.name}</td>
+                      <td className="py-2">
+                        <Badge {...a} />
+                      </td>
+                      <td className="py-2 text-right font-mono tabular-nums text-muted-foreground">
+                        {i % 2 === 0 ? "PASS" : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <pre className="whitespace-pre-wrap break-words text-xs font-mono text-muted-foreground leading-relaxed">
+                {tab === "input" ? span.input : span.output}
+              </pre>
+            )}
           </div>
         </div>
       </div>
@@ -535,6 +605,9 @@ response = llm.invoke("Summarize this document.")`}
         <Callout title={t.docs.tracing.calloutTitle}>
           {t.docs.tracing.calloutText}
         </Callout>
+        <p className="text-xs text-muted-foreground">
+          {t.docs.tracing.setupLink}
+        </p>
       </div>
     </div>
   );

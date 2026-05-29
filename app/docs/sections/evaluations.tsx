@@ -377,6 +377,11 @@ export function Evaluations() {
           </ol>
         </div>
 
+        <div>
+          <h3 className="text-sm font-semibold mb-4">{t.docs.evaluations.aiLanguageTitle}</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">{t.docs.evaluations.aiLanguageNote}</p>
+        </div>
+
         <Callout title={t.docs.evaluations.calloutTitle}>
           {t.docs.evaluations.calloutText}
         </Callout>
