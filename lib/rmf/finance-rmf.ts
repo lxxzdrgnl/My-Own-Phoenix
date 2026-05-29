@@ -86,6 +86,38 @@ export const CONTROL_ITEMS: ChecklistItemDef[] = [
   { key: "regulatorSharing", label: "감독당국 정보공유", description: "감독당국과 정보공유, 위험·사고 즉시 보고" },
 ];
 
+// ── 지적사항용: eval(annotation) 이름 → 위험평가 항목 매핑 ──
+export const EVAL_TO_ITEMS: Record<string, { section: string; item: string }[]> = {
+  legal_compliance: [
+    { section: "legality", item: "fcpa" },
+    { section: "legality", item: "ai_basic_law" },
+    { section: "legality", item: "data_law" },
+    { section: "legality", item: "sector_law" },
+  ],
+  qa_correctness: [{ section: "reliability", item: "quality" }],
+  hallucination: [{ section: "reliability", item: "quality" }],
+  citation: [{ section: "reliability", item: "quality" }],
+  bias: [{ section: "reliability", item: "bias" }],
+  fairness: [{ section: "reliability", item: "fairness" }],
+  explainability: [{ section: "reliability", item: "explainability" }],
+  transparency: [
+    { section: "good_faith", item: "contract_rights" },
+    { section: "good_faith", item: "accountability" },
+  ],
+  consumer_protection: [{ section: "good_faith", item: "consumer_protection" }],
+  guardrail: [
+    { section: "security", item: "security" },
+    { section: "security", item: "privacy" },
+  ],
+  banned_word: [{ section: "security", item: "security" }],
+};
+
+/** 문제(지적)로 간주하는 annotation 라벨. */
+export const PROBLEM_LABELS = new Set([
+  "hallucinated", "detected", "incorrect", "failed", "unfaithful", "irrelevant",
+  "biased", "unfair", "opaque", "harmful", "at_risk", "violated",
+]);
+
 // ── 등급별 차등화 통제 매트릭스 (PDF p.6) ──
 export const CONTROL_MATRIX: Record<Grade, { title: string; measures: string[] }> = {
   저: { title: "통제 완화", measures: ["승인절차·작성문서 등 축소"] },
