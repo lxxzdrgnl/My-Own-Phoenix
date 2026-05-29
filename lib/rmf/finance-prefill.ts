@@ -43,7 +43,7 @@ const RANK: Record<string, number> = { HUMAN: 3, CODE: 2, LLM: 1 };
 export function extractFindings(annMap: Record<string, Annotation[]>): Finding[] {
   const findings: Finding[] = [];
 
-  for (const anns of Object.values(annMap)) {
+  for (const [spanId, anns] of Object.entries(annMap)) {
     const best = new Map<string, Annotation>();
     for (const a of anns) {
       const rank = RANK[a.annotatorKind ?? "LLM"] ?? 1;
@@ -59,6 +59,7 @@ export function extractFindings(annMap: Record<string, Annotation[]>): Finding[]
       findings.push({
         sectionKey: loc.section,
         itemKey: loc.item,
+        spanId,
         eval: a.name,
         label: a.label,
         score: a.score ?? 0,

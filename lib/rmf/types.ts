@@ -62,6 +62,7 @@ export interface AssessmentState {
 export interface Finding {
   sectionKey: string;
   itemKey: string;
+  spanId: string;         // 근거 트레이스 연결용
   eval: string;           // eval name
   label: string;
   score: number;

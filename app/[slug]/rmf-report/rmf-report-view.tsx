@@ -6,8 +6,10 @@ import { useProject } from "@/lib/project-context";
 import { apiFetch } from "@/lib/api-client";
 import { logger } from "@/lib/logger";
 import { fetchSpansAndAnnotations, buildTraceTrees, type RawSpan, type Annotation } from "@/lib/phoenix";
+import { extractInputPreview } from "@/lib/span-extraction";
 import { computeMetrics, MEASURE_METRICS } from "@/lib/rmf-utils";
 import type { SpanData, AnnotationData } from "@/lib/dashboard-utils";
+import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
 import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings } from "@/lib/rmf/finance-prefill";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
@@ -20,6 +22,13 @@ function gradeColor(g: Grade): string {
   if (g === "저") return "#10b981";
   return "#525252";
 }
+// 부문별 위험도: 소계/만점 비율 → 색상
+function ratioColor(r: number): string {
+  if (r >= 0.5) return "#ef4444";
+  if (r >= 0.25) return "#a16207";
+  return "#10b981";
+}
+const ratioLabel = (r: number) => (r >= 0.5 ? "높음" : r >= 0.25 ? "보통" : "낮음");
 const metricLabel = (id?: string) => MEASURE_METRICS.find((m) => m.id === id)?.label ?? "";
 
 function collectSpans(node: RawSpan): SpanData[] {
@@ -57,8 +66,10 @@ export function RmfReportView() {
   const [trees, setTrees] = useState<ReturnType<typeof buildTraceTrees>>([]);
   const [hasProvider, setHasProvider] = useState(false);
 
-  const periodTo = useMemo(() => new Date(), []);
-  const periodFrom = useMemo(() => new Date(Date.now() - 30 * 86400000), []);
+  // 보고서 제어: 평가 기간 + 고영향 AI
+  const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(30));
+  const [highImpact, setHighImpact] = useState(false);
+  const generatedAt = useMemo(() => new Date(), []);
 
   useEffect(() => {
     let active = true;
@@ -66,7 +77,7 @@ export function RmfReportView() {
       setLoading(true);
       try {
         const { allSpans, annMap } = await fetchSpansAndAnnotations(
-          phoenixProject, periodFrom.toISOString(), periodTo.toISOString(), undefined, 1000,
+          phoenixProject, dateRange.from?.toISOString(), dateRange.to?.toISOString(), undefined, 1000,
         );
         if (!active) return;
         setAnnMap(annMap);
@@ -85,7 +96,7 @@ export function RmfReportView() {
       if (active) setLoading(false);
     })();
     return () => { active = false; };
-  }, [phoenixProject, projectId, periodFrom, periodTo]);
+  }, [phoenixProject, projectId, dateRange]);
 
   const metrics = useMemo(() => {
     if (!trees.length) return computeMetrics([], []);
@@ -96,10 +107,10 @@ export function RmfReportView() {
   const metricById = useMemo(() => new Map(metrics.map((m) => [m.id, m])), [metrics]);
 
   const state: AssessmentState = useMemo(() => ({
-    highImpact: false,
+    highImpact,
     riskItems: prefillRiskItems(metrics, hasProvider),
     governance: {}, controls: {},
-  }), [metrics, hasProvider]);
+  }), [metrics, hasProvider, highImpact]);
 
   const score = useMemo(() => computeFinanceRisk(state), [state]);
   const findings = useMemo(() => extractFindings(annMap), [annMap]);
@@ -109,26 +120,51 @@ export function RmfReportView() {
     return m;
   }, [findings]);
 
-  const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
+  // 근거: span → trace 질의 매핑
+  const spanToTrace = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of trees) { const walk = (n: RawSpan) => { m.set(n.spanId, t.traceId); n.children.forEach(walk); }; walk(t.rootSpan); }
+    return m;
+  }, [trees]);
+  const traceQuery = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of trees) m.set(t.traceId, extractInputPreview(t.rootSpan.input) || "");
+    return m;
+  }, [trees]);
+  const findingQuery = (f: Finding) => traceQuery.get(spanToTrace.get(f.spanId) ?? "") ?? "";
 
-  if (loading) return <div className="p-12 text-center text-sm text-muted-foreground">보고서 생성 중…</div>;
+  const fmtDate = (d?: Date) => (d ? d.toISOString().slice(0, 10) : "-");
 
   return (
-    <div className="mx-auto max-w-[860px] p-6">
+    <div className="mx-auto max-w-[880px] p-6">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
 
-      <div className="no-print mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold">금융 AI RMF 위험평가 보고서</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {phoenixProject} · 평가기간 {fmtDate(periodFrom)} ~ {fmtDate(periodTo)} · 트레이스 {trees.length}건
-          </p>
+      {/* 화면 제어 헤더 (인쇄 제외) */}
+      <div className="no-print mb-4 rounded-lg border bg-card p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold">금융 AI RMF 위험평가 보고서</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">{phoenixProject} · 트레이스 {trees.length}건 분석</p>
+          </div>
+          <button onClick={() => window.print()} disabled={loading} className="flex shrink-0 items-center gap-1.5 rounded-md bg-foreground px-3 py-2 text-xs font-medium text-background transition hover:bg-foreground/80 disabled:opacity-40">
+            <FileDown className="h-4 w-4" /> PDF 출력
+          </button>
         </div>
-        <button onClick={() => window.print()} className="flex shrink-0 items-center gap-1.5 rounded-md bg-foreground px-3 py-2 text-xs font-medium text-background transition hover:bg-foreground/80">
-          <FileDown className="h-4 w-4" /> PDF 출력
-        </button>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">평가 기간</span>
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+          </div>
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+            <input type="checkbox" checked={highImpact} onChange={(e) => setHighImpact(e.target.checked)} className="rounded" />
+            고영향 AI (대출심사 등 — 최소 고위험)
+          </label>
+        </div>
       </div>
 
+      {loading ? (
+        <div className="p-12 text-center text-sm text-muted-foreground">보고서 생성 중…</div>
+      ) : (
       <div className="rmf-report rounded-lg border bg-white p-10 text-[13px] leading-relaxed text-neutral-900 shadow-sm">
         <div className="mb-6 border-b-2 border-neutral-800 pb-4 text-center">
           <p className="text-[11px] tracking-wide text-neutral-500">금융분야 AI 위험관리 프레임워크(AI RMF) · 금융감독원 체계 기준</p>
@@ -136,13 +172,15 @@ export function RmfReportView() {
           <table className="mx-auto mt-4 text-[12px]">
             <tbody>
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">대상 서비스</td><td className="px-3 py-0.5 text-left font-semibold">{phoenixProject}</td></tr>
-              <tr><td className="px-3 py-0.5 text-right text-neutral-500">평가 기간</td><td className="px-3 py-0.5 text-left">{fmtDate(periodFrom)} ~ {fmtDate(periodTo)}</td></tr>
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">평가 기간</td><td className="px-3 py-0.5 text-left">{fmtDate(dateRange.from)} ~ {fmtDate(dateRange.to)}</td></tr>
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">분석 트레이스</td><td className="px-3 py-0.5 text-left">{trees.length}건</td></tr>
-              <tr><td className="px-3 py-0.5 text-right text-neutral-500">생성일</td><td className="px-3 py-0.5 text-left">{fmtDate(periodTo)}</td></tr>
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">고영향 AI</td><td className="px-3 py-0.5 text-left">{highImpact ? "예" : "아니오"}</td></tr>
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">생성일</td><td className="px-3 py-0.5 text-left">{fmtDate(generatedAt)}</td></tr>
             </tbody>
           </table>
         </div>
 
+        {/* 종합 위험등급 */}
         <section className="avoid-break mb-7">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">종합 위험등급</h2>
           <div className="flex items-baseline gap-4">
@@ -156,10 +194,37 @@ export function RmfReportView() {
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-neutral-500">※ 위험등급은 위험평가(②) 16개 항목 잔여위험 합산으로 산정. 고영향 AI는 최소 고위험. 거버넌스(①)·위험통제(③)는 정성 축으로 등급 미반영.</p>
         </section>
 
+        {/* 부문별 위험도 (시각화) */}
         <section className="avoid-break mb-7">
+          <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">부문별 위험도</h2>
+          <div className="space-y-2">
+            {RISK_SECTIONS.map((sec) => {
+              const sub = score.sectionSubtotals[sec.key] ?? 0;
+              const ratio = sec.weight > 0 ? sub / sec.weight : 0;
+              const pct = Math.min(100, Math.round(ratio * 100));
+              const color = ratioColor(ratio);
+              const fcount = findingsByItem ? RISK_SECTIONS.find((s) => s.key === sec.key)!.items.reduce((a, it) => a + (findingsByItem[it.key]?.length ?? 0), 0) : 0;
+              return (
+                <div key={sec.key} className="flex items-center gap-3 text-[11px]">
+                  <div className="w-24 shrink-0 font-medium">{sec.label} <span className="text-neutral-400">({sec.weight}%)</span></div>
+                  <div className="relative h-4 flex-1 overflow-hidden rounded bg-neutral-100">
+                    <div className="h-full" style={{ width: pct + "%", background: color }} />
+                  </div>
+                  <div className="w-28 shrink-0 text-right">
+                    <span className="font-semibold" style={{ color }}>{ratioLabel(ratio)}</span>
+                    <span className="text-neutral-500"> · {sub}/{sec.weight}{fcount > 0 ? ` · 지적 ${fcount}` : ""}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[10px] text-neutral-500">※ 부문 위험도 = 잔여위험 소계 ÷ 부문 만점. 색상: 낮음(녹)/보통(황)/높음(적).</p>
+        </section>
+
+        {/* Ⅰ. 위험평가 결과 요약표 */}
+        <section className="avoid-break mb-7 page-break">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">Ⅰ. 위험평가 결과 요약 (7대 원칙)</h2>
           <table className="w-full border-collapse text-[11px]">
             <thead>
@@ -173,24 +238,30 @@ export function RmfReportView() {
               </tr>
             </thead>
             <tbody>
-              {RISK_SECTIONS.map((sec) => sec.items.map((item, i) => (
-                <tr key={item.key}>
-                  {i === 0 && <td className="border px-2 py-1 align-top font-medium" rowSpan={sec.items.length}>{sec.label} ({sec.weight}%)</td>}
-                  <td className="border px-2 py-1">{item.label}</td>
-                  <td className="border px-2 py-1 text-center">{state.riskItems[item.key] && state.riskItems[item.key]!.source !== "manual" ? state.riskItems[item.key]!.inherent : "-"}</td>
-                  <td className="border px-2 py-1 text-center">{state.riskItems[item.key]?.mitigation ? "(" + state.riskItems[item.key].mitigation + ")" : "-"}</td>
-                  <td className="border px-2 py-1 text-center font-medium">{state.riskItems[item.key] && state.riskItems[item.key]!.source !== "manual" ? (score.perItemResidual[item.key] ?? 0) : "-"}</td>
-                  {i === 0 && <td className="border px-2 py-1 text-center align-top font-bold" rowSpan={sec.items.length}>{score.sectionSubtotals[sec.key] ?? 0}</td>}
-                </tr>
-              )))}
+              {RISK_SECTIONS.map((sec) => sec.items.map((item, i) => {
+                const st = state.riskItems[item.key];
+                const measured = !!st && st.source !== "manual";
+                return (
+                  <tr key={item.key}>
+                    {i === 0 && <td className="border px-2 py-1 align-top font-medium" rowSpan={sec.items.length}>{sec.label} ({sec.weight}%)</td>}
+                    <td className="border px-2 py-1">{item.label}</td>
+                    <td className="border px-2 py-1 text-center">{measured ? st.inherent : "-"}</td>
+                    <td className="border px-2 py-1 text-center">{st?.mitigation ? "(" + st.mitigation + ")" : "-"}</td>
+                    <td className="border px-2 py-1 text-center font-medium">{measured ? (score.perItemResidual[item.key] ?? 0) : "-"}</td>
+                    {i === 0 && <td className="border px-2 py-1 text-center align-top font-bold" rowSpan={sec.items.length}>{score.sectionSubtotals[sec.key] ?? 0}</td>}
+                  </tr>
+                );
+              }))}
               <tr className="bg-neutral-50 font-bold">
                 <td className="border px-2 py-1" colSpan={4}>총점</td>
                 <td className="border px-2 py-1 text-center" colSpan={2}>{score.total} / 100 → {score.grade}위험</td>
               </tr>
             </tbody>
           </table>
+          <p className="mt-1 text-[10px] text-neutral-500">※ "-"는 해당 항목에 대한 자동 측정 데이터가 없어 미평가(수동 평가 필요)임을 의미.</p>
         </section>
 
+        {/* Ⅱ. 부문별 상세 */}
         <section className="page-break">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">Ⅱ. 부문별 상세 평가</h2>
           {RISK_SECTIONS.map((sec) => (
@@ -205,18 +276,22 @@ export function RmfReportView() {
                     <div key={item.key} className="avoid-break rounded border border-neutral-200 p-2 text-[11px]">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold">{item.label} <SourceBadge source={st?.source} /></span>
-                        <span className="text-neutral-600">{st && st.source !== "manual" ? <>인식·측정 {st.inherent} · 경감 {st.mitigation} · <b>잔여 {score.perItemResidual[item.key] ?? 0}</b> / {item.maxInherent}</> : <span className="text-neutral-400">미측정 / {item.maxInherent}</span>}</span>
+                        <span className="text-neutral-600">{st && st.source !== "manual" ? <>인식·측정 {st.inherent} · 경감 {st.mitigation} · <b>잔여 {score.perItemResidual[item.key] ?? 0}</b> / {item.maxInherent} · 지적 {itemFindings.length}건</> : <span className="text-neutral-400">미측정 / {item.maxInherent}</span>}</span>
                       </div>
                       <p className="mt-1 text-neutral-500">근거: {item.providerSignal ? "외부 LLM 공급자 설정 신호" : m && !m.noData ? metricLabel(item.evalMetricId) + " " + m.value.toFixed(1) + "%" : "eval 데이터 없음 — 수동 평가 필요"}<span className="ml-1 text-neutral-400">· 채점기준: {item.scoringGuide}</span></p>
                       {itemFindings.length > 0 && (
-                        <ul className="mt-1 space-y-0.5 border-t border-dashed pt-1">
-                          {itemFindings.slice(0, 8).map((f, idx) => (
-                            <li key={idx} className="text-neutral-700">
-                              <span className="rounded bg-neutral-100 px-1 font-mono text-[9px]">{f.eval}</span>
-                              {f.annotatorKind === "HUMAN" && <span className="ml-1 rounded px-1 text-[9px]" style={{ background: "#10b981", color: "#fff" }}>사람평가</span>}
-                              <span className="ml-1">: {f.reason || f.label}</span>
-                            </li>
-                          ))}
+                        <ul className="mt-1 space-y-1 border-t border-dashed pt-1">
+                          {itemFindings.slice(0, 8).map((f, idx) => {
+                            const q = findingQuery(f);
+                            return (
+                              <li key={idx} className="text-neutral-700">
+                                <span className="rounded bg-neutral-100 px-1 font-mono text-[9px]">{f.eval}</span>
+                                {f.annotatorKind === "HUMAN" && <span className="ml-1 rounded px-1 text-[9px]" style={{ background: "#10b981", color: "#fff" }}>사람평가</span>}
+                                <span className="ml-1">: {f.reason || f.label}</span>
+                                {q && <span className="block text-neutral-400">└ 질의: {q.length > 80 ? q.slice(0, 80) + "…" : q}</span>}
+                              </li>
+                            );
+                          })}
                           {itemFindings.length > 8 && <li className="text-neutral-400">…외 {itemFindings.length - 8}건</li>}
                         </ul>
                       )}
@@ -228,6 +303,7 @@ export function RmfReportView() {
           ))}
         </section>
 
+        {/* Ⅲ. 거버넌스 */}
         <section className="page-break avoid-break mb-7">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">Ⅲ. 거버넌스 체계 현황</h2>
           <ul className="space-y-1.5 text-[11px]">
@@ -238,9 +314,10 @@ export function RmfReportView() {
               </li>
             ))}
           </ul>
-          <p className="mt-1 text-[10px] text-neutral-500">※ 거버넌스 기구·전담조직·내규는 조직 사항으로 별도 자기선언 — 감독당국이 내규·조직도 등으로 확인.</p>
+          <p className="mt-1 text-[10px] text-neutral-500">※ 거버넌스 기구·전담조직·내규는 조직 사항 — 감독당국이 내규·조직도 등으로 별도 확인.</p>
         </section>
 
+        {/* Ⅳ. 위험통제 */}
         <section className="avoid-break mb-7">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">Ⅳ. 위험통제 현황</h2>
           <div className="mb-3 rounded border bg-neutral-50 p-2 text-[11px]">
@@ -263,10 +340,11 @@ export function RmfReportView() {
           </ul>
         </section>
 
+        {/* Ⅴ. 방법론 */}
         <section className="avoid-break">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">Ⅴ. 평가 방법론 및 근거</h2>
           <ul className="ml-4 list-disc space-y-1 text-[11px] text-neutral-700">
-            <li>위험평가(②)는 평가기간 내 {trees.length}개 트레이스의 자동 eval(품질·편향성·공정성·설명가능성·소비자보호·합법성·투명성·보안·안정성 등)을 항목별 인식·측정 위험으로 환산.</li>
+            <li>위험평가(②)는 평가기간 내 {trees.length}개 트레이스의 자동 eval을 항목별 인식·측정 위험으로 환산.</li>
             <li>동일 항목에 사람 평가(HUMAN)가 있으면 LLM 평가보다 우선 반영.</li>
             <li>잔여위험 = 인식·측정 − 경감. 부문별 합산 → 총점(0–100) → 위험등급. 고영향 AI는 최소 고위험.</li>
             <li>위탁/관리는 외부 LLM 공급자 사용 여부(플랫폼 설정)로 자동 신호화.</li>
@@ -275,6 +353,7 @@ export function RmfReportView() {
           </ul>
         </section>
       </div>
+      )}
     </div>
   );
 }
