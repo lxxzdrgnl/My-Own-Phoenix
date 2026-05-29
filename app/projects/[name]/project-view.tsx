@@ -7,8 +7,11 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Heading, Text } from "@/components/ui/typography";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { FAIL_LABELS } from "@/lib/constants";
-import { fetchTraces, fetchTraceTrees, type Trace, type TraceTree } from "@/lib/phoenix";
+import { fetchTraces, fetchTraceTrees, deleteTrace, type Trace, type TraceTree } from "@/lib/phoenix";
 import { SpanTreeView } from "@/components/trace-tree";
+import { RoleGate } from "@/components/ui/role-gate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useTraceSelection } from "@/lib/hooks/use-trace-selection";
 import { StatCard } from "@/components/dashboard/widgets/stat-card";
 import { HighchartWidget } from "@/components/dashboard/widgets/highchart-widget";
 import { MeasureGrid } from "@/components/dashboard/widgets/measure-grid";
@@ -17,7 +20,7 @@ import { GapAnalysis, type GapDataItem } from "@/components/dashboard/widgets/ga
 import { computeMetrics, computeGovernScore, computeMapScore, computeMeasureScore, type FeedbackStats, type RmfScores } from "@/lib/rmf-utils";
 import type { AnnotationData, SpanData } from "@/lib/dashboard-utils";
 import { cn } from "@/lib/utils";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Trash2 } from "lucide-react";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
 import { QueryBar, ChipRow } from "@/components/query-bar";
@@ -186,6 +189,41 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
   useProjectSse(projectCtx?.id, (msg) => {
     if (msg.type === "eval-completed") loadTraces();
   });
+
+  // ── Multi-select delete ──
+  const confirm = useConfirm();
+  const sel = useTraceSelection();
+  const [deleting, setDeleting] = useState(false);
+
+  // Optimistic removal — Phoenix deletes asynchronously, so a refetch can still
+  // return a just-deleted trace; drop it from local state immediately.
+  const removeTraces = useCallback((ids: string[]) => {
+    const idSet = new Set(ids);
+    setTraces((prev) => prev.filter((tr) => !idSet.has(tr.traceId)));
+    setTraceTrees((prev) => prev.filter((tr) => !idSet.has(tr.traceId)));
+  }, []);
+
+  async function handleDeleteSelected() {
+    if (sel.selectedIds.size === 0) return;
+    const ok = await confirm({
+      title: t.tracing.deleteTraces,
+      description: `${sel.selectedIds.size} trace(s) will be permanently deleted.`,
+      confirmText: t.common.delete,
+    });
+    if (!ok) return;
+    setDeleting(true);
+    const ids = [...sel.selectedIds];
+    for (const id of ids) {
+      try {
+        await deleteTrace(id);
+      } catch (e) {
+        logger.error("project view bulk delete failed", e, { traceId: id });
+      }
+    }
+    removeTraces(ids);
+    sel.reset();
+    setDeleting(false);
+  }
 
   // ── Filtering ──
   const filteredTraces = useMemo(
@@ -425,6 +463,15 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                   </Text>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <RoleGate>
+                    <button
+                      onClick={sel.toggleDeleteMode}
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${sel.deleteMode ? "border-primary bg-accent" : "hover:bg-muted"}`}
+                      title={t.tracing.deleteTraces}
+                    >
+                      <Trash2 className={`h-3.5 w-3.5 ${sel.deleteMode ? "text-foreground" : "text-muted-foreground"}`} />
+                    </button>
+                  </RoleGate>
                   <button
                     onClick={filterDropdown.toggle}
                     className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
@@ -471,6 +518,30 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
               )}
             </div>
 
+            {sel.deleteMode && (
+              <div
+                className={`mb-2 flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2 ${sel.deleteModeVisible ? "animate-slide-down" : "animate-slide-up"}`}
+              >
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={sel.selectedIds.size === filteredTraceTrees.length && filteredTraceTrees.length > 0}
+                    onChange={() => sel.toggleSelectAll(filteredTraceTrees.map((tr) => tr.traceId))}
+                    className="rounded"
+                  />
+                  {t.common.selectAll}
+                </label>
+                <button
+                  onClick={handleDeleteSelected}
+                  disabled={sel.selectedIds.size === 0 || deleting}
+                  className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1 text-xs font-medium text-background transition hover:bg-foreground/80 disabled:opacity-30"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  {deleting ? t.tracing.deleting : `${t.common.delete} ${sel.selectedIds.size}`}
+                </button>
+              </div>
+            )}
+
             {filteredTraceTrees.length === 0 ? (
               <EmptyState
                 icon={Search}
@@ -479,7 +550,16 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                 className="py-12"
               />
             ) : (
-              <SpanTreeView traces={filteredTraceTrees} projectName={projectName} onRefresh={loadTraces} />
+              <SpanTreeView
+                traces={filteredTraceTrees}
+                projectName={projectName}
+                onRefresh={loadTraces}
+                onDeleted={(traceId) => removeTraces([traceId])}
+                deleteMode={sel.deleteMode}
+                deleteModeVisible={sel.deleteModeVisible}
+                selectedIds={sel.selectedIds}
+                onToggleSelect={sel.toggleSelect}
+              />
             )}
           </>
         )}

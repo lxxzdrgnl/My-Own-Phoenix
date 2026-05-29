@@ -257,13 +257,17 @@ function SpanDetail({ span, onDeleteAnnotation, onAnnotate }: {
 
 // ─── Trace Accordion Item ─────────────────────────────────────────────────────
 
-function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotation, onDeleteTrace, onRefresh }: {
+function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotation, onDeleteTrace, onRefresh, deleteMode, deleteModeVisible, selected, onToggleSelect }: {
   trace: TraceTree;
   enabledEvals: string[];
   projectName?: string;
   onDeleteAnnotation?: (spanId: string, name: string) => void;
   onDeleteTrace?: (traceId: string) => void;
   onRefresh?: () => void;
+  deleteMode?: boolean;
+  deleteModeVisible?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (traceId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [selectedSpan, setSelectedSpan] = useState<RawSpan | null>(null);
@@ -285,18 +289,32 @@ function TraceAccordionItem({ trace, enabledEvals, projectName, onDeleteAnnotati
       {/* Header row */}
       <div
         onClick={() => {
+          if (deleteMode) {
+            onToggleSelect?.(trace.traceId);
+            return;
+          }
           setExpanded(!expanded);
           if (!expanded) setSelectedSpan(trace.rootSpan);
         }}
         className={cn(
           "group flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-accent/40 cursor-pointer",
-          expanded && "bg-accent/20"
+          expanded && "bg-accent/20",
+          selected && "bg-muted/50"
         )}
       >
-        {expanded
-          ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-          : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-        }
+        {deleteMode ? (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect?.(trace.traceId)}
+            onClick={(e) => e.stopPropagation()}
+            className={cn("size-3.5 shrink-0 rounded", deleteModeVisible ? "animate-slide-in" : "animate-slide-out")}
+          />
+        ) : expanded ? (
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+        )}
         <span className={cn("flex size-6 shrink-0 items-center justify-center rounded", style.bg)}>
           <Icon className={cn("size-3.5", style.fg)} />
         </span>
@@ -499,10 +517,22 @@ export function SpanTreeView({
   traces,
   projectName,
   onRefresh,
+  onDeleted,
+  deleteMode,
+  deleteModeVisible,
+  selectedIds,
+  onToggleSelect,
 }: {
   traces: TraceTree[];
   projectName?: string;
   onRefresh?: () => void;
+  /** Optimistic removal after a successful delete; falls back to onRefresh. */
+  onDeleted?: (traceId: string) => void;
+  /** Multi-select (opt-in). When omitted, the list renders without checkboxes. */
+  deleteMode?: boolean;
+  deleteModeVisible?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (traceId: string) => void;
 }) {
   const confirm = useConfirm();
   const projectCtx = useProjectOptional();
@@ -528,7 +558,10 @@ export function SpanTreeView({
     if (!ok) return;
     try {
       await apiFetch(`/api/v1/traces/${encodeURIComponent(traceId)}`, { method: "DELETE" });
-      onRefresh?.();
+      // Optimistic removal so the row disappears immediately; Phoenix deletes
+      // asynchronously, so a refetch can still return the trace.
+      if (onDeleted) onDeleted(traceId);
+      else onRefresh?.();
     } catch (e) { logger.error("span-tree-view delete trace failed", e); }
   }
 
@@ -561,6 +594,10 @@ export function SpanTreeView({
           onDeleteAnnotation={projectName ? handleDeleteAnnotation : undefined}
           onDeleteTrace={handleDeleteTrace}
           onRefresh={onRefresh}
+          deleteMode={deleteMode}
+          deleteModeVisible={deleteModeVisible}
+          selected={selectedIds?.has(t.traceId) ?? false}
+          onToggleSelect={onToggleSelect}
         />
       ))}
       {traces.length === 0 && (
