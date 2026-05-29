@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { FileDown, ArrowLeft, Save, Trash2, Sparkles, Clock, Cpu, Coins } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { FileDown, ArrowLeft, Save, Trash2, Sparkles, Clock, Cpu, Coins, Filter, X } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { apiFetch } from "@/lib/api-client";
 import { logger } from "@/lib/logger";
@@ -19,7 +19,8 @@ import { AnnotationBadge, AnnotationBadges } from "@/components/annotation-badge
 import { formatSec } from "@/components/trace-tree/span-tree-helpers";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
-import { prefillRiskItems, extractFindings } from "@/lib/rmf/finance-prefill";
+import { prefillRiskItems, extractFindings, applyRiskOverrides, type RiskOverride } from "@/lib/rmf/finance-prefill";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
 import type { AssessmentState, Finding, Grade, ScoreResult } from "@/lib/rmf/types";
 
@@ -56,14 +57,20 @@ function collectSpans(node: RawSpan): SpanData[] {
 }
 
 const PRINT_CSS = `
-@page { size: A4; margin: 14mm; }
+@page { size: A4; margin: 11mm; }
 @media print {
+  html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body * { visibility: hidden !important; }
-  .rmf-report, .rmf-report * { visibility: visible !important; }
+  .rmf-report, .rmf-report * { visibility: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .rmf-report { position: absolute !important; left: 0; top: 0; width: 100% !important; margin: 0 !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
   .no-print { display: none !important; }
   .page-break { break-before: page; }
   table, .avoid-break { break-inside: avoid; }
+  /* 1페이지에 머리말+종합등급+부문별+요약표가 모두 들어가도록 여백 압축 */
+  .rmf-report section { margin-bottom: 9px !important; }
+  .rmf-head { margin-bottom: 8px !important; padding-bottom: 6px !important; }
+  .rmf-head h1 { font-size: 20px !important; margin-top: 3px !important; }
+  .rmf-hero { font-size: 26px !important; }
 }
 `;
 
@@ -113,7 +120,7 @@ function RmfBody({ score, state, metricById, findingsByItem, findingQuery, trace
       <section className="avoid-break mb-7">
         <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">종합 위험등급</h2>
         <div className="flex items-baseline gap-4">
-          <div className="text-4xl font-extrabold" style={{ color: gradeColor(score.grade) }}>{score.grade}위험</div>
+          <div className="rmf-hero text-4xl font-extrabold" style={{ color: gradeColor(score.grade) }}>{score.grade}위험</div>
           <div className="text-[13px] text-neutral-600">잔여위험 총점 <b className="text-neutral-900">{score.total}</b> / 100</div>
         </div>
         <div className="mt-3 flex overflow-hidden rounded border text-center text-[10px]">
@@ -272,11 +279,17 @@ export function RmfReportView() {
   const [hasProvider, setHasProvider] = useState(false);
 
   const [mode, setMode] = useState<"config" | "preview">("config");
-  const [tab, setTab] = useState<"dashboard" | "output">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "input" | "output">("dashboard");
+  // 수동 평가(영속) — 고위험 여부·근거 + 위험항목 override(경감·미측정 인식·메모)
+  const [highImpact, setHighImpact] = useState(false);
+  const [hiReason, setHiReason] = useState("");
+  const [overrides, setOverrides] = useState<Record<string, RiskOverride>>({});
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(30));
   const [orgName, setOrgName] = useState("");
   const [assessor, setAssessor] = useState("");
   const [findingsCap, setFindingsCap] = useState(8);
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const tracesRef = useRef<HTMLDivElement>(null);
   const [sections, setSections] = useState<Record<SectionKey, boolean>>({
     sectionDetail: true, findings: true, governance: true, controls: true, methodology: true,
   });
@@ -314,8 +327,44 @@ export function RmfReportView() {
   const metricById = useMemo(() => new Map(metrics.map((m) => [m.id, m])), [metrics]);
 
   const state: AssessmentState = useMemo(() => ({
-    highImpact: false, riskItems: prefillRiskItems(metrics, hasProvider), governance: {}, controls: {},
-  }), [metrics, hasProvider]);
+    highImpact,
+    riskItems: applyRiskOverrides(prefillRiskItems(metrics, hasProvider), overrides),
+    governance: {}, controls: {},
+  }), [metrics, hasProvider, overrides, highImpact]);
+
+  // 저장된 수동 평가 로드
+  useEffect(() => {
+    if (!projectId) return;
+    let active = true;
+    (async () => {
+      try {
+        const r = await apiFetch(`/api/projects/${projectId}/rmf-assessment`);
+        if (!r.ok || !active) return;
+        const d = await r.json();
+        setHighImpact(!!d.highImpact);
+        setOverrides((d.riskItems ?? {}) as Record<string, RiskOverride>);
+        setHiReason(((d.notes ?? {}) as { highImpactReason?: string }).highImpactReason ?? "");
+      } catch (e) { logger.error("rmf-assessment load failed", e); }
+    })();
+    return () => { active = false; };
+  }, [projectId]);
+
+  const { submit: submitAssessment, saving: savingAssessment } = useFormSubmit(`/api/projects/${projectId}/rmf-assessment`, "PUT");
+  const saveAssessment = useCallback(() => {
+    return submitAssessment({ highImpact, riskItems: overrides, notes: { highImpactReason: hiReason }, assessor });
+  }, [submitAssessment, highImpact, overrides, hiReason, assessor]);
+
+  const setOverride = useCallback((key: string, patch: Partial<RiskOverride>) => {
+    setOverrides((prev) => {
+      const next = { ...(prev[key] ?? {}), ...patch };
+      // 빈 값 정리: undefined/NaN/"" 제거
+      (Object.keys(next) as (keyof RiskOverride)[]).forEach((k) => {
+        const v = next[k];
+        if (v === undefined || v === "" || (typeof v === "number" && Number.isNaN(v))) delete next[k];
+      });
+      return { ...prev, [key]: next };
+    });
+  }, []);
 
   const score = useMemo(() => computeFinanceRisk(state), [state]);
   const findings = useMemo(() => extractFindings(annMap), [annMap]);
@@ -359,6 +408,22 @@ export function RmfReportView() {
       .sort((a, b) => b.findings.length - a.findings.length);
   }, [findings, trees, spanToTrace]);
 
+  // 선택된 위험항목으로 필터: 해당 항목 지적이 있는 트레이스만, 지적 사유도 그 항목으로 한정
+  const shownTraces = useMemo(() => {
+    if (!selectedItem) return problematicTraces;
+    return problematicTraces
+      .map(({ tree, findings: fs }) => ({ tree, findings: fs.filter((f) => f.itemKey === selectedItem) }))
+      .filter((x) => x.findings.length > 0);
+  }, [problematicTraces, selectedItem]);
+
+  const selectItem = useCallback((key: string) => {
+    setSelectedItem((cur) => {
+      const next = cur === key ? null : key;
+      if (next) requestAnimationFrame(() => tracesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      return next;
+    });
+  }, []);
+
   // ── 보고서 저장 / 버전 ──
   const [versions, setVersions] = useState<Array<{ id: string; version: number; label: string | null; grade: string; total: number; createdAt: string; snapshot: any }>>([]);
   const [saving, setSaving] = useState(false);
@@ -377,7 +442,7 @@ export function RmfReportView() {
     if (!projectId) return;
     setSaving(true);
     try {
-      const snapshot = { score, riskItems: state.riskItems, findingsByItem, traceCount: trees.length, sections, orgName, assessor, periodFrom: dateRange.from?.toISOString(), periodTo: dateRange.to?.toISOString() };
+      const snapshot = { score, riskItems: state.riskItems, findingsByItem, traceCount: trees.length, sections, orgName, assessor, highImpact, hiReason, periodFrom: dateRange.from?.toISOString(), periodTo: dateRange.to?.toISOString() };
       const r = await apiFetch(`/api/projects/${projectId}/rmf-versions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ grade: score.grade, total: score.total, label: orgName || null, assessor, periodFrom: snapshot.periodFrom, periodTo: snapshot.periodTo, snapshot }),
@@ -417,7 +482,7 @@ export function RmfReportView() {
         body: JSON.stringify({
           model: "gpt-4o-mini", projectId, promptLabel: "rmf-improvement", temperature: 0.3,
           messages: [
-            { role: "system", content: "당신은 금융 AI 위험관리(금융감독원 AI RMF) 전문가입니다. 아래 평가 결과를 보고, 위험을 낮추기 위한 우선순위 있는 구체적·실행가능한 개선 권고를 한국어로 제시하세요. 각 권고는 '무엇을/왜/어떻게'가 드러나게 간결히, 번호 목록으로. 위험이 높은 부문·항목을 우선." },
+            { role: "system", content: "당신은 금융 AI 위험관리(금융감독원 AI RMF) 전문가입니다. 아래 평가 결과를 바탕으로 한국어 종합 피드백을 작성하세요. 구성: ① 종합 평가 — 현재 위험 수준 총평 2~3문장 ② 주요 위험 요인 — 부문·항목별 핵심 3~5개 ③ 우선 개선 권고 — 실행가능하게 '무엇을/왜/어떻게'가 드러나는 번호 목록. 위험이 높은 부문·항목을 우선하세요." },
             { role: "user", content: lines.join("\n") },
           ],
         }),
@@ -441,6 +506,8 @@ export function RmfReportView() {
   const dAssessor: string = snap ? (snap.assessor ?? "") : assessor;
   const dFrom = snap ? (snap.periodFrom ? new Date(snap.periodFrom) : undefined) : dateRange.from;
   const dTo = snap ? (snap.periodTo ? new Date(snap.periodTo) : undefined) : dateRange.to;
+  const dHighImpact: boolean = snap ? !!snap.highImpact : highImpact;
+  const dHiReason: string = snap ? (snap.hiReason ?? "") : hiReason;
 
   const body = (
     <RmfBody score={dScore} state={dState} metricById={dMetricById} findingsByItem={dFindingsByItem}
@@ -460,7 +527,7 @@ export function RmfReportView() {
           </Inline>
 
           <div className="mb-5 flex gap-5 border-b">
-            {([["dashboard", "대시보드"], ["output", "보고서 출력"]] as const).map(([k, label]) => (
+            {([["dashboard", "대시보드"], ["input", "평가 입력"], ["output", "보고서 출력"]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setTab(k)} className={`-mb-px border-b-2 px-1 py-2 text-sm font-medium transition-colors ${tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{label}</button>
             ))}
           </div>
@@ -545,6 +612,8 @@ export function RmfReportView() {
                             const pct = Math.min(100, Math.round(rr * 100));
                             const fc = findingsByItem[item.key]?.length ?? 0;
                             const color = ratioColor(rr);
+                            const selectable = fc > 0;
+                            const isSelected = selectedItem === item.key;
                             const m = item.evalMetricId ? metricById.get(item.evalMetricId) : undefined;
                             const basis = item.providerSignal
                               ? "외부 공급자 신호"
@@ -559,7 +628,10 @@ export function RmfReportView() {
                             return (
                               <Tooltip key={item.key}>
                                 <TooltipTrigger asChild>
-                                  <div className="flex cursor-help flex-col gap-2 rounded-lg border bg-card p-3 transition-colors hover:border-foreground/30">
+                                  <div
+                                    onClick={selectable ? () => selectItem(item.key) : undefined}
+                                    className={`flex flex-col gap-2 rounded-lg border bg-card p-3 transition-all duration-200 ${selectable ? "cursor-pointer hover:border-foreground/40" : "cursor-help hover:border-foreground/30"} ${isSelected ? "border-foreground bg-foreground/[0.04] ring-1 ring-foreground" : ""} ${selectedItem && !isSelected ? "opacity-45 hover:opacity-100" : ""}`}
+                                  >
                                     <div className="flex items-start justify-between gap-2">
                                       <span className="flex items-start gap-1.5 text-xs font-medium leading-tight"><span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: measured ? color : "#d4d4d8" }} />{item.label}</span>
                                       <SourceBadge source={st?.source} subtle />
@@ -609,12 +681,24 @@ export function RmfReportView() {
                 </Stack>
               </SectionCard>
 
-              <SectionCard title="문제되는 트레이스" description={`지적이 탐지된 트레이스 ${problematicTraces.length}건 (요청·응답 및 지적 사유)`} variant="bordered">
-                {problematicTraces.length === 0 ? (
-                  <Text variant="caption" as="p">자동 탐지된 지적 사항이 없습니다.</Text>
+              <div ref={tracesRef} className="scroll-mt-4" />
+              <SectionCard
+                title="문제되는 트레이스"
+                description={selectedItem ? `[${ITEM_LABEL[selectedItem] ?? selectedItem}] 관련 트레이스 ${shownTraces.length}건` : `지적이 탐지된 트레이스 ${problematicTraces.length}건 (요청·응답 및 지적 사유)`}
+                variant="bordered"
+              >
+                {selectedItem && (
+                  <div className="mb-3 flex items-center gap-2 rounded-md bg-foreground px-2.5 py-1.5 text-xs text-background delay-300 duration-500 fill-mode-backwards animate-in fade-in slide-in-from-top-2">
+                    <Filter className="h-3.5 w-3.5 shrink-0" />
+                    <span className="min-w-0 truncate">필터: <b>{ITEM_LABEL[selectedItem] ?? selectedItem}</b> · {shownTraces.length}건</span>
+                    <button onClick={() => setSelectedItem(null)} className="ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-background/30 px-1.5 py-0.5 font-medium transition hover:bg-background/15"><X className="h-3 w-3" /> 해제</button>
+                  </div>
+                )}
+                {shownTraces.length === 0 ? (
+                  <Text variant="caption" as="p">{selectedItem ? "해당 항목으로 탐지된 트레이스가 없습니다." : "자동 탐지된 지적 사항이 없습니다."}</Text>
                 ) : (
-                  <Stack gap="sm">
-                    {problematicTraces.slice(0, 15).map(({ tree, findings: tf }) => {
+                  <Stack key={selectedItem ?? "all"} gap="sm" className="delay-300 duration-700 fill-mode-backwards animate-in fade-in">
+                    {shownTraces.slice(0, 15).map(({ tree, findings: tf }) => {
                       const root = tree.rootSpan;
                       const inp = extractText(root.input) || "(입력 없음)";
                       const out = extractText(root.output) || "(출력 없음)";
@@ -667,13 +751,85 @@ export function RmfReportView() {
                 )}
               </SectionCard>
 
-              <SectionCard title="AI 개선 제안" description="평가 결과·지적사항 기반 개선 권고 (LLM 생성)" variant="bordered" actions={
-                <button onClick={generateRecommendations} disabled={recsLoading} className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-40"><Sparkles className="h-3.5 w-3.5" /> {recsLoading ? "생성 중…" : recs ? "다시 생성" : "개선 제안 생성"}</button>
+              <SectionCard title="AI 종합 피드백" description="평가 결과 종합 분석·개선 권고 (LLM 생성 · 보고서 미포함)" variant="bordered" actions={
+                <button onClick={generateRecommendations} disabled={recsLoading} className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-40"><Sparkles className="h-3.5 w-3.5" /> {recsLoading ? "생성 중…" : recs ? "다시 생성" : "종합 피드백 생성"}</button>
               }>
                 {recs
                   ? <Text variant="caption" as="p" className="whitespace-pre-wrap leading-relaxed text-foreground">{recs}</Text>
-                  : <Text variant="caption" as="p">「개선 제안 생성」을 누르면 평가 결과와 지적사항을 바탕으로 위험을 낮추기 위한 개선 권고를 LLM이 생성합니다.</Text>}
+                  : <Text variant="caption" as="p">「종합 피드백 생성」을 누르면 평가 결과·지적사항을 바탕으로 종합 평가·주요 위험·우선 개선 권고를 LLM이 생성합니다. (대시보드 전용 — 보고서 PDF에는 포함되지 않습니다)</Text>}
               </SectionCard>
+            </Stack>
+          ) : tab === "input" ? (
+            <Stack gap="lg">
+              <SectionCard title="고위험 서비스 여부" description="개인 차별·권익·안전에 중대한 위험을 줄 수 있는 서비스면 '예'. 점수와 무관하게 최소 '고위험'으로 승급됩니다 (가이드라인 §2-라)." variant="bordered">
+                <Stack gap="sm">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={highImpact} onChange={(e) => setHighImpact(e.target.checked)} className="rounded" />
+                    <span>이 서비스는 고위험 서비스에 해당</span>
+                  </label>
+                  <textarea value={hiReason} onChange={(e) => setHiReason(e.target.value)} placeholder="판단 근거 (예: 신용평가·여신심사 등 고객 권익에 중대한 영향)" rows={2} className="w-full rounded-md border bg-transparent px-3 py-2 text-sm" />
+                </Stack>
+              </SectionCard>
+
+              <SectionCard title="수동 평가가 필요한 항목" description="자동 평가(eval)된 항목은 대시보드에 자동 반영되어 여기서는 제외됩니다. 사람 판단이 필요한 항목(미측정·공급자 신호)만 입력하세요." variant="bordered">
+                <Stack gap="md">
+                  {(() => {
+                    const blocks = RISK_SECTIONS
+                      .map((sec) => ({ sec, items: sec.items.filter((it) => state.riskItems[it.key]?.source !== "eval") }))
+                      .filter((b) => b.items.length > 0);
+                    if (blocks.length === 0) return <Text variant="caption" as="p">현재 모든 항목이 자동 평가되어 수동 입력이 필요한 항목이 없습니다.</Text>;
+                    return blocks.map(({ sec, items }) => (
+                      <div key={sec.key}>
+                        <Text variant="body" as="p" className="mb-2 border-b pb-1.5 font-medium">{sec.label} <span className="text-xs text-muted-foreground">가중 {sec.weight}%</span></Text>
+                        <Stack gap="sm">
+                          {items.map((item) => {
+                            const st = state.riskItems[item.key];
+                            const isProvider = st?.source === "provider";
+                            const ov = overrides[item.key] ?? {};
+                            const autoInherent = st?.inherent ?? 0;
+                            const residual = score.perItemResidual[item.key] ?? 0;
+                            const mitCap = ov.inherentOverride ?? (isProvider ? autoInherent : item.maxInherent);
+                            return (
+                              <div key={item.key} className="rounded-lg border p-3">
+                                <div className="mb-2 flex items-baseline justify-between gap-2">
+                                  <Text variant="caption" as="span" className="font-medium text-foreground">{item.label} <span className="text-[11px] font-normal text-muted-foreground">/ 만점 {item.maxInherent}{isProvider ? " · 공급자 신호" : " · 미측정"}</span></Text>
+                                  <span className="text-[11px] tabular-nums" style={{ color: ratioColor(item.maxInherent > 0 ? residual / item.maxInherent : 0) }}>잔여 {residual}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                                  <label className="flex flex-col gap-1">
+                                    <span className="text-[11px] text-muted-foreground">인식·측정 (0–{item.maxInherent})</span>
+                                    <input type="number" min={0} max={item.maxInherent} value={ov.inherentOverride ?? ""} placeholder={isProvider ? `신호 ${autoInherent}` : "미측정"}
+                                      onChange={(e) => setOverride(item.key, { inherentOverride: e.target.value === "" ? undefined : Math.max(0, Math.min(item.maxInherent, Number(e.target.value))) })}
+                                      className="rounded border bg-transparent px-2 py-1 text-sm tabular-nums" />
+                                  </label>
+                                  <label className="flex flex-col gap-1">
+                                    <span className="text-[11px] text-muted-foreground">경감(통제) (0–{mitCap})</span>
+                                    <input type="number" min={0} value={ov.mitigation ?? ""} placeholder="0"
+                                      onChange={(e) => setOverride(item.key, { mitigation: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })}
+                                      className="rounded border bg-transparent px-2 py-1 text-sm tabular-nums" />
+                                  </label>
+                                  <label className="col-span-2 flex flex-col gap-1 sm:col-span-1">
+                                    <span className="text-[11px] text-muted-foreground">메모</span>
+                                    <input value={ov.note ?? ""} placeholder="통제·근거 등"
+                                      onChange={(e) => setOverride(item.key, { note: e.target.value || undefined })}
+                                      className="rounded border bg-transparent px-2 py-1 text-sm" />
+                                  </label>
+                                </div>
+                                {isProvider && <p className="mt-1.5 text-[11px] text-muted-foreground">외부 공급자 사용 감지 — 위탁 관리체계 점검 후 값을 조정하세요 (기본 신호값 {autoInherent}).</p>}
+                              </div>
+                            );
+                          })}
+                        </Stack>
+                      </div>
+                    ));
+                  })()}
+                </Stack>
+              </SectionCard>
+
+              <div className="flex items-center justify-end gap-3">
+                <Text variant="caption" as="span" className="tabular-nums">총점 {score.total}/100 · {score.grade}위험</Text>
+                <button onClick={() => void saveAssessment()} disabled={savingAssessment} className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80 disabled:opacity-40"><Save className="h-4 w-4" /> {savingAssessment ? "저장 중…" : "평가 저장"}</button>
+              </div>
             </Stack>
           ) : (
             <Stack gap="lg">
@@ -744,11 +900,18 @@ export function RmfReportView() {
           {viewSnap
             ? <span className="rounded-md border bg-muted px-2 py-1 text-xs text-muted-foreground">저장본 v{viewSnap.version} 보기 중</span>
             : <span className="rounded-md border px-2 py-1 text-xs text-muted-foreground" style={{ borderColor: "#10b981", color: "#10b981" }}><Save className="mr-1 inline h-3 w-3" />생성 시 자동 저장됨</span>}
-          <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80"><FileDown className="h-4 w-4" /> PDF 출력</button>
+          <button onClick={() => {
+            const safe = String(phoenixProject || "report").replace(/[\\/:*?"<>|\s]+/g, "_");
+            const prev = document.title;
+            document.title = `RMF_${safe}_${fmtDate(generatedAt)}`;
+            const restore = () => { document.title = prev; window.removeEventListener("afterprint", restore); };
+            window.addEventListener("afterprint", restore);
+            window.print();
+          }} className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80"><FileDown className="h-4 w-4" /> PDF 출력</button>
         </div>
       </div>
       <div className="rmf-report rounded-lg border bg-white p-10 text-[13px] leading-relaxed text-neutral-900 shadow-sm">
-        <div className="mb-6 border-b-2 border-neutral-800 pb-4 text-center">
+        <div className="rmf-head mb-6 border-b-2 border-neutral-800 pb-4 text-center">
           <p className="text-[11px] tracking-wide text-neutral-500">금융분야 AI 위험관리 프레임워크(AI RMF) · 금융감독원 체계 기준{dOrg ? ` · 제출: ${dOrg}` : ""}</p>
           <h1 className="mt-2 text-2xl font-bold">AI 위험평가 보고서</h1>
           <table className="mx-auto mt-4 text-[12px]">
@@ -756,6 +919,7 @@ export function RmfReportView() {
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">대상 서비스</td><td className="px-3 py-0.5 text-left font-semibold">{phoenixProject}</td></tr>
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">평가 기간</td><td className="px-3 py-0.5 text-left">{fmtDate(dFrom)} ~ {fmtDate(dTo)}</td></tr>
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">분석 트레이스</td><td className="px-3 py-0.5 text-left">{dTraceCount}건</td></tr>
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">고위험 서비스</td><td className="px-3 py-0.5 text-left">{dHighImpact ? <span className="font-semibold" style={{ color: "#ef4444" }}>해당{dHiReason ? ` — ${dHiReason}` : ""}</span> : "비해당"}</td></tr>
               {dAssessor && <tr><td className="px-3 py-0.5 text-right text-neutral-500">평가자</td><td className="px-3 py-0.5 text-left">{dAssessor}</td></tr>}
               <tr><td className="px-3 py-0.5 text-right text-neutral-500">생성일</td><td className="px-3 py-0.5 text-left">{fmtDate(generatedAt)}</td></tr>
             </tbody>
