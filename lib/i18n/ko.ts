@@ -98,6 +98,8 @@ export const ko = {
     searchTraces: "트레이스 검색...",
     recentRequests: "최근 요청 및 응답",
     tracesCount: "트레이스",
+    sortNewest: "최신순",
+    sortOldest: "오래된순",
     noTracesFound: "트레이스를 찾을 수 없음",
     noTracesYet: "이 프로젝트에 트레이스가 없습니다.",
     noTracesMatch: "현재 필터와 일치하는 트레이스가 없습니다",

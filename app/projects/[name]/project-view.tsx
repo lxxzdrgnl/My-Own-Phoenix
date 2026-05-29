@@ -20,7 +20,7 @@ import { GapAnalysis, type GapDataItem } from "@/components/dashboard/widgets/ga
 import { computeMetrics, computeGovernScore, computeMapScore, computeMeasureScore, type FeedbackStats, type RmfScores } from "@/lib/rmf-utils";
 import type { AnnotationData, SpanData } from "@/lib/dashboard-utils";
 import { cn } from "@/lib/utils";
-import { Search, Filter, Trash2 } from "lucide-react";
+import { Search, Filter, Trash2, ArrowDownWideNarrow, ArrowUpNarrowWide } from "lucide-react";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
 import { QueryBar, ChipRow } from "@/components/query-bar";
@@ -119,6 +119,7 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
   const [activeTab, setActiveTab] = useState<"traces" | "measure">(defaultTab);
   const filterDropdown = useDisclosure();
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange(7));
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   // ── Query AST (single source of truth for filters) ──
   const router = useRouter();
@@ -312,10 +313,14 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
     [filteredTraces],
   );
 
-  const filteredTraceTrees = useMemo(
-    () => traceTrees.filter((t) => filteredTraceIds.has(t.traceId)),
-    [traceTrees, filteredTraceIds],
-  );
+  const filteredTraceTrees = useMemo(() => {
+    // traceTrees is already newest-first; only resort when oldest-first is asked.
+    const list = traceTrees.filter((t) => filteredTraceIds.has(t.traceId));
+    if (sortOrder === "oldest") {
+      list.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    }
+    return list;
+  }, [traceTrees, filteredTraceIds, sortOrder]);
 
   const hasActiveFilters = queryAST.tokens.length > 0;
 
@@ -539,6 +544,16 @@ export function ProjectView({ projectName, defaultTab = "traces", hideTabBar = f
                   </Text>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setSortOrder((o) => (o === "newest" ? "oldest" : "newest"))}
+                    className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors hover:bg-muted"
+                    title={sortOrder === "newest" ? t.projects.sortNewest : t.projects.sortOldest}
+                  >
+                    {sortOrder === "newest"
+                      ? <ArrowDownWideNarrow className="h-3.5 w-3.5 text-muted-foreground" />
+                      : <ArrowUpNarrowWide className="h-3.5 w-3.5 text-muted-foreground" />}
+                    {sortOrder === "newest" ? t.projects.sortNewest : t.projects.sortOldest}
+                  </button>
                   <RoleGate>
                     <button
                       onClick={sel.toggleDeleteMode}

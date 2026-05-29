@@ -98,6 +98,8 @@ export const en = {
     searchTraces: "Search traces...",
     recentRequests: "Recent requests and responses",
     tracesCount: "traces",
+    sortNewest: "Newest first",
+    sortOldest: "Oldest first",
     noTracesFound: "No traces found",
     noTracesYet: "This project has no traces yet.",
     noTracesMatch: "No traces match the current filters",
