@@ -13,6 +13,7 @@ import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui
 import { Heading, Text } from "@/components/ui/typography";
 import { Stack, Inline } from "@/components/ui/stack";
 import { SectionCard } from "@/components/ui/section-card";
+import { ModalShell, ModalHeader } from "@/components/ui/modal-shell";
 import { LoadingState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/dashboard/widgets/stat-card";
 import { AnnotationBadge, AnnotationBadges } from "@/components/annotation-badge";
@@ -400,10 +401,11 @@ export function RmfReportView() {
   }, [projectId]);
 
   const [savedTick, setSavedTick] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
   const { submit: submitAssessment, saving: savingAssessment } = useFormSubmit(`/api/projects/${projectId}/rmf-assessment`, "PUT");
   const saveAssessment = useCallback(async () => {
     const ok = await submitAssessment({ highImpact, riskItems: overrides, governance, controls, notes: { highImpactReason: hiReason }, assessor });
-    if (ok) setSavedTick(true);
+    if (ok) { setSavedTick(true); setShowSaved(true); }
     return ok;
   }, [submitAssessment, highImpact, overrides, governance, controls, hiReason, assessor]);
   useEffect(() => { setSavedTick(false); }, [highImpact, hiReason, overrides, governance, controls]);
@@ -658,7 +660,7 @@ export function RmfReportView() {
                         <Text variant="caption" className="font-medium text-foreground">주요 위험 요인</Text>
                         <ul className="mt-1 space-y-1">
                           {recs.risks.map((rk, i) => (
-                            <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-foreground/80">
+                            <li key={i} className="flex gap-2 text-sm leading-relaxed text-foreground/80">
                               <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full" style={{ background: "#ef4444" }} />
                               <span><span className="font-medium text-foreground">{rk.area}</span> — {rk.detail}</span>
                             </li>
@@ -683,7 +685,7 @@ export function RmfReportView() {
                     )}
                   </Stack>
                 ) : recsError
-                  ? <p className="text-[13px]" style={{ color: "#ef4444" }}>{recsError}</p>
+                  ? <p className="text-sm" style={{ color: "#ef4444" }}>{recsError}</p>
                   : <Text variant="caption" as="p">「종합 피드백 생성」을 누르면 평가 결과·지적사항을 바탕으로 종합 평가·주요 위험, 그리고 <b className="text-foreground">에이전트 개선 권고</b>를 LLM이 생성합니다. (대시보드 전용 · 보고서에는 미포함됩니다)</Text>}
               </SectionCard>
 
@@ -718,7 +720,7 @@ export function RmfReportView() {
                         const max = findingsByEval[0][1] || 1;
                         return (
                           <div key={name} className="flex items-center gap-2 text-xs">
-                            <div className="w-36 shrink-0 font-mono text-[11px]">{name}</div>
+                            <div className="w-36 shrink-0 font-mono text-xs">{name}</div>
                             <div className="relative h-4 flex-1 overflow-hidden rounded bg-muted"><div className="h-full rounded bg-foreground/80" style={{ width: Math.round((count / max) * 100) + "%" }} /></div>
                             <div className="w-8 shrink-0 text-right tabular-nums">{count}</div>
                           </div>
@@ -783,10 +785,10 @@ export function RmfReportView() {
                                             <span className="text-base font-medium tabular-nums" style={{ color }}>{residual}</span>
                                             <Text variant="caption" as="span">/ {item.maxInherent} 잔여</Text>
                                           </span>
-                                          <span className="text-[11px] font-medium" style={{ color }}>{ratioLabel(rr)}</span>
+                                          <span className="text-xs font-medium" style={{ color }}>{ratioLabel(rr)}</span>
                                         </div>
                                         <div className="relative h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full transition-all" style={{ width: pct + "%", background: color }} /></div>
-                                        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                                           <span className="min-w-0 truncate">{basis}</span>
                                           {fc > 0 && <span className="shrink-0 rounded border bg-muted px-1.5 py-0.5 font-medium text-foreground/70">지적 {fc}</span>}
                                         </div>
@@ -849,7 +851,7 @@ export function RmfReportView() {
                           <div className="mb-2 flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <Text variant="caption" as="p" className="font-medium uppercase tracking-wide text-foreground/70">트레이스</Text>
-                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatSec(tree.latency)}</span>
                                 {root.model && <span className="flex items-center gap-1"><Cpu className="h-3 w-3" />{root.model}</span>}
                                 {root.totalTokens > 0 && <span className="flex items-center gap-1"><Coins className="h-3 w-3" /><span className="tabular-nums">{root.totalTokens.toLocaleString()}</span> tok</span>}
@@ -1007,6 +1009,13 @@ export function RmfReportView() {
                 </div>
                 <button onClick={() => void saveAssessment()} disabled={savingAssessment} className="flex shrink-0 items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80 disabled:opacity-40"><Save className="h-4 w-4" /> {savingAssessment ? "저장 중…" : "평가 저장"}</button>
               </div>
+
+              <ModalShell open={showSaved} onClose={() => setShowSaved(false)} size="sm">
+                <ModalHeader title="평가가 저장되었습니다" description="입력한 정성 평가가 이 프로젝트에 저장되어 보고서·대시보드에 반영됩니다." />
+                <div className="mt-3 flex justify-end">
+                  <button onClick={() => setShowSaved(false)} className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80">확인</button>
+                </div>
+              </ModalShell>
             </Stack>
           ) : (
             <Stack gap="lg">
