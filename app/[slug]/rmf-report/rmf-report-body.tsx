@@ -11,6 +11,17 @@ import {
   SourceBadge, type SectionKey,
 } from "./rmf-helpers";
 
+export interface CoverInfo {
+  projectName: string;
+  org: string;
+  periodText: string;
+  traceCount: number;
+  highImpact: boolean;
+  hiReason: string;
+  assessor: string;
+  generatedText: string;
+}
+
 interface BodyProps {
   score: ScoreResult;
   state: AssessmentState;
@@ -20,9 +31,10 @@ interface BodyProps {
   traceCount: number;
   sections: Record<SectionKey, boolean>;
   findingsCap: number;
+  cover?: CoverInfo;
 }
 
-export function RmfBody({ score, state, metricById, findingsByItem, findingQuery, traceCount, sections, findingsCap }: BodyProps) {
+export function RmfBody({ score, state, metricById, findingsByItem, findingQuery, traceCount, sections, findingsCap, cover }: BodyProps) {
   const t = useT();
   const rmf = t.rmf;
   const ui = rmf.ui;
@@ -33,6 +45,23 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
   const nFindings = (n: number) => ui.findingsN.replace("{n}", String(n));
   return (
     <>
+      <div className="rmf-sheet">
+      {cover && (
+        <div className="rmf-head mb-6 border-b-2 border-neutral-800 pb-4 text-center">
+          <p className="text-[11px] tracking-wide text-neutral-500">{ui.reportFramework}{cover.org ? ` · ${ui.submitTo}: ${cover.org}` : ""}</p>
+          <h1 className="mt-2 text-[22px] font-extrabold">{ui.reportTitle}</h1>
+          <table className="mx-auto mt-4 text-[12px]">
+            <tbody>
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.targetService}</td><td className="px-3 py-0.5 text-left font-semibold">{cover.projectName}</td></tr>
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.period}</td><td className="px-3 py-0.5 text-left">{cover.periodText}</td></tr>
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.tracesAnalyzed}</td><td className="px-3 py-0.5 text-left">{cover.traceCount}</td></tr>
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.highRiskRow}</td><td className="px-3 py-0.5 text-left">{cover.highImpact ? <span className="font-semibold" style={{ color: "#ef4444" }}>{ui.applicable}{cover.hiReason ? ` — ${cover.hiReason}` : ""}</span> : ui.notApplicable}</td></tr>
+              {cover.assessor && <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.assessorLabel}</td><td className="px-3 py-0.5 text-left">{cover.assessor}</td></tr>}
+              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.generatedDate}</td><td className="px-3 py-0.5 text-left">{cover.generatedText}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      )}
       <section className="avoid-break mb-7">
         <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">{ui.overallGradeHeading}</h2>
         <div className="flex items-baseline gap-4">
@@ -96,9 +125,11 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
         </table>
         <p className="mt-1 text-[10px] text-neutral-500">{ui.summaryNote}</p>
       </section>
+      </div>
 
       {sections.sectionDetail && (
-        <section className="page-break">
+        <div className="rmf-sheet">
+        <section className="avoid-break">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">{ui.detailHeading}</h2>
           {RISK_SECTIONS.map((sec) => (
             <div key={sec.key} className="mb-5">
@@ -138,10 +169,13 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
             </div>
           ))}
         </section>
+        </div>
       )}
 
+      {(sections.governance || sections.controls || sections.methodology) && (
+        <div className="rmf-sheet">
       {sections.governance && (
-        <section className="page-break avoid-break mb-7">
+        <section className="avoid-break mb-7">
           <h2 className="mb-2 border-b border-neutral-300 pb-1 text-[15px] font-bold">{ui.governanceHeading}</h2>
           <ul className="space-y-1.5 text-[11px]">
             {GOVERNANCE_ITEMS.map((g) => {
@@ -193,6 +227,8 @@ export function RmfBody({ score, state, metricById, findingsByItem, findingQuery
             <li>{ui.method5}</li>
           </ul>
         </section>
+      )}
+      </div>
       )}
     </>
   );

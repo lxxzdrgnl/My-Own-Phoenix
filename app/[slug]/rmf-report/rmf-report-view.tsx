@@ -335,7 +335,12 @@ export function RmfReportView() {
 
   const body = (
     <RmfBody score={dScore} state={dState} metricById={dMetricById} findingsByItem={dFindingsByItem}
-      findingQuery={dFindingQuery} traceCount={dTraceCount} sections={dSections} findingsCap={findingsCap} />
+      findingQuery={dFindingQuery} traceCount={dTraceCount} sections={dSections} findingsCap={findingsCap}
+      cover={{
+        projectName: phoenixProject, org: dOrg, periodText: `${fmtDate(dFrom)} ~ ${fmtDate(dTo)}`,
+        traceCount: dTraceCount, highImpact: dHighImpact, hiReason: dHiReason, assessor: dAssessor,
+        generatedText: fmtDate(generatedAt),
+      }} />
   );
 
   // ─── 대시보드 단계 (앱 스타일 — human-review 참고) ───
@@ -824,21 +829,7 @@ export function RmfReportView() {
           }} className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/80"><FileDown className="h-4 w-4" /> {ui.printPdf}</button>
         </div>
       </div>
-      <div className="rmf-report rounded-lg border bg-white p-10 text-[13px] leading-relaxed text-neutral-900 shadow-sm">
-        <div className="rmf-head mb-6 border-b-2 border-neutral-800 pb-4 text-center">
-          <p className="text-[11px] tracking-wide text-neutral-500">{ui.reportFramework}{dOrg ? ` · ${ui.submitTo}: ${dOrg}` : ""}</p>
-          <h1 className="mt-2 text-[22px] font-extrabold">{ui.reportTitle}</h1>
-          <table className="mx-auto mt-4 text-[12px]">
-            <tbody>
-              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.targetService}</td><td className="px-3 py-0.5 text-left font-semibold">{phoenixProject}</td></tr>
-              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.period}</td><td className="px-3 py-0.5 text-left">{fmtDate(dFrom)} ~ {fmtDate(dTo)}</td></tr>
-              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.tracesAnalyzed}</td><td className="px-3 py-0.5 text-left">{dTraceCount}</td></tr>
-              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.highRiskRow}</td><td className="px-3 py-0.5 text-left">{dHighImpact ? <span className="font-semibold" style={{ color: "#ef4444" }}>{ui.applicable}{dHiReason ? ` — ${dHiReason}` : ""}</span> : ui.notApplicable}</td></tr>
-              {dAssessor && <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.assessorLabel}</td><td className="px-3 py-0.5 text-left">{dAssessor}</td></tr>}
-              <tr><td className="px-3 py-0.5 text-right text-neutral-500">{ui.generatedDate}</td><td className="px-3 py-0.5 text-left">{fmtDate(generatedAt)}</td></tr>
-            </tbody>
-          </table>
-        </div>
+      <div className="rmf-report py-4 text-[13px] leading-relaxed text-neutral-900">
         {body}
       </div>
     </div>
