@@ -234,6 +234,44 @@ model Project {
   joinRequests      ProjectJoinRequest[]
   prompts           ProjectPrompt[]
   piiGuardRuns      PiiGuardRun[]
+  rmfAssessment     RmfAssessment?
+  rmfReportVersions RmfReportVersion[]
+}
+
+// 금융 AI RMF — 프로젝트별 현재 평가 설정/초안 (1건, upsert)
+model RmfAssessment {
+  id         String    @id @default(cuid())
+  projectId  String    @unique
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  highImpact Boolean   @default(false)
+  periodFrom DateTime?
+  periodTo   DateTime?
+  governance Json      @default("{}") // { key: { status, note } }
+  controls   Json      @default("{}")
+  riskItems  Json      @default("{}") // { itemKey: { mitigation, note, inherentOverride? } }
+  assessor   String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+// 금융 AI RMF — 생성 시 저장되는 보고서 버전 스냅샷 (immutable, 다시보기)
+model RmfReportVersion {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version    Int                      // 프로젝트 내 순번
+  label      String?                  // 사용자 메모
+  periodFrom DateTime?
+  periodTo   DateTime?
+  highImpact Boolean   @default(false)
+  grade      String                   // 저/중/고/초고
+  total      Int
+  snapshot   Json                     // 계산된 보고서 전체(항목·소계·findings·거버넌스·통제)
+  assessor   String?
+  createdAt  DateTime  @default(now())
+
+  @@unique([projectId, version])
+  @@index([projectId, createdAt])
 }
 
 model PiiGuardRun {

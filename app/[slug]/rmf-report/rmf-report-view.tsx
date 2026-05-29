@@ -10,7 +10,7 @@ import { extractInputPreview } from "@/lib/span-extraction";
 import { computeMetrics, MEASURE_METRICS } from "@/lib/rmf-utils";
 import type { SpanData, AnnotationData } from "@/lib/dashboard-utils";
 import { DateRangePicker, getPresetRange, type DateRange } from "@/components/ui/date-range-picker";
-import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX } from "@/lib/rmf/finance-rmf";
+import { RISK_SECTIONS, GOVERNANCE_ITEMS, CONTROL_ITEMS, CONTROL_MATRIX, gradeFromTotal } from "@/lib/rmf/finance-rmf";
 import { prefillRiskItems, extractFindings } from "@/lib/rmf/finance-prefill";
 import { computeFinanceRisk } from "@/lib/rmf/finance-score";
 import type { AssessmentState, Finding, Grade } from "@/lib/rmf/types";
@@ -194,6 +194,11 @@ export function RmfReportView() {
               </div>
             ))}
           </div>
+          {highImpact && score.grade !== gradeFromTotal(score.total) && (
+            <p className="mt-2 rounded bg-neutral-100 px-2 py-1 text-[11px] text-neutral-700">
+              ※ 총점 {score.total}점은 <b>{gradeFromTotal(score.total)}위험</b> 구간이나, <b>고영향 AI</b>(대출심사 등)에 해당하여 FSS 기준에 따라 <b>고위험</b>으로 상향 분류되었습니다.
+            </p>
+          )}
         </section>
 
         {/* 부문별 위험도 (시각화) */}
