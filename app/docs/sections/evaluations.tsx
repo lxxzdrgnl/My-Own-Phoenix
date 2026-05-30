@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Check, ChevronRight, Eye, Pencil, Play, Plus, RefreshCw, X } from "lucide-react";
+import { Calendar, Check, ChevronRight, Play, Plus, RefreshCw, X } from "lucide-react";
 import { Callout } from "../code-block";
 import { ModelSelector } from "@/components/model-selector";
 import { PromptBuilder, generatePromptFromConfig, DEFAULT_FORM_CONFIG } from "@/components/prompt-builder";
@@ -74,9 +74,19 @@ function TypeBadge({ type }: { type: string }) {
   return <span className="shrink-0 rounded px-1 py-0.5 text-[8px] font-bold uppercase bg-neutral-900 text-white">llm</span>;
 }
 
+/* Self-contained builders so a selected-eval change (via key) reseeds local state. */
+function LivePromptBuilder({ initial, evalName, badge }: { initial: string; evalName: string; badge: string }) {
+  const [tpl, setTpl] = useState(initial);
+  return <PromptBuilder template={tpl} evalName={evalName} badgeLabel={badge} onChange={setTpl} />;
+}
+
+function LiveRuleBuilder({ initial }: { initial: RuleConfig }) {
+  const [cfg, setCfg] = useState(initial);
+  return <RuleBuilder config={cfg} onChange={setCfg} />;
+}
+
 function EvalPreview() {
   const [selected, setSelected] = useState(0);
-  const [viewMode, setViewMode] = useState<"form" | "raw">("raw");
   const [tested, setTested] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -97,7 +107,7 @@ function EvalPreview() {
     }`;
 
   return (
-    <div className="rounded-xl border border-neutral-200 overflow-hidden bg-white text-neutral-900" style={{ height: 520 }}>
+    <div className="rounded-xl border border-neutral-200 overflow-hidden bg-white text-neutral-900" style={{ height: 760 }}>
       <div className="flex h-full">
         {/* ── LEFT: Eval list (mirrors real EvalList sidebar) ── */}
         <div className="w-[240px] shrink-0 flex flex-col border-r border-neutral-200 bg-neutral-50">
@@ -120,7 +130,7 @@ function EvalPreview() {
                 </div>
                 {/* Name + description */}
                 <button
-                  onClick={() => { setSelected(i); setViewMode("raw"); setTested(false); setCreating(false); }}
+                  onClick={() => { setSelected(i); setTested(false); setCreating(false); }}
                   className="flex flex-1 items-center gap-1.5 text-left min-w-0"
                 >
                   <div className="flex-1 min-w-0">
@@ -266,23 +276,8 @@ function EvalPreview() {
           {/* Content area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {ev.type === "code_rule" && ev.ruleConfig ? (
-              /* Rule config */
-              <div className="space-y-3">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Rule Configuration</div>
-                {ev.ruleConfig.rules.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
-                    <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-mono">{r.check}</span>
-                    <span className="text-xs text-neutral-500">{r.op}</span>
-                    <code className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-mono">{r.value}</code>
-                    <span className="text-[10px] text-neutral-500 ml-auto">case: {r.caseSensitive ? "sensitive" : "insensitive"}</span>
-                  </div>
-                ))}
-                <div className="flex gap-4 mt-3 text-xs text-neutral-500">
-                  <span>Logic: <strong className="text-neutral-900">{ev.ruleConfig.logic}</strong></span>
-                  <span>Match: <strong className="text-neutral-900">{ev.ruleConfig.match.label}</strong></span>
-                  <span>Clean: <strong className="text-neutral-900">{ev.ruleConfig.clean.label}</strong></span>
-                </div>
-              </div>
+              /* Rule config — real RuleBuilder, reset per selected eval */
+              <LiveRuleBuilder key={selected} initial={ev.ruleConfig as RuleConfig} />
             ) : (
               <>
                 {/* ── 1. Backfill panel ── */}
@@ -314,152 +309,13 @@ function EvalPreview() {
                   </div>
                 </div>
 
-                {/* ── 3. Prompt template (RAW) / Form view ── */}
-                {viewMode === "raw" ? (
-                  <div>
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-                        Prompt template (RAW)
-                      </span>
-                      <button
-                        onClick={() => setViewMode("form")}
-                        className="flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors"
-                      >
-                        <Eye className="size-3" /> Form view
-                      </button>
-                    </div>
-                    <pre className="whitespace-pre-wrap break-words text-xs font-mono text-neutral-600 leading-relaxed rounded-lg border border-neutral-200 bg-white p-4">
-                      {rawPrompt}
-                    </pre>
-                    {/* ── 4. Placeholders ── */}
-                    <p className="mt-1.5 text-[10px] text-neutral-500">
-                      Placeholders: <code className="rounded bg-neutral-100 px-1">{"{context}"}</code>{" "}
-                      <code className="rounded bg-neutral-100 px-1">{"{query}"}</code>{" "}
-                      <code className="rounded bg-neutral-100 px-1">{"{response}"}</code>
-                    </p>
-                  </div>
-                ) : (
-                  /* PromptBuilder form view */
-                  <div className="space-y-5">
-                    {/* Mode toggle */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-                        Evaluation Config
-                      </span>
-                      <button
-                        onClick={() => setViewMode("raw")}
-                        className="flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors"
-                      >
-                        <Pencil className="size-3" /> Edit Raw Prompt
-                      </button>
-                    </div>
-
-                    {/* Role & Task */}
-                    <div className="rounded-lg border border-neutral-200 p-4 space-y-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-                        Evaluator Role
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-neutral-500 whitespace-nowrap">You are an expert</span>
-                        <div className="flex-1 h-8 rounded-md border border-neutral-200 bg-white px-2.5 flex items-center text-xs text-neutral-800">
-                          {ev.role}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1.5">
-                          Task Description
-                        </p>
-                        <div className="w-full rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-xs leading-relaxed whitespace-pre-wrap min-h-[3rem] text-neutral-800">
-                          {ev.task}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Input Fields */}
-                    <div className="rounded-lg border border-neutral-200 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-3">
-                        Input Fields
-                      </p>
-                      <div className="flex gap-2">
-                        {(["context", "query", "response"] as const).map((field) => {
-                          const active = (ev.inputs as readonly string[]).includes(field);
-                          return (
-                            <span
-                              key={field}
-                              className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium ${
-                                active
-                                  ? "border-neutral-900 bg-neutral-900 text-white"
-                                  : "border-neutral-200 text-neutral-500"
-                              }`}
-                            >
-                              <code className="text-[10px]">{`{${field}}`}</code>
-                            </span>
-                          );
-                        })}
-                      </div>
-                      <p className="mt-2 text-[10px] text-neutral-500">
-                        Select which data fields are included in the evaluation prompt.
-                      </p>
-                    </div>
-
-                    {/* Output Mode */}
-                    <div className="rounded-lg border border-neutral-200 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-3">
-                        Output Mode
-                      </p>
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className={`rounded-lg border p-3 text-left ${ev.output === "score" ? "border-neutral-900 bg-neutral-100" : "border-neutral-200"}`}>
-                          <p className="text-sm font-semibold text-neutral-900">Score (0.0 - 1.0)</p>
-                          <p className="text-[11px] text-neutral-500 mt-0.5">
-                            Returns a numeric score with label.
-                          </p>
-                        </div>
-                        <div className={`rounded-lg border p-3 text-left ${ev.output === "binary" ? "border-neutral-900 bg-neutral-100" : "border-neutral-200"}`}>
-                          <p className="text-sm font-semibold text-neutral-900">Binary (True / False)</p>
-                          <p className="text-[11px] text-neutral-500 mt-0.5">
-                            Returns pass or fail only.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-[10px] text-neutral-500 mb-1 block">
-                            {ev.output === "binary" ? "True Label" : "Pass Label"}
-                          </label>
-                          <div className="h-8 rounded-md border border-neutral-200 bg-white px-2.5 flex items-center text-xs text-neutral-800">
-                            {ev.passLabel}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-neutral-500 mb-1 block">
-                            {ev.output === "binary" ? "False Label" : "Fail Label"}
-                          </label>
-                          <div className="h-8 rounded-md border border-neutral-200 bg-white px-2.5 flex items-center text-xs text-neutral-800">
-                            {ev.failLabel}
-                          </div>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-[10px] text-neutral-500">
-                        {ev.output === "score"
-                          ? `Returns score 0.0-1.0. Scores above 0.5 → "${ev.passLabel}", below → "${ev.failLabel}".`
-                          : `Returns "${ev.passLabel}" or "${ev.failLabel}" with explanation.`}
-                      </p>
-                    </div>
-
-                    {/* Badge preview */}
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-neutral-500">Badge preview:</span>
-                      <span className="inline-flex items-center rounded text-[9px] font-mono tabular-nums leading-none border border-neutral-200">
-                        <span className="flex items-center px-1.5 py-1 bg-neutral-50 text-neutral-400">{ev.badge}</span>
-                        <span className="bg-neutral-100 px-1.5 py-1 font-bold text-neutral-600">PASS</span>
-                      </span>
-                      <span className="inline-flex items-center rounded text-[9px] font-mono tabular-nums leading-none border-2 border-neutral-900">
-                        <span className="flex items-center px-1.5 py-1 bg-neutral-100 text-neutral-900 font-semibold">{ev.badge}</span>
-                        <span className="bg-neutral-900 px-1.5 py-1 font-bold text-white">FAIL</span>
-                      </span>
-                    </div>
-                  </div>
-                )}
+                {/* ── 3. Prompt template — real PromptBuilder, reset per selected eval ── */}
+                <LivePromptBuilder
+                  key={selected}
+                  initial={rawPrompt}
+                  evalName={ev.name}
+                  badge={ev.badge}
+                />
 
                 {/* ── 5. Test panel ── */}
                 <div className="rounded-lg border border-neutral-200 bg-white p-4">
