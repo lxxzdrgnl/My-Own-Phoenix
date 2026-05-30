@@ -289,6 +289,13 @@ function ScatterPlot({ t }: { t: ReturnType<typeof useT> }) {
 
 /* ── Main ── */
 
+/* 불일치 트레이스 데모 목록 */
+const DISAGREEMENTS = [
+  { eval: "hallucination", query: "에베레스트 높이는?", ai: "pass", human: "fail" },
+  { eval: "guardrail", query: "지금 뭐 사면 돼?", ai: "pass", human: "fail" },
+  { eval: "hallucination", query: "프랑스 수도는?", ai: "fail", human: "pass" },
+] as const;
+
 export function HumanReview() {
   const t = useT();
   return (
@@ -367,6 +374,40 @@ export function HumanReview() {
                 {t.docs.humanReview.scatterTitle}
               </p>
               <ScatterPlot t={t} />
+            </div>
+          </div>
+
+          {/* Disagreement trace list */}
+          <div className="mt-6">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {t.docs.humanReview.disagreementHeading}
+            </p>
+            <p className="mb-3 text-xs text-muted-foreground leading-relaxed">
+              {t.docs.humanReview.disagreementNote}
+            </p>
+            <div className="space-y-2">
+              {DISAGREEMENTS.map((d, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 text-xs"
+                >
+                  <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                    {d.eval}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-foreground">{d.query}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    {t.docs.humanReview.aiAxis}{" "}
+                    <span className="font-semibold text-foreground">
+                      {d.ai === "pass" ? t.docs.humanReview.pass : t.docs.humanReview.fail}
+                    </span>
+                    {" · "}
+                    {t.docs.humanReview.humanAxis}{" "}
+                    <span className="font-semibold text-foreground">
+                      {d.human === "pass" ? t.docs.humanReview.pass : t.docs.humanReview.fail}
+                    </span>
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

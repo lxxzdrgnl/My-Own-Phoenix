@@ -700,6 +700,10 @@ export const en = {
     swaggerApi: "Swagger API",
     gettingStarted: "Getting Started",
     features: "Features",
+    groupTracing: "Tracing",
+    groupEvaluation: "Evaluation",
+    groupAnalytics: "Analytics & Reports",
+    groupTools: "Tools",
 
     // Quick Start
     quickstart: {
@@ -897,6 +901,11 @@ export const en = {
       calloutText: "When a new project is created, the 7 built-in eval templates are automatically enabled. The owner's Global Settings → LLM Providers API key is used to run LLM-based evaluations. Custom templates can be added globally or per-project.",
       aiLanguageTitle: "AI output language",
       aiLanguageNote: "The language for eval explanations and RMF feedback (Korean/English) is set in Project Settings — independent of the app interface language.",
+      backfillHeading: "Run on existing traces",
+      backfillDesc: "A new or newly enabled evaluation applies automatically to traces that arrive afterward. To apply it to past traces, pick a date range in the eval editor's ‘Run on existing traces’ panel and run it. The evaluation is backfilled across traces in that range and their annotations are filled in.",
+      backfillButton: "Run",
+      backfillEvaluated: "evaluated",
+      backfillSkipped: "skipped",
     },
 
     // Dashboard
@@ -1035,6 +1044,8 @@ export const en = {
       fail: "Fail",
       agree: "Agree",
       diff: "Disagree",
+      disagreementHeading: "Disagreement traces",
+      disagreementNote: "Below the comparison charts is a list of traces where the AI and human verdicts diverge. Expand each one to compare the input/output and both verdicts side by side for closer review.",
       loopHeading: "Improvement loop",
       loopStep1: "Open a disagreement case",
       loopStep2: "Edit the eval prompt (role, task, criteria)",
@@ -1045,8 +1056,8 @@ export const en = {
 
     rmfReport: {
       groupLabel: "Features",
-      title: "Financial AI RMF Report",
-      subtitle: "Aggregates traces, evaluations, and human reviews into the FSS AI Risk Management Framework (4 domains, 16 items) to calculate a risk grade and issue an A4 regulatory report. (Local only)",
+      title: "Financial RMF Diagnosis",
+      subtitle: "Aggregates traces, evaluations, and human reviews into the FSS AI Risk Management Framework (4 domains, 16 items) to calculate a risk grade and issue an A4 regulatory report.",
       previewHeading: "Report preview",
       previewHelper: "Switch between the Dashboard and Report tabs. Click 'Save as PDF' to print the report as a PDF via the browser print dialog.",
       tabDashboard: "Dashboard",
@@ -1086,8 +1097,14 @@ export const en = {
       ],
       grades: { low: "Low", mid: "Medium", high: "High", veryhigh: "Critical" },
       sections: { legality: "Legality", reliability: "Reliability", good_faith: "Good Faith", security: "Security" },
-      calloutTitle: "Local only · Financial domain",
-      calloutText: "The Financial AI RMF report is a local-only feature formatted for regulatory submission. Risk items, maximum scores, and grade bands follow the FSS (Financial Supervisory Service) framework definitions.",
+      calloutTitle: "Financial domain",
+      calloutText: "The Financial AI RMF report is formatted for regulatory submission. Risk items, maximum scores, and grade bands follow the FSS (Financial Supervisory Service) framework definitions.",
+      diagHeading: "AI diagnosis",
+      diagDesc: "From the collected evaluations and findings, AI generates an overall assessment, key risks, and priority improvement recommendations. Use the button below to view a sample diagnosis.",
+      diagButton: "Generate AI diagnosis",
+      diagSummaryLabel: "Overall assessment",
+      diagRisksLabel: "Key risks",
+      diagImprovementsLabel: "Priority improvements",
     },
   },
 

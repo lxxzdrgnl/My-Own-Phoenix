@@ -700,6 +700,10 @@ export const ko = {
     swaggerApi: "Swagger API",
     gettingStarted: "시작하기",
     features: "기능",
+    groupTracing: "트레이싱",
+    groupEvaluation: "평가",
+    groupAnalytics: "분석·리포트",
+    groupTools: "도구",
 
     // Quick Start
     quickstart: {
@@ -890,6 +894,11 @@ export const ko = {
       calloutText: "새 프로젝트가 생성되면 7개의 기본 평가 템플릿이 자동으로 활성화됩니다. 소유자의 전역 설정 → LLM 프로바이더 API 키가 LLM 기반 평가를 실행하는 데 사용됩니다. 커스텀 템플릿은 전역 또는 프로젝트별로 추가할 수 있습니다.",
       aiLanguageTitle: "AI 출력 언어",
       aiLanguageNote: "평가 설명과 RMF 종합 피드백을 생성할 언어(한국어/영어)는 프로젝트 설정에서 지정합니다 — 앱 인터페이스 언어와는 독립입니다.",
+      backfillHeading: "기존 트레이스에 평가 실행",
+      backfillDesc: "새 평가를 만들거나 활성화하면 이후 들어오는 트레이스에 자동 적용됩니다. 과거에 쌓인 트레이스에도 적용하려면 평가 에디터의 ‘기존 트레이스에서 실행’ 패널에서 날짜 범위를 고르고 실행합니다. 선택한 기간의 트레이스에 해당 평가가 소급 실행되어 어노테이션이 채워집니다.",
+      backfillButton: "실행",
+      backfillEvaluated: "평가됨",
+      backfillSkipped: "건너뜀",
     },
 
     dashboard: {
@@ -1024,6 +1033,8 @@ export const ko = {
       fail: "실패",
       agree: "일치",
       diff: "불일치",
+      disagreementHeading: "불일치 트레이스",
+      disagreementNote: "비교 그래프 아래에는 AI와 사람 판정이 엇갈린 트레이스 목록이 표시됩니다. 각 항목을 펼치면 입력·출력과 양쪽 판정을 나란히 놓고 자세히 검토할 수 있습니다.",
       loopHeading: "개선 루프",
       loopStep1: "불일치 사례를 연다",
       loopStep2: "eval 프롬프트(역할·과제·기준)를 수정한다",
@@ -1034,8 +1045,8 @@ export const ko = {
 
     rmfReport: {
       groupLabel: "기능",
-      title: "금융 AI RMF 보고서",
-      subtitle: "트레이스·평가·사람평가를 금융감독원 AI 위험관리 프레임워크(4부문 16항목)로 집계해 위험등급을 산정하고, 감독 대응용 A4 보고서를 발급합니다. (로컬 전용)",
+      title: "금융 RMF 진단",
+      subtitle: "트레이스·평가·사람평가를 금융감독원 AI 위험관리 프레임워크(4부문 16항목)로 집계해 위험등급을 산정하고, 감독 대응용 A4 보고서를 발급합니다.",
       previewHeading: "보고서 미리보기",
       previewHelper: "대시보드와 보고서 출력을 탭으로 전환해보세요. 'PDF로 저장'을 누르면 브라우저 인쇄로 보고서를 PDF로 받을 수 있습니다.",
       tabDashboard: "대시보드",
@@ -1075,8 +1086,14 @@ export const ko = {
       ],
       grades: { low: "저위험", mid: "중위험", high: "고위험", veryhigh: "초고위험" },
       sections: { legality: "합법성", reliability: "신뢰성", good_faith: "신의성실", security: "보안성" },
-      calloutTitle: "로컬 전용 · 금융 도메인",
-      calloutText: "금융분야 AI RMF 보고서는 감독당국 제출 양식에 맞춘 로컬 전용 기능입니다. 위험항목·만점·등급밴드는 금융감독원 프레임워크 정의를 따릅니다.",
+      calloutTitle: "금융 도메인 특화",
+      calloutText: "금융분야 AI RMF 보고서는 감독당국 제출 양식에 맞춥니다. 위험항목·만점·등급밴드는 금융감독원 프레임워크 정의를 따릅니다.",
+      diagHeading: "AI 진단",
+      diagDesc: "수집된 평가·지적사항을 바탕으로 종합 평가, 주요 위험, 우선 개선 권고를 AI가 생성합니다. 아래 버튼으로 예시 진단 결과를 확인합니다.",
+      diagButton: "AI 진단 생성",
+      diagSummaryLabel: "종합 평가",
+      diagRisksLabel: "주요 위험",
+      diagImprovementsLabel: "우선 개선 권고",
     },
   },
 

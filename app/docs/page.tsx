@@ -49,14 +49,29 @@ export default function DocsPage() {
       ],
     },
     {
-      label: t.docs.features,
+      label: t.docs.groupTracing,
       items: [
         { id: "tracing", label: t.docs.tracing.title },
         { id: "tracing-setup", label: t.docs.tracingSetup.title },
+      ],
+    },
+    {
+      label: t.docs.groupEvaluation,
+      items: [
         { id: "evaluations", label: t.docs.evaluations.title },
         { id: "human-review", label: t.docs.humanReview.title },
+      ],
+    },
+    {
+      label: t.docs.groupAnalytics,
+      items: [
         { id: "dashboard", label: t.docs.dashboard.title },
         { id: "rmf-report", label: t.docs.rmfReport.title },
+      ],
+    },
+    {
+      label: t.docs.groupTools,
+      items: [
         { id: "datasets", label: t.docs.datasets.title },
         { id: "chat", label: t.docs.chat.title },
         { id: "playground", label: t.docs.playground.title },
@@ -94,6 +109,7 @@ export default function DocsPage() {
                       key={item.id}
                       active={active === item.id}
                       onClick={() => setActive(item.id)}
+                      className="py-1.5 text-xs"
                     >
                       {item.label}
                     </SidebarItem>
