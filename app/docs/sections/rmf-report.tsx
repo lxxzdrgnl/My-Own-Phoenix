@@ -7,6 +7,7 @@ import { StatCard } from "@/components/dashboard/widgets/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { Stack, Inline } from "@/components/ui/stack";
 import { Text } from "@/components/ui/typography";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useT } from "@/lib/i18n";
 import { RmfBody } from "@/app/[slug]/rmf-report/rmf-report-body";
 import {
@@ -348,37 +349,63 @@ export function RmfReport() {
                             const pct = Math.min(100, Math.round(rr * 100));
                             const fc = FINDINGS_BY_ITEM[item.key]?.length ?? 0;
                             const color = ratioColor(rr);
+                            const inherent = st?.inherent ?? 0;
+                            const mitigation = st?.mitigation ?? 0;
                             const metricVal = item.evalMetricId ? MOCK_METRICS[item.evalMetricId] : undefined;
                             const basis = item.providerSignal
                               ? ui.providerSignal
                               : metricVal !== undefined
                                 ? `${metricLabel(item.evalMetricId)} ${metricVal}%`
                                 : ui.basisDefault;
+                            const evalText = item.providerSignal
+                              ? ui.providerSignalFull
+                              : item.evalMetricId
+                                ? `${metricLabel(item.evalMetricId)} (${item.evalMetricId})${metricVal !== undefined ? ` · ${ui.measuredValue} ${metricVal}%` : ` · ${ui.noData}`}`
+                                : ui.noEvalData;
                             return (
-                              <div key={item.key} className="flex flex-col gap-2 rounded-lg border bg-card p-3">
-                                <div className="flex items-start justify-between gap-2">
-                                  <span className="flex items-start gap-1.5 text-xs font-medium leading-tight"><span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: measured ? color : "#d4d4d8" }} />{itemText(item.key, rmf).label}</span>
-                                  <SourceBadge source={st?.source} subtle />
-                                </div>
-                                {measured ? (
-                                  <>
-                                    <div className="flex items-baseline justify-between gap-1">
-                                      <span className="flex items-baseline gap-1">
-                                        <span className="text-base font-medium tabular-nums" style={{ color }}>{residual}</span>
-                                        <Text variant="caption" as="span">/ {item.maxInherent} {ui.residual}</Text>
-                                      </span>
-                                      <span className="text-xs font-medium" style={{ color }}>{ratioLabel(rr, rmf.levels)}</span>
+                              <Tooltip key={item.key}>
+                                <TooltipTrigger asChild>
+                                  <div className="flex cursor-help flex-col gap-2 rounded-lg border bg-card p-3 transition-colors hover:border-foreground/30">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <span className="flex items-start gap-1.5 text-xs font-medium leading-tight"><span className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: measured ? color : "#d4d4d8" }} />{itemText(item.key, rmf).label}</span>
+                                      <SourceBadge source={st?.source} subtle />
                                     </div>
-                                    <div className="relative h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full transition-all" style={{ width: pct + "%", background: color }} /></div>
-                                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                                      <span className="min-w-0 truncate">{basis}</span>
-                                      {fc > 0 && <span className="shrink-0 rounded border bg-muted px-1.5 py-0.5 font-medium text-foreground/70">{nFindings(fc)}</span>}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <Text variant="caption" as="span">{ui.notMeasured}</Text>
-                                )}
-                              </div>
+                                    {measured ? (
+                                      <>
+                                        <div className="flex items-baseline justify-between gap-1">
+                                          <span className="flex items-baseline gap-1">
+                                            <span className="text-base font-medium tabular-nums" style={{ color }}>{residual}</span>
+                                            <Text variant="caption" as="span">/ {item.maxInherent} {ui.residual}</Text>
+                                          </span>
+                                          <span className="text-xs font-medium" style={{ color }}>{ratioLabel(rr, rmf.levels)}</span>
+                                        </div>
+                                        <div className="relative h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full transition-all" style={{ width: pct + "%", background: color }} /></div>
+                                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                          <span className="min-w-0 truncate">{basis}</span>
+                                          {fc > 0 && <span className="shrink-0 rounded border bg-muted px-1.5 py-0.5 font-medium text-foreground/70">{nFindings(fc)}</span>}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <Text variant="caption" as="span">{ui.notMeasured}</Text>
+                                    )}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[280px]">
+                                  <div className="space-y-1 leading-relaxed">
+                                    <p className="font-medium">{itemText(item.key, rmf).label}</p>
+                                    {measured ? (
+                                      <>
+                                        <p>{ui.inherent} {inherent} − {ui.mitigation} {mitigation} = <b>{ui.residual} {residual}</b> / {item.maxInherent} ({ratioLabel(rr, rmf.levels)})</p>
+                                        <p className="opacity-80">{ui.basisEval}: {evalText}</p>
+                                        <p className="opacity-80">{ui.scoringGuide}: {itemText(item.key, rmf).guide}</p>
+                                        {fc > 0 && <p className="opacity-80">{ui.autoDetectedFindings} {fc}</p>}
+                                      </>
+                                    ) : (
+                                      <p className="opacity-80">{ui.noAutoData}{item.evalMetricId ? ` (${ui.baseEval}: ${item.evalMetricId})` : ""}</p>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
                             );
                           })}
                         </div>
