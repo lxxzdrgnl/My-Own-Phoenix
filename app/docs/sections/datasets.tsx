@@ -61,14 +61,30 @@ interface RunData {
   evalSummary: { name: string; score: number; count: string }[];
 }
 
+const ALL_ROWS = MOCK_PROMPTS.map((p) => ({
+  id: p.id, query: p.query, response: MOCK_RESPONSES[p.id], evals: MOCK_EVAL_RESULTS[p.id],
+}));
+
+// 이전 실행들도 기록이 남아 있어 나란히 비교 가능 (요약 점수는 버전별로 다름)
+const EVAL_SUMMARY_V2VER2 = [
+  { name: "factual_accuracy", score: 80, count: "40/50" },
+  { name: "groundedness", score: 74, count: "37/50" },
+  { name: "tool_correctness", score: 98, count: "49/50" },
+  { name: "refusal", score: 82, count: "41/50" },
+  { name: "plan_quality", score: 96, count: "48/50" },
+];
+const EVAL_SUMMARY_BASE = [
+  { name: "factual_accuracy", score: 68, count: "34/50" },
+  { name: "groundedness", score: 60, count: "30/50" },
+  { name: "tool_correctness", score: 92, count: "46/50" },
+  { name: "refusal", score: 74, count: "37/50" },
+  { name: "plan_quality", score: 88, count: "44/50" },
+];
+
 const INITIAL_RUNS: RunData[] = [
-  {
-    name: "V2 + 7", date: "May 8, 05:45",
-    rows: MOCK_PROMPTS.map((p) => ({ id: p.id, query: p.query, response: MOCK_RESPONSES[p.id], evals: MOCK_EVAL_RESULTS[p.id] })),
-    evalSummary: EVAL_SUMMARY,
-  },
-  { name: "V2 ver2", date: "May 8, 05:09", rows: [], evalSummary: [] },
-  { name: "Base", date: "May 7, 03:06", rows: [], evalSummary: [] },
+  { name: "V2 + 7", date: "May 8, 05:45", rows: ALL_ROWS, evalSummary: EVAL_SUMMARY },
+  { name: "V2 ver2", date: "May 8, 05:09", rows: ALL_ROWS, evalSummary: EVAL_SUMMARY_V2VER2 },
+  { name: "Base", date: "May 7, 03:06", rows: ALL_ROWS, evalSummary: EVAL_SUMMARY_BASE },
 ];
 
 function DatasetPreview() {
