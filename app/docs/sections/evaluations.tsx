@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Check, ChevronDown, ChevronRight, Eye, Pencil, Play, RefreshCw } from "lucide-react";
+import { Calendar, Check, ChevronRight, Eye, Pencil, Play, Plus, RefreshCw, X } from "lucide-react";
 import { Callout } from "../code-block";
+import { ModelSelector } from "@/components/model-selector";
 import { useT } from "@/lib/i18n";
 
 /* ── 7 built-in eval definitions ── */
@@ -74,6 +75,8 @@ function TypeBadge({ type }: { type: string }) {
 function EvalPreview() {
   const [selected, setSelected] = useState(0);
   const [viewMode, setViewMode] = useState<"form" | "raw">("raw");
+  const [tested, setTested] = useState(false);
+  const [creating, setCreating] = useState(false);
   const ev = EVALS[selected];
 
   // Raw prompt string for the selected eval (reused from the previous raw view)
@@ -110,7 +113,7 @@ function EvalPreview() {
                 </div>
                 {/* Name + description */}
                 <button
-                  onClick={() => { setSelected(i); setViewMode("raw"); }}
+                  onClick={() => { setSelected(i); setViewMode("raw"); setTested(false); setCreating(false); }}
                   className="flex flex-1 items-center gap-1.5 text-left min-w-0"
                 >
                   <div className="flex-1 min-w-0">
@@ -122,11 +125,83 @@ function EvalPreview() {
                 </button>
               </div>
             ))}
+            <button
+              onClick={() => { setCreating(true); setTested(false); }}
+              className="mt-1 flex w-full items-center gap-1.5 rounded-md px-2.5 py-2 text-sm text-neutral-500 hover:bg-neutral-100/60 transition-colors"
+            >
+              <Plus className="size-3.5" /> New evaluation
+            </button>
           </div>
         </div>
 
         {/* ── RIGHT: Editor (mirrors real EvalEditor + PromptBuilder) ── */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white">
+          {creating ? (
+            /* ── New evaluation form ── */
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+              <div className="border-b border-neutral-200 px-4 py-3 flex items-center justify-between">
+                <span className="text-sm font-semibold text-neutral-900">New evaluation</span>
+                <button
+                  onClick={() => setCreating(false)}
+                  className="flex size-7 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Name */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1.5">Name</p>
+                  <input
+                    placeholder="e.g. toxicity"
+                    className="w-full h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400"
+                  />
+                </div>
+
+                {/* Output mode */}
+                <div className="rounded-lg border border-neutral-200 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-3">Output Mode</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-neutral-900 bg-neutral-100 p-3 text-left">
+                      <p className="text-sm font-semibold text-neutral-900">Score (0.0 - 1.0)</p>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">Returns a numeric score with label.</p>
+                    </div>
+                    <div className="rounded-lg border border-neutral-200 p-3 text-left">
+                      <p className="text-sm font-semibold text-neutral-900">Binary (Pass / Fail)</p>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">Returns pass or fail only.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Evaluator Role / Task */}
+                <div className="rounded-lg border border-neutral-200 p-4 space-y-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1.5">Evaluator Role</p>
+                    <input
+                      placeholder="You are an expert ..."
+                      className="w-full h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1.5">Task Description</p>
+                    <textarea
+                      placeholder="Describe what to evaluate ..."
+                      className="w-full rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-sm leading-relaxed text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 min-h-[4rem] resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Create button */}
+                <button
+                  onClick={() => setCreating(false)}
+                  className="w-full h-9 rounded-md bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors"
+                >
+                  Create evaluation
+                </button>
+              </div>
+            </div>
+          ) : (
+          <>
           {/* Header */}
           <div className="border-b border-neutral-200 px-4 py-3 flex items-center gap-2">
             <span className="text-sm font-semibold text-neutral-900">{ev.name}</span>
@@ -186,11 +261,7 @@ function EvalPreview() {
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Eval model</span>
                   <div className="mt-1 w-64">
-                    <div className="flex h-9 w-full items-center gap-2 rounded-md border border-neutral-200 bg-white px-2.5 text-sm">
-                      <span className="size-3.5 shrink-0 rounded-full border border-neutral-300 bg-neutral-100" />
-                      <span className="flex-1 truncate text-left font-mono text-sm text-neutral-800">gpt-4o-mini</span>
-                      <ChevronDown className="size-3.5 shrink-0 text-neutral-500" />
-                    </div>
+                    <ModelSelector value="gpt-4o-mini" onChange={() => {}} />
                   </div>
                 </div>
 
@@ -347,9 +418,12 @@ function EvalPreview() {
                     <span className="flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
                       <Play className="size-3" /> Test
                     </span>
-                    <span className="inline-flex h-7 items-center rounded-md border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-800">
+                    <button
+                      onClick={() => setTested(true)}
+                      className="inline-flex h-7 items-center rounded-md border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-800 hover:bg-neutral-100 transition-colors"
+                    >
                       Run
-                    </span>
+                    </button>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {([
@@ -365,10 +439,26 @@ function EvalPreview() {
                       </div>
                     ))}
                   </div>
+                  {tested && (
+                    <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Result</span>
+                        <span className="inline-flex items-center rounded text-[9px] font-mono tabular-nums leading-none border border-neutral-300">
+                          <span className="px-1.5 py-1 bg-neutral-100 text-neutral-600">{ev.badge}</span>
+                          <span className="px-1.5 py-1 font-bold bg-neutral-200 text-neutral-800">
+                            {ev.output === "score" && ev.example.score !== undefined ? `${Math.round(ev.example.score * 100)}%` : ev.example.label}
+                          </span>
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-700 leading-relaxed">{ev.example.explanation}</p>
+                    </div>
+                  )}
                 </div>
               </>
             )}
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
