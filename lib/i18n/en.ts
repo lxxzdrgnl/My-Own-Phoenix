@@ -967,13 +967,13 @@ export const en = {
     playground: {
       groupLabel: "Features",
       title: "Playground",
-      subtitle: "Select existing traces, add up to 5-6 prompt variant columns, and compare results side-by-side. Test different prompts against the same inputs without re-running your full agent.",
+      subtitle: "Select existing traces, add multiple prompt variant columns, and compare results side-by-side. Test different prompts against the same inputs without re-running your full agent.",
       playgroundInterface: "Playground interface",
       playgroundInterfaceHelper: "Click a trace on the left to load it. Press Run on each column or use the Play button on the right action bar to run all columns at once.",
       features: "Features",
       featuresList: [
         "Browse traces from any project with filters (span kind, annotations, latency)",
-        "Add up to 5-6 prompt columns — each runs a different prompt variant for side-by-side comparison",
+        "Add multiple prompt columns — each runs a different prompt variant for side-by-side comparison",
         "Run single column or all columns at once",
         "Edit prompts inline with template variable support ({query}, {context})",
         "Sync prompts from Phoenix prompt versions",
