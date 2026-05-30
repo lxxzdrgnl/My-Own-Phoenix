@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Calendar, Check, ChevronRight, Eye, Pencil, Play, Plus, RefreshCw, X } from "lucide-react";
 import { Callout } from "../code-block";
 import { ModelSelector } from "@/components/model-selector";
+import { PromptBuilder, generatePromptFromConfig, DEFAULT_FORM_CONFIG } from "@/components/prompt-builder";
+import { RuleBuilder, DEFAULT_RULE_CONFIG, type RuleConfig } from "@/components/rule-builder";
 import { useT } from "@/lib/i18n";
 
 /* ── 7 built-in eval definitions ── */
@@ -77,6 +79,11 @@ function EvalPreview() {
   const [viewMode, setViewMode] = useState<"form" | "raw">("raw");
   const [tested, setTested] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState<"llm_prompt" | "code_rule" | "api">("llm_prompt");
+  const [newModel, setNewModel] = useState("gpt-4o-mini");
+  const [newTemplate, setNewTemplate] = useState(() => generatePromptFromConfig(DEFAULT_FORM_CONFIG));
+  const [newRule, setNewRule] = useState<RuleConfig>(DEFAULT_RULE_CONFIG);
   const ev = EVALS[selected];
 
   // Raw prompt string for the selected eval (reused from the previous raw view)
@@ -151,53 +158,95 @@ function EvalPreview() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Name */}
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1.5">Name</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Name</p>
                   <input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
                     placeholder="e.g. toxicity"
                     className="w-full h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400"
                   />
                 </div>
 
-                {/* Output mode */}
-                <div className="rounded-lg border border-neutral-200 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-3">Output Mode</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-neutral-900 bg-neutral-100 p-3 text-left">
-                      <p className="text-sm font-semibold text-neutral-900">Score (0.0 - 1.0)</p>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">Returns a numeric score with label.</p>
-                    </div>
-                    <div className="rounded-lg border border-neutral-200 p-3 text-left">
-                      <p className="text-sm font-semibold text-neutral-900">Binary (Pass / Fail)</p>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">Returns pass or fail only.</p>
-                    </div>
+                {/* Type selection — mirrors real EvalEditor */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Type</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => setNewType("llm_prompt")}
+                      className={`rounded-lg border p-4 text-left transition-colors ${
+                        newType === "llm_prompt" ? "border-foreground bg-accent" : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold">LLM Prompt</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Use an LLM to judge quality</p>
+                    </button>
+                    <button
+                      onClick={() => setNewType("code_rule")}
+                      className={`rounded-lg border p-4 text-left transition-colors ${
+                        newType === "code_rule" ? "border-foreground bg-accent" : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold">Code Rule</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Pattern matching, no LLM</p>
+                    </button>
+                    <button
+                      onClick={() => setNewType("api")}
+                      className={`rounded-lg border p-4 text-left transition-colors ${
+                        newType === "api" ? "border-foreground bg-accent" : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold">External API</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Call your own endpoint</p>
+                    </button>
                   </div>
                 </div>
 
-                {/* Evaluator Role / Task */}
-                <div className="rounded-lg border border-neutral-200 p-4 space-y-3">
+                {/* Type-specific body */}
+                {newType === "llm_prompt" && (
+                  <>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Eval model</p>
+                      <div className="w-64">
+                        <ModelSelector value={newModel} onChange={setNewModel} />
+                      </div>
+                    </div>
+                    <PromptBuilder
+                      template={newTemplate}
+                      evalName={newName || "new_eval"}
+                      onChange={setNewTemplate}
+                    />
+                  </>
+                )}
+
+                {newType === "code_rule" && (
+                  <RuleBuilder config={newRule} onChange={setNewRule} />
+                )}
+
+                {newType === "api" && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1.5">Evaluator Role</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Endpoint</p>
                     <input
-                      placeholder="You are an expert ..."
+                      placeholder="https://your-eval-endpoint"
                       className="w-full h-9 rounded-md border border-neutral-200 bg-white px-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400"
                     />
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1.5">Task Description</p>
-                    <textarea
-                      placeholder="Describe what to evaluate ..."
-                      className="w-full rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-sm leading-relaxed text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 min-h-[4rem] resize-none"
-                    />
-                  </div>
-                </div>
+                )}
 
-                {/* Create button */}
-                <button
-                  onClick={() => setCreating(false)}
-                  className="w-full h-9 rounded-md bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors"
-                >
-                  Create evaluation
-                </button>
+                {/* Footer actions */}
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    onClick={() => setCreating(false)}
+                    className="flex-1 h-9 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+                  >
+                    Create evaluation
+                  </button>
+                  <button
+                    onClick={() => setCreating(false)}
+                    className="h-9 rounded-md px-4 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
