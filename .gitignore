@@ -33,3 +33,7 @@ prisma/dev.db-journal
 .claude/hooks/**/__pycache__/
 .pytest_cache/
 postgres_data/
+
+# Python bytecode
+__pycache__/
+*.pyc
