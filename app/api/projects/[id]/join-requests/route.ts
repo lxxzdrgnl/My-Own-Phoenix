@@ -9,8 +9,8 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
   const member = await prisma.projectMember.findUnique({
     where: { projectId_userId: { projectId, userId: uid } },
   });
-  if (!member || member.role !== "owner") {
-    return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
+  if (!member || (member.role !== "owner" && member.role !== "editor")) {
+    return apiError(req, ErrorCode.FORBIDDEN, "Owner or editor access required");
   }
 
   const requests = await prisma.projectJoinRequest.findMany({
@@ -28,8 +28,8 @@ export const PUT = authedHandler(async (req: NextRequest, uid: string, { params 
   const member = await prisma.projectMember.findUnique({
     where: { projectId_userId: { projectId, userId: uid } },
   });
-  if (!member || member.role !== "owner") {
-    return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
+  if (!member || (member.role !== "owner" && member.role !== "editor")) {
+    return apiError(req, ErrorCode.FORBIDDEN, "Owner or editor access required");
   }
 
   const { requestId, action } = await req.json();

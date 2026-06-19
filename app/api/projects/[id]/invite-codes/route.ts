@@ -14,8 +14,8 @@ export const GET = authedHandler(async (req: NextRequest, uid: string, { params 
   const member = await prisma.projectMember.findUnique({
     where: { projectId_userId: { projectId, userId: uid } },
   });
-  if (!member || member.role !== "owner") {
-    return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
+  if (!member || (member.role !== "owner" && member.role !== "editor")) {
+    return apiError(req, ErrorCode.FORBIDDEN, "Owner or editor access required");
   }
 
   try {
@@ -36,8 +36,8 @@ export const POST = authedHandler(async (req: NextRequest, uid: string, { params
   const member = await prisma.projectMember.findUnique({
     where: { projectId_userId: { projectId, userId: uid } },
   });
-  if (!member || member.role !== "owner") {
-    return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
+  if (!member || (member.role !== "owner" && member.role !== "editor")) {
+    return apiError(req, ErrorCode.FORBIDDEN, "Owner or editor access required");
   }
 
   const { role = "editor", maxUses = 0, expiresInDays } = await req.json();
@@ -68,8 +68,8 @@ export const DELETE = authedHandler(async (req: NextRequest, uid: string, { para
   const member = await prisma.projectMember.findUnique({
     where: { projectId_userId: { projectId, userId: uid } },
   });
-  if (!member || member.role !== "owner") {
-    return apiError(req, ErrorCode.FORBIDDEN, "Owner access required");
+  if (!member || (member.role !== "owner" && member.role !== "editor")) {
+    return apiError(req, ErrorCode.FORBIDDEN, "Owner or editor access required");
   }
 
   const { codeId } = await req.json();

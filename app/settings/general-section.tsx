@@ -238,6 +238,12 @@ export function GeneralSection() {
                 <Text variant="caption" className="leading-relaxed">
                   {t.settings.connectorKeyDesc}
                 </Text>
+                <a
+                  href="/docs"
+                  className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+                >
+                  {t.settings.connectorKeyDocs} →
+                </a>
 
                 {newKey ? (
                   <Stack gap="xs">

@@ -132,7 +132,7 @@ export default function LoginPage() {
 
               <Button
                 variant="outline"
-                className="mt-3 w-full h-12 text-sm"
+                className="mt-3 w-full h-12 text-sm transition-all hover:border-foreground/30 hover:bg-accent hover:-translate-y-0.5 hover:shadow-md"
                 onClick={handleTestLogin}
                 disabled={loading}
               >

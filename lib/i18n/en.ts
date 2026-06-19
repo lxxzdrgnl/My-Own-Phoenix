@@ -191,10 +191,11 @@ export const en = {
     promptContextLabel: "Context",
     promptContextPlaceholder: "Optional context prepended to the user message. Leave blank to send only {{query}}.",
     connectorKeyDesc: "Your personal key for connecting local agents via the phoenix-connector CLI. This key is unique to you — each team member has their own.",
+    connectorKeyDocs: "See the documentation for detailed setup.",
     saveKeyWarning: "Save this key — it will not be shown again.",
     usage: "Usage",
     // Providers section
-    providersDesc: "Register API keys to enable models across playground, evaluations, and dataset runs.",
+    providersDesc: "API keys you register here are automatically copied into each new project you create. Playground, evaluation, and dataset runs use the key registered to each project.",
     providersLabel: "Providers",
     notConfigured: "Not configured",
     connectionVerified: "Connection verified",

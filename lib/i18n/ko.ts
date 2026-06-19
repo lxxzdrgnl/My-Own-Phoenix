@@ -191,10 +191,11 @@ export const ko = {
     promptContextLabel: "컨텍스트",
     promptContextPlaceholder: "유저 메시지 앞에 항상 포함될 컨텍스트 (선택). 비워두면 {{query}} 만 전송됩니다.",
     connectorKeyDesc: "phoenix-connector CLI를 통해 로컬 에이전트를 연결하기 위한 개인 키입니다. 이 키는 사용자 고유입니다 — 각 팀원은 자신만의 키를 가집니다.",
+    connectorKeyDocs: "자세한 설정 방법은 문서에서 확인하세요",
     saveKeyWarning: "이 키를 저장하세요 — 다시 표시되지 않습니다.",
     usage: "사용법",
     // Providers section
-    providersDesc: "플레이그라운드, 평가, 데이터셋 실행에서 모델을 활성화하려면 API 키를 등록하세요.",
+    providersDesc: "여기 등록한 API 키는 새 프로젝트를 만들 때 해당 프로젝트로 자동 복사됩니다. 플레이그라운드·평가·데이터셋 실행은 각 프로젝트에 등록된 키로 동작합니다.",
     providersLabel: "프로바이더",
     notConfigured: "미설정",
     connectionVerified: "연결 확인됨",

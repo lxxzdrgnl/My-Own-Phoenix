@@ -546,11 +546,10 @@ function AgentTab() {
         description={t.projectSettings.setupGuideDesc}
       >
         <Stack gap="sm">
-          <div className="rounded-lg bg-muted/50 p-3 font-mono text-xs text-muted-foreground break-all">
-            pip install phoenix-connector
-            <br />
-            phoenix-connector --key=pc_... --agent=http://localhost:2024 --project={name}
-          </div>
+          <pre className="overflow-x-auto rounded-lg border bg-muted p-3 font-mono text-xs leading-relaxed text-foreground/80">
+            <code>{`pip install phoenix-connector
+phoenix-connector --key=pc_... --agent=http://localhost:2024 --project=${name}`}</code>
+          </pre>
           <Text variant="caption" className="opacity-60">
             {t.projectSettings.connectorKeyHint}
           </Text>

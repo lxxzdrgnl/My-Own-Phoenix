@@ -74,6 +74,8 @@ export function MembersTab() {
   } = useResourceList<Member>(membersEndpoint, { transform: membersTransform });
 
   const isOwner = currentRole === "owner";
+  // 초대코드 생성·가입요청 승낙은 editor도 허용 (역할 변경·멤버 삭제는 owner 전용)
+  const canManageMembers = currentRole === "owner" || currentRole === "editor";
 
   const loadOwnerData = useCallback(async () => {
     const [requestsRes, codesRes] = await Promise.all([
@@ -85,10 +87,10 @@ export function MembersTab() {
   }, [projectId]);
 
   useEffect(() => {
-    if (isOwner) {
+    if (canManageMembers) {
       void loadOwnerData();
     }
-  }, [isOwner, loadOwnerData]);
+  }, [canManageMembers, loadOwnerData]);
 
   const reload = useCallback(async () => {
     await reloadMembers();
@@ -226,8 +228,8 @@ export function MembersTab() {
         </Stack>
       </SectionCard>
 
-      {/* Pending Requests (owner only) */}
-      {isOwner && requests.length > 0 && (
+      {/* Pending Requests (owner or editor) */}
+      {canManageMembers && requests.length > 0 && (
         <SectionCard
           title={t.projectSettings.pendingRequests}
           actions={
@@ -257,8 +259,8 @@ export function MembersTab() {
         </SectionCard>
       )}
 
-      {/* Invite Codes (owner only) */}
-      {isOwner && (
+      {/* Invite Codes (owner or editor) */}
+      {canManageMembers && (
         <SectionCard title={t.projectSettings.inviteCodes}>
           {codes.length > 0 && (
             <Stack gap="xs" className="mb-3">
@@ -312,7 +314,7 @@ export function MembersTab() {
               </Stack>
             </div>
           ) : (
-            <RoleGate minRole="owner">
+            <RoleGate minRole="editor">
               <Button type="button" size="sm" variant="outline" onClick={() => setShowGenerate(true)}>
                 <Plus className="mr-1.5 h-3 w-3" /> {t.projectSettings.generateCode}
               </Button>
