@@ -45,6 +45,7 @@ export const ko = {
   auth: {
     signInRequired: "로그인이 필요합니다",
     signInWithGoogle: "Google로 로그인",
+    signInWithTestAccount: "테스트 계정으로 로그인",
     signInDesc: "이 기능을 사용하려면 로그인해주세요.",
     welcome: "환영합니다",
     welcomeDesc: "프로젝트에 접근하고 AI 에이전트 모니터링을 시작하려면 로그인하세요.",

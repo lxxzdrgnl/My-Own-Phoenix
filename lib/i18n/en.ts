@@ -45,6 +45,7 @@ export const en = {
   auth: {
     signInRequired: "Sign in required",
     signInWithGoogle: "Sign in with Google",
+    signInWithTestAccount: "Sign in with test account",
     signInDesc: "Please sign in to access this feature.",
     welcome: "Welcome",
     welcomeDesc: "Sign in to access your projects and start monitoring your AI agents.",

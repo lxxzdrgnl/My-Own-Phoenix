@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingState, EmptyState } from "@/components/ui/empty-state";
 import { Users, Copy, Trash2, Check, X, Plus, UserPlus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, maskEmail } from "@/lib/utils";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RoleGate } from "@/components/ui/role-gate";
 import { useT } from "@/lib/i18n";
@@ -190,8 +190,8 @@ export function MembersTab() {
           {members.map((m) => (
             <div key={m.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
               <div>
-                <Text variant="body" className="font-medium">{m.user.name || m.user.email}</Text>
-                {m.user.name && <Text variant="caption">{m.user.email}</Text>}
+                <Text variant="body" className="font-medium">{m.user.name || maskEmail(m.user.email)}</Text>
+                {m.user.name && <Text variant="caption">{maskEmail(m.user.email)}</Text>}
               </div>
               <Inline gap="sm">
                 {isOwner && m.role !== "owner" ? (

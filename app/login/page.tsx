@@ -2,7 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup } from "firebase/auth";
+import {
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
@@ -10,6 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Quote } from "lucide-react";
 import { Nav } from "@/components/nav";
 import { logger } from "@/lib/logger";
+
+// 발표 데모용 고정 테스트 계정 — 공개 데모 계정이라 노출 무방
+const TEST_ACCOUNT_EMAIL = "test@test.com";
+const TEST_ACCOUNT_PASSWORD = "test1234!";
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
@@ -28,6 +36,23 @@ export default function LoginPage() {
     } catch (err: any) {
       if (err?.code !== "auth/cancelled-popup-request") {
         logger.error("login failed", err);
+      }
+    }
+  };
+
+  const handleTestLogin = async () => {
+    try {
+      await signInWithEmailAndPassword(auth, TEST_ACCOUNT_EMAIL, TEST_ACCOUNT_PASSWORD);
+    } catch (err: any) {
+      // 계정이 아직 없으면 첫 클릭에 자동 생성 후 로그인
+      if (err?.code === "auth/user-not-found" || err?.code === "auth/invalid-credential") {
+        try {
+          await createUserWithEmailAndPassword(auth, TEST_ACCOUNT_EMAIL, TEST_ACCOUNT_PASSWORD);
+        } catch (createErr) {
+          logger.error("test account creation failed", createErr);
+        }
+      } else {
+        logger.error("test login failed", err);
       }
     }
   };
@@ -103,6 +128,15 @@ export default function LoginPage() {
                   />
                 </svg>
                 {t.auth.signInWithGoogle}
+              </Button>
+
+              <Button
+                variant="outline"
+                className="mt-3 w-full h-12 text-sm"
+                onClick={handleTestLogin}
+                disabled={loading}
+              >
+                {t.auth.signInWithTestAccount}
               </Button>
             </div>
 
